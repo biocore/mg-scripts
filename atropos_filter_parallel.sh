@@ -5,7 +5,7 @@ dir=$1
 trim_file=$2
 NPROCS=$3
 
-source /home/jede9131/miniconda3/bin/activate test_env_2
+source /home/${username}/miniconda3/bin/activate test_env_2
 
 module load bedtools_2.26.0 samtools_1.3.1 bowtie2_bowtie2-2.2.3
 
