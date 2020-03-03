@@ -1,0 +1,3 @@
+language: minimal
+install:
+  - return 0

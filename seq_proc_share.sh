@@ -1,33 +1,41 @@
 #!/bin/bash
-set -x
 
-### 263 -- no job script found
-### 265 -- data is already processing
-### 266 -- bcl already converted
-### 267 -- labadmin run directory does not exist at /opt/samplesheets/
+# Tentative error codes yielded by this script
+# 263 -- no job script found
+# 265 -- data is already processing
+# 266 -- bcl already converted
 
+# x: print commands as they are executed
+# u: no parameters can be empty
+set -xu
+
+# https://github.com/biocore/mg-scripts/issues/1
 source ~/.seqvars
+# https://github.com/biocore/mg-scripts/issues/2
 source ~/.bashrc
+# https://github.com/biocore/mg-scripts/issues/3
 source /etc/profile.d/pbs-maui.sh
 
-seqpath="$1"
-
-echo seqpath=$seqpath
-curl=$(which curl)
-
-fastq_output=$output_dir
-### mac does not support -printf unless install findutils
-### in which case you need to use gfind
+# mac does not support -printf unless install findutils
+# in which case you need to use gfind
 function platform() {
   if [[ $(uname) == 'Darwin' ]]; then
-    FIND=$(which gfind)
-    echo $FIND
+    echo `which gfind`;
   elif [[ $(uname) == 'Linux' ]]; then
-    FIND=$(which find)
-    echo $FIND
+    echo `which find`;
   fi
 }
-myfind=$(platform myvar)
+FIND=$(platform)
+
+
+
+seqpath="$1"
+echo "seqpath=$seqpath"
+curl=$(which curl)
+fastq_output=$output_dir
+
+
+
 
 function prep_data_loc() {
 ### check for RTAComplete and samplesheet
@@ -35,7 +43,7 @@ function prep_data_loc() {
 
 	if [[ -e $seqdir/RTAComplete.txt ]] && [[ ! -e $seqdir/*.csv ]]; then
 		:
-	else		
+	else
 #		echo "RTAComplete present but no sample sheet for $seqdir" | /bin/mailx -s "imcomplete information for $seqdir" \
 		#	-r ${recipient_name} <<EOF
 		return -1
@@ -58,7 +66,7 @@ function prep_data_loc() {
 		  if [[ ! -d ${seqdir}/Data/Fastq ]]; then
       mkdir -p $seqdir/Data/Fastq
       echo making output directory $seqdir/Data/Fastq
-    fi	
+    fi
       fi
       popd
       return 0
@@ -191,13 +199,13 @@ do
 			### changed output_dir=$fastq_output to $seqdir to write untrimmed files to private location
       jobnum=$(qsub -V -v seqdir="$seqdir",outputdir="$fastq_output",csvfile="$csvfile",job_o_out="$job_o_out",job_e_out="$job_e_out",base_mask="$base_mask" -N $exp_name ${bcl_template} )
 
-			
+
 			touch $fastq_output/$jobnum.txt
 			echo start date == `date` > $fastq_output/$jobnum.txt
 			echo experiment name == $exp_name >> $fastq_output/$jobnum.txt
 			echo job_id == $jobnum >> $fastq_output/$jobnum.txt
-			echo submit args == qsub -v seqdir="$seqdir",outputdir="$fastq_output",csvfile="$csvfile",job_o_out="$job_o_out",job_e_out="$job_e_out" -N $exp_name ${bcl_template} >> $fastq_output/$jobnum.txt 
-			### removed for now.  
+			echo submit args == qsub -v seqdir="$seqdir",outputdir="$fastq_output",csvfile="$csvfile",job_o_out="$job_o_out",job_e_out="$job_e_out" -N $exp_name ${bcl_template} >> $fastq_output/$jobnum.txt
+			### removed for now.
 			### this should check if assay is metagenomics
 			### if not skip
 			### if so, filter sequences and move to final output
@@ -212,7 +220,7 @@ do
       done
 
 			echo end date == `date` >> $fastq_output/$jobnum.txt
-					
+
       ### in case run spans a day change
       lock_file_age=$((($(date +%s) - $(date +%s -r $seqdir/alockfile)) / 86400 ))
 	### shouldn't need this now that we are dumb parallel
@@ -221,7 +229,7 @@ do
 				echo exit status == 0 for $jobnum >> $fastq_output/$jobnum.txt
 
 /bin/mailx -s "processing complete for project $exp_name " \
-					-a $csvfile -r jdereus@ucsd.edu $mail_some_people <<EOF	
+					-a $csvfile -r jdereus@ucsd.edu $mail_some_people <<EOF
 
 Job $jobnum complete on `date`
 Run processed for experiment $exp_name
@@ -229,8 +237,8 @@ Data located on barnacle at $fastq_output
 EOF
 
 			/bin/cp -f $csvfile $fastq_output
-			else 
-				echo exit status == $($tracejob -n${new_age} $jobnum | grep "Exit_status" | awk '{print $4}' | cut -f 2 -d"=") >> $fastq_output/$jobnum.txt	
+			else
+				echo exit status == $($tracejob -n${new_age} $jobnum | grep "Exit_status" | awk '{print $4}' | cut -f 2 -d"=") >> $fastq_output/$jobnum.txt
       fi
       :
     fi
@@ -245,7 +253,7 @@ rm $seqdir/alockfile
 function human_filter() {
 	pushd $output_dir
 
-	for dir in `ls -d */ | egrep -v 'Reports|Stats'`; 
+	for dir in `ls -d */ | egrep -v 'Reports|Stats'`;
 		do
 			sh ~/atropos_filter.sh ${output_dir}/${dir}
 		done
@@ -276,10 +284,8 @@ function concat_fastq() {
 }
 
 
-
-FIND=$(platform FIND)
-  ### check filesystem for new sequence directory
-  ### if exists, check for RTAComplete.txt files
+# Step 1: check filesystem for new sequence directory if exists, check for
+#         RTAComplete.txt files
 pushd $seqpath/
 path_count=(echo ${#raw_sequencing_loc[@]})
 declare -a newdirs=$(echo "("; $FIND $seqpath/ -maxdepth 2 ! -path $seqpath/ -type d -mtime -1 ; echo ")")
@@ -296,13 +302,13 @@ for dirpath in "${newdirs[@]}"
     seqloc=$($myfind $dirpath -maxdepth 1 ! -path $dirpath -type f -name "RTAComplete.txt")
 
 		#if [[ -e $dirpath/RTAComplete.txt ]]; then
-    seqdir=$dirpath    
-		echo seqdir==$seqdir		
+    seqdir=$dirpath
+		echo seqdir==$seqdir
     if [[ $seqloc ]]; then
       prep_data_loc "$seqdir" "$labadmin_run"
 
       if [[ $? == 0 ]]; then
-				
+
         process_data "$seqdir" "$dirpath" "$curl"
       else
         :
