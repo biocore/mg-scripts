@@ -1,3 +1,10 @@
 language: minimal
+before_install:
+  - wget https://github.com/axel-download-accelerator/axel/releases/download/v2.17.7/axel-2.17.7.tar.gz
+  - tar zxvf axel-2.17.7.tar.gz
+  - cd axel-2.17.7
+  - ./configure && make
+  - cd
+  - axel-2.17.7/axel --help
 install:
   - return 0
