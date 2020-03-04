@@ -2,6 +2,7 @@ language: minimal
 install:
   - tar zxvf data/FASTQ.tgz
   - mkdir trim-files
+  - alias qsub='sh'
 script:
   - sh bowtie_trim_qsub.sh ${PWD}/FASTQ $PWD/trim-files/ 3
   - return 0
