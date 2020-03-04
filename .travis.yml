@@ -1,9 +1,4 @@
 language: minimal
-before_install:
-  - travis/install_sge.sh
-  - export SGE_ROOT=/var/lib/gridengine
-  - export SGE_CELL=default
-  - export DRMAA_LIBRARY_PATH=/usr/lib/libdrmaa.so.1.0
 install:
   - tar zxvf data/FASTQ.tgz
   - mkdir trim-files
