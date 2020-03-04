@@ -3,6 +3,5 @@ install:
   - tar zxvf data/FASTQ.tgz
   - mkdir trim-files
 script:
-  - function qsub () { sh "$@" }
   - sh bowtie_trim_qsub.sh ${PWD}/FASTQ $PWD/trim-files/ 3
   - return 0
