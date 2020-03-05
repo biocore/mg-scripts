@@ -4,6 +4,7 @@ install:
   - mkdir trim-files
   - mkdir bin
   - echo 'echo "$@"' > bin/qsub
+  - chmod +x bin/qsub
   - export PATH=${PATH}:${PWD}/bin
 script:
   - sh bowtie_trim_qsub.sh ${PWD}/FASTQ $PWD/trim-files/ 3
