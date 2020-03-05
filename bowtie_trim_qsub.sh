@@ -5,8 +5,6 @@
 
 set -x
 
-function qsub () { sh "$@" }
-
 if [[ $# != 3 ]]; then
 	echo not enough arguments
 	echo Usage: sh bowtie_trim_qsub.sh source directory split_file_prefix num_split_files
