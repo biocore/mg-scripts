@@ -46,5 +46,3 @@ fi
 pbs_job_id=$(qsub -v dir="$dir",trim_file="$trim_file" -t 0-$(($split_count + 1)) ~/filter_job_parallel.sh)
 
 qsub -v dir="$dir" -lnodes=1:ppn=16 -lpmem=1gb ~/fastqc_parallel.sh -W depend=afterok:$pbs_job_id
- 
-
