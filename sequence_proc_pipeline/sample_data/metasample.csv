@@ -1,0 +1,38 @@
+# PI,Knight,robknight@ucsd.edu,,,,,,,,
+# Contact,Gail Ackermann,MacKenzie Bryant,Jeff Dereus,,,,,,,
+# ,ackermag@ucsd.edu,mackenzie.m.bryant@gmail.com,jdereus@ucsd.edu,,,,,,,
+[Header],,,,,,,,,,
+IEMFileVersion,4,,,,,,,,,
+Investigator Name,Knight,,,,,,,,,
+Experiment Name,RKL0072,,,,,,,,,
+Date,8/10/21,,,,,,,,,
+Workflow,GenerateFASTQ,,,,,,,,,
+Application,FASTQ Only,,,,,,,,,
+Assay,Metagenomics,,,,,,,,,
+Description,,,,,,,,,,
+Chemistry,Default,,,,,,,,,
+[Reads],,,,,,,,,,
+150,,,,,,,,,,
+150,,,,,,,,,,
+[Settings],,,,,,,,,,
+ReverseComplement,0,,,,,,,,,
+[Data],,,,,,,,,,
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Well_description
+2,X00180471_iSeq,X00180471_iSeq,THDMI_44444_PUK2,A1,iTru7_111_11,CTTCGTTC,iTru5_01_A,TTGTCGGT,iseq_44444,X00180471_iSeq
+2,X00180199_iSeq,X00180199_iSeq,THDMI_44444_PUK2,C1,iTru7_111_12,CCAATAGG,iTru5_02_A,TTGCGAAG,iseq_44444,X00180199_iSeq
+2,X00179789_iSeq,X00179789_iSeq,THDMI_44444_PUK2,E1,iTru7_112_01,ACCATCCA,iTru5_03_A,GTGGTGTT,iseq_44444,X00179789_iSeq
+2,X00180201_iSeq,X00180201_iSeq,THDMI_44444_PUK2,G1,iTru7_112_02,CACACATG,iTru5_04_A,GAGATACG,iseq_44444,X00180201_iSeq
+2,X00180464_iSeq,X00180464_iSeq,THDMI_44444_PUK2,I1,iTru7_112_03,CTTGTCGA,iTru5_05_A,TTCGTACC,iseq_44444,X00180464_iSeq
+2,X00179796_iSeq,X00179796_iSeq,THDMI_44444_PUK2,K1,iTru7_112_04,AGTCTCAC,iTru5_06_A,ATCGATCG,iseq_44444,X00179796_iSeq
+2,X00179888_iSeq,X00179888_iSeq,THDMI_44444_PUK2,M1,iTru7_112_05,AGTTGGCT,iTru5_07_A,GGTGTCTT,iseq_44444,X00179888_iSeq
+,,,,,,,,,,
+[Bioinformatics],,,,,,,,,,
+,,,,,,,,,,
+project_name,ForwardAdapter,ReverseAdapter,PolyGTrimming,HumanFiltering,QiitaID,,,,,
+iseq_44444,GATCGGAAGAGCACACGTCTGAACTCCAGTCAC,GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT,TRUE,FALSE,44444,,,,,
+,,,,,,,,,,
+[Contact},,,,,,,,,,
+jdereus@ucsd.edu,,,,,,,,,,
+ackermag@ucsd.edu,,,,,,,,,,
+mmbryant@ucsd.edu,,,,,,,,,,
+sjsong@eng.ucsd.edu,,,,,,,,,,

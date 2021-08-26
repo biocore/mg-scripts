@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+import sys
+from pathlib import Path
+from sequence_processing_pipeline.main import main as spp_main
+import json
+import logging
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
+    '''
+    seqpath = sys.argv[1]
+    labname = sys.argv[2]
+    filter_proc = True if sys.argv[3].lower() == 'true' else False
+    target = sys.argv[4]
+    file_extension = sys.argv[5]
+
+    print('Number of args: ', len(sys.argv))
+    print('Arg list: ', str(sys.argv))
+
+    # note that this could be defined by parameter, etc. This is just to re-imagine the original script in Python.
+    home_directory = Path.home()
+    bcl_human_template = "%s/seq_proc_dev/bcl_human_template.sh" % home_directory
+    bcl_human_template_slurm = "%s/seq_proc_dev/bcl_human_template_slurm.sh" % home_directory
+    bclconvert_template = "%s/seq_proc_dev/bclconvert_human_slurm.sh" % home_directory
+    bcl_template = "%s/bcl_template.sh" % home_directory
+    scan_dir = '/<user_path>/seq_proc_dev'
+
+    #UNKNOWN ENV VARIABLES:
+    seqdir = "UNKNOWN"
+    cmi_fastqc_mail_list = "UNKNOWN"
+    kl_fastqc_mail_list = "UNKNOWN"
+
+    # change to seqdir so can point to $fastq_output/Data/Fastq
+    fastq_output = seqdir
+
+    with open('sample_configuration.json', 'r') as f:
+        configuration = json.load(f)
+        output_dir = None
+
+        if labname in configuration:
+            if 'output_dir' in configuration[labname]:
+                output_dir = configuration[labname]['output_dir']
+
+        if 'nprocs' in configuration:
+            nprocs = int(configuration['nprocs'])
+            if nprocs > 16:
+                print("NPROCS cannot be set higher than 16. Defaulting to 16...")
+                nprocs = 16
+        else:
+            # default
+            nprocs = 16
+
+        #spp_main(seqpath, labname, filter_proc, target, file_extension, nprocs, scan_dir, output_dir)
+    '''
+
+    spp_main('a', 'b', 'c', 'd', 'e', 'f', './SampleDataDirectory', 'h')
