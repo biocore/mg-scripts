@@ -1,5 +1,10 @@
-# mg-scripts
-Knight Lab internal Metagenomic processing scripts for demultiplexing, QC and host removal
+# Sequencing Process Pipeline
+Python packaged implementation of our internal pipeline for generating fastqc output from sequence bcl.
+
+[ToDo: add explanation, installation instructions]
+
+# Legacy Shell Scripts
+Earlier Knight Lab internal Metagenomic processing scripts for demultiplexing, QC and host removal.
 
 The default processing steps are:
 1. seq_proc_share.sh: [ToDo: add explanation]

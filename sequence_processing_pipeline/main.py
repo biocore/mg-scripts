@@ -1,4 +1,5 @@
 import logging
+import sys
 from sequence_processing_pipeline.KnightLabPipeline import KnightLabPipeline
 
 
@@ -22,7 +23,7 @@ def main(seqpath, labname, filter_proc, target, file_extension, nprocs, scan_dir
 if __name__ == '__main__':
     # logging.basicConfig(filename='sequence_processing_pipeline.log', level=logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
-    main('a', 'b', 'c', 'd', 'e', 'f', './SampleDataDirectory', 'h')
+    main('a', 'b', 'c', 'd', 'e', 'f', sys.argv[1], 'h')
 
 
 

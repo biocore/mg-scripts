@@ -55,4 +55,4 @@ if __name__ == "__main__":
         #spp_main(seqpath, labname, filter_proc, target, file_extension, nprocs, scan_dir, output_dir)
     '''
 
-    spp_main('a', 'b', 'c', 'd', 'e', 'f', './SampleDataDirectory', 'h')
+    spp_main('a', 'b', 'c', 'd', 'e', 'f', sys.argv[1], 'h')
