@@ -1,30 +1,43 @@
 import shutil
+from shutil import SameFileError
 import pandas as pd
 import os
-from sequence_processing_pipeline.exceptions import PipelineError
 import logging
+from exceptions import PipelineError
 
 
 class SequenceDirectory:
-    def __init__(self, seq_dir, rta_file_name):
+    def __init__(self, seq_dir, rta_file_name, external_sample_sheet=None):
         logging.debug("Creating SequenceDirectory Object")
+
+        if not seq_dir:
+            raise PipelineError("SequenceDirectory object created w/out a valid value for seq_dir.")
+
+        if not rta_file_name:
+            raise PipelineError("SequenceDirectory object created w/out a valid value for rta_file_name.")
+
         self.seq_dir = seq_dir
         self.check_file = os.path.join(self.seq_dir, rta_file_name)
-        self.csv_list = []
+        self.csv_list = None
         self.mk_path = None
         self.sample_sheet_backup_directory = os.path.join(self.seq_dir, "orig_sample_sheets")
         self.map_n_count = {'12': 'I12', '8': 'I8', '0': 'I12'}
+        self.external_sample_sheet=external_sample_sheet
 
     def _get_csv_list(self):
         '''
         Return a list of CSVs found in the directory.
         :return:
         '''
+        csv_list = []
         for root, dirs, files in os.walk(self.seq_dir):
             for some_file in files:
                 # look for files that may be in upper or mixed case as well.
                 if some_file.lower().endswith('.csv'):
-                    self.csv_list.append(os.path.join(root, some_file))
+                    csv_list.append(os.path.join(root, some_file))
+
+        # if successful, attach csv_list to the object
+        self.csv_list = csv_list
 
     def _perform_sanity_checks(self):
         '''
@@ -36,35 +49,40 @@ class SequenceDirectory:
             # this before creating an SequenceDirectory object.
             raise PipelineError("RTAComplete file doesn't exist.")
 
-        if not self.csv_list:
+        if self.external_sample_sheet:
+            if not os.path.exists(self.external_sample_sheet):
+                raise PipelineError("External sample sheet %s does not exist." % self.external_sample_sheet)
+        elif self.csv_list:
+            # assume if self.csv_list exists then it is valid.
+            pass
+        else:
             # this is a fatal (with respect to this directory) error, as
             # there's no work to do.
-            raise PipelineError("RTAComplete file present, but sample sheets are not present for %s." % self.seq_dir)
+            raise PipelineError("RTAComplete file present, but sample sheets are not present for %s and an external sample sheet was not provided." % self.seq_dir)
 
+        # these checks are provided for completeness and possible future use.
         # if not os.path.exists(os.path.join(self.seq_dir, 'alockfile')):
             # raise PipelineError("data already processing? %s" % self.seq_dir)
 
-        if os.path.exists(os.path.join(self.seq_dir, 'processed')):
-            raise PipelineError("bcl conversion complete? %s" % self.seq_dir)
+        # if os.path.exists(os.path.join(self.seq_dir, 'processed')):
+            # raise PipelineError("bcl conversion complete? %s" % self.seq_dir)
 
     def prepare_data_location(self):
         '''
         Look for sample-sheets, perform sanity checks, and make directories.
         :return:
         '''
-        try:
-            self._get_csv_list()
-            self._perform_sanity_checks()
-            self.mk_path = os.path.join(self.seq_dir, "Data/Fastq")
-            os.makedirs(self.mk_path, mode=750, exist_ok=True)
-        except Exception as e:
-            logging.error(str(e))
-            # TODO: Send email notification
-            return False
+        self._get_csv_list()
+        self._perform_sanity_checks()
+        self.mk_path = os.path.join(self.seq_dir, "Data/Fastq")
 
-        # data locations have been properly vetted and directories have been
-        # made.
-        return True
+        try:
+            os.makedirs(self.mk_path, mode=750, exist_ok=True)
+        except OSError as e:
+            # this is a known potential error. Re-raise it as a
+            # PinelineError, so it gets handled in the same location as the
+            # others.
+            raise PipelineError(str(e))
 
     def _backup_sample_sheet(self, csv_file_path):
         '''
@@ -78,8 +96,7 @@ class SequenceDirectory:
         if not os.path.exists(self.sample_sheet_backup_directory):
             # just in case there is more than one level being created, we'll
             # use makedirs().
-            # TODO RESTORE mode=750 after testing os.makedirs(self.sample_sheet_backup_directory, mode=750, exist_ok=True)
-            os.makedirs(self.sample_sheet_backup_directory, exist_ok=True)
+            os.makedirs(self.sample_sheet_backup_directory, mode=750, exist_ok=True)
 
         logging.debug("BACKUP DIR: %s" % self.sample_sheet_backup_directory)
         # copy orig sample sheet to separate directory. This does NOT create
@@ -91,7 +108,14 @@ class SequenceDirectory:
         logging.debug("CSV FILE PATH: %s" % csv_file_path)
 
         # TODO: Consider handling the exception raised if this fails.
-        shutil.copyfile(csv_file_path, archived_path)
+        try:
+            shutil.copyfile(csv_file_path, archived_path)
+        except OSError as e:
+            # re-raise known possible errors as PipelineErrors.
+            raise PipelineError(str(e))
+        except SameFileError as e:
+            raise PipelineError(str(e))
+
 
     def _process_single_file(self, csv_file):
         '''
@@ -219,8 +243,14 @@ class SequenceDirectory:
 
         :return:
         '''
+
+        # use the same code to process an external csv file or included csv
+        # files. Assume one and only one of them exists for now.
+        inputs = [self.external_sample_sheet] if self.external_sample_sheet else self.csv_list
+
         results = []
-        for csv_file in self.csv_list:
+
+        for csv_file in inputs:
             logging.debug("Processing %s..." + csv_file)
 
             # first back up csv file

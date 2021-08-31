@@ -15,14 +15,13 @@ def main(seqpath, labname, filter_proc, target, file_extension, nprocs, scan_dir
     # select a subclass of Pipeline tailored to each lab.
     logging.debug('Sequence Processing Pipeline Main() Started')
 
-    pipeline = KnightLabPipeline(scan_dir, threshold_in_hours=24)
+    pipeline = KnightLabPipeline(scan_dir, younger_than=48, older_than=24)
     pipeline.process()
 
     logging.debug('Sequence Processing Pipeline Main() Completed')
 
 if __name__ == '__main__':
-    # logging.basicConfig(filename='sequence_processing_pipeline.log', level=logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG) #, filename='sequence_processing_pipeline.log')
     main('a', 'b', 'c', 'd', 'e', 'f', sys.argv[1], 'h')
 
 
