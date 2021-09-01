@@ -82,8 +82,8 @@ class Pipeline:
                 sdo = SequenceDirectory(seq_dir, self.rta_file_name)
                 sdo.prepare_data_location()
                 sdo.process_data()
-                hf = HumanFilter()
-                hf.human_filter(sdo)
+                hf = HumanFilter(sdo)
+                hf.run()
 
                 # this is technically it for the workflow itself.
                 # the thing is, it's the human_filter and other? functions that do

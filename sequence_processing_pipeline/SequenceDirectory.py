@@ -117,7 +117,7 @@ class SequenceDirectory:
             raise PipelineError(str(e))
 
 
-    def _process_single_file(self, csv_file):
+    def _process_sample_sheet(self, csv_file):
         '''
 
         :param csv_file:
@@ -259,6 +259,6 @@ class SequenceDirectory:
             # then process a single csv file
             # metadata from each processed file is added to a list of results
             # that can then be handed off for submitting jobs.
-            results.append(self._process_single_file(csv_file))
+            results.append(self._process_sample_sheet(csv_file))
 
         return results
