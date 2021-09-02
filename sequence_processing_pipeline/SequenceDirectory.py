@@ -252,7 +252,7 @@ class SequenceDirectory:
         read_df = read_df.dropna(how='all')
         logging.debug(read_df)
 
-    def process_data(self):
+    def process(self):
         '''
 
         :return:
@@ -278,5 +278,9 @@ class SequenceDirectory:
         # what this method wants to return to the user is the metadata
         # extracted from the csv file.
         results = self._process_sample_sheet(input)
+
+        results['sequence_directory'] = self.seq_dir
+        results['sample_sheet_path'] = self.external_sample_sheet if self.external_sample_sheet else self.sample_sheets[0]
+        results['experiment_name'] = 'GET FROM SAMPLE SHEET OR OTHER SOURCE'
 
         return results

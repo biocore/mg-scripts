@@ -3,7 +3,7 @@ import sys
 from sequence_processing_pipeline.KnightLabPipeline import KnightLabPipeline
 
 
-def main(seqpath, labname, should_filter, target, file_extension, nprocs, scan_dir, output_dir, younger_than, older_than):
+def main(should_filter, nprocs, scan_dir, lab_output_dir, younger_than, older_than):
     # the purpose of main() is to provide an easy entry point for users who
     # would import the package and use it. It defines the parameters needed
     # to process a directory of data.
@@ -16,9 +16,11 @@ def main(seqpath, labname, should_filter, target, file_extension, nprocs, scan_d
     logging.debug('Sequence Processing Pipeline Main() Started')
 
     pipeline = KnightLabPipeline(scan_dir,
+                                 lab_output_dir,
                                  younger_than=younger_than,
                                  older_than=older_than,
-                                 should_filter=should_filter)
+                                 should_filter=should_filter,
+                                 nprocs=nprocs)
     pipeline.process()
 
     logging.debug('Sequence Processing Pipeline Main() Completed')
@@ -28,7 +30,8 @@ if __name__ == '__main__':
     # if should_filter isn't specified as True on the command-line,
     # should_filter should default to false.
     should_filter = False
-    main('a', 'b', should_filter, 'd', 'e', 'f', sys.argv[1], 'h')
+    main(should_filter, 16, sys.argv[1], sys.argv[2], 48, 24)
+
 
 
 
