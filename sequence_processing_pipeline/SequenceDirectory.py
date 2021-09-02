@@ -3,25 +3,26 @@ from shutil import SameFileError
 import pandas as pd
 import os
 import logging
-from exceptions import PipelineError
+from sequence_processing_pipeline.exceptions import PipelineError
 
 
 class SequenceDirectory:
-    def __init__(self, seq_dir, rta_file_name, external_sample_sheet=None):
+    def __init__(self, seq_dir, external_sample_sheet=None):
         logging.debug("Creating SequenceDirectory Object")
 
         if not seq_dir:
             raise PipelineError("SequenceDirectory object created w/out a valid value for seq_dir.")
 
-        if not rta_file_name:
-            raise PipelineError("SequenceDirectory object created w/out a valid value for rta_file_name.")
-
         self.seq_dir = seq_dir
-        self.check_file = os.path.join(self.seq_dir, rta_file_name)
-        self.csv_list = None
         self.mk_path = None
         self.sample_sheet_backup_directory = os.path.join(self.seq_dir, "orig_sample_sheets")
         self.map_n_count = {'12': 'I12', '8': 'I8', '0': 'I12'}
+
+        # sample_sheets becomes a list of all samplesheet.csv files found in
+        # the usual locations. It will become populated regardless of whether
+        # or not external_sample_sheet is defined or not. However, setting the
+        # value for the latter overrides the use of the former.
+        self.sample_sheets = None
         self.external_sample_sheet=external_sample_sheet
 
     def _get_csv_list(self):
@@ -36,43 +37,57 @@ class SequenceDirectory:
                 if some_file.lower().endswith('.csv'):
                     csv_list.append(os.path.join(root, some_file))
 
-        # if successful, attach csv_list to the object
-        self.csv_list = csv_list
+        return csv_list
 
     def _perform_sanity_checks(self):
         '''
 
         :return:
         '''
-        if not os.path.exists(self.check_file):
-            # this error isn't likely to occur as Pipeline object checks for
-            # this before creating an SequenceDirectory object.
-            raise PipelineError("RTAComplete file doesn't exist.")
+        # We're not going to include a check for 'RTAComplete.txt' or similar
+        # file here as that appears to be separate from the validity of a
+        # SequenceDirectory. If it is present, it shouldn't hurt anything, but
+        # even if it's not, we can assume the directory was tested upstream
+        # to be ready.
+
+        # verify that a csv file is present in at least one of the two common
+        # places for it; the root of the directory
+
+        found_sample_sheets = []
 
         if self.external_sample_sheet:
             if not os.path.exists(self.external_sample_sheet):
                 raise PipelineError("External sample sheet %s does not exist." % self.external_sample_sheet)
-        elif self.csv_list:
-            # assume if self.csv_list exists then it is valid.
-            pass
         else:
-            # this is a fatal (with respect to this directory) error, as
-            # there's no work to do.
-            raise PipelineError("RTAComplete file present, but sample sheets are not present for %s and an external sample sheet was not provided." % self.seq_dir)
+            csv_list = self._get_csv_list()
+
+            common_locations_for_sample_sheets = ['/SampleSheet.csv', '/Data/Intensities/BaseCalls/SampleSheet.csv']
+
+            for some_path in csv_list:
+                relative_path = some_path.replace(self.seq_dir, '')
+                if relative_path in common_locations_for_sample_sheets:
+                    logging.info("Sample sheet found: %s" % some_path)
+                    found_sample_sheets.append(some_path)
+                else:
+                    logging.warning("Sample sheet found in unusual location: %s" % some_path)
+
+            if not found_sample_sheets:
+                raise PipelineError("A sample sheet could not be found in either %s or %s/Data/Intensities/BaseCalls." % (self.seq_dir, self.seq_dir))
+
+        self.sample_sheets = found_sample_sheets
 
         # these checks are provided for completeness and possible future use.
         # if not os.path.exists(os.path.join(self.seq_dir, 'alockfile')):
-            # raise PipelineError("data already processing? %s" % self.seq_dir)
+        # raise PipelineError("data already processing? %s" % self.seq_dir)
 
         # if os.path.exists(os.path.join(self.seq_dir, 'processed')):
-            # raise PipelineError("bcl conversion complete? %s" % self.seq_dir)
+        # raise PipelineError("bcl conversion complete? %s" % self.seq_dir)
 
-    def prepare_data_location(self):
+    def _prepare_data_location(self):
         '''
         Look for sample-sheets, perform sanity checks, and make directories.
         :return:
         '''
-        self._get_csv_list()
         self._perform_sanity_checks()
         self.mk_path = os.path.join(self.seq_dir, "Data/Fastq")
 
@@ -115,7 +130,6 @@ class SequenceDirectory:
             raise PipelineError(str(e))
         except SameFileError as e:
             raise PipelineError(str(e))
-
 
     def _process_sample_sheet(self, csv_file):
         '''
@@ -243,22 +257,26 @@ class SequenceDirectory:
 
         :return:
         '''
+        # first, prepare the directory
+        self._prepare_data_location()
 
         # use the same code to process an external csv file or included csv
         # files. Assume one and only one of them exists for now.
-        inputs = [self.external_sample_sheet] if self.external_sample_sheet else self.csv_list
+        # assume that if self.external_sample_sheet is None, then
+        # self.sample_sheets has at least one entry or else we wouldn't have
+        # made it to this method. Take the first path as we can assume that is
+        # the one in the root of the directory, if it exists.
+        input = self.external_sample_sheet if self.external_sample_sheet else self.sample_sheets[0]
 
-        results = []
+        logging.debug("Processing %s..." + input)
 
-        for csv_file in inputs:
-            logging.debug("Processing %s..." + csv_file)
+        # first back up csv file
+        self._backup_sample_sheet(input)
 
-            # first back up csv file
-            self._backup_sample_sheet(csv_file)
+        # then process a single csv file
 
-            # then process a single csv file
-            # metadata from each processed file is added to a list of results
-            # that can then be handed off for submitting jobs.
-            results.append(self._process_sample_sheet(csv_file))
+        # what this method wants to return to the user is the metadata
+        # extracted from the csv file.
+        results = self._process_sample_sheet(input)
 
         return results

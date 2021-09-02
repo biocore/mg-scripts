@@ -1,6 +1,6 @@
 import os
 import logging
-from exceptions import PipelineError
+from sequence_processing_pipeline.exceptions import PipelineError
 import re
 
 
@@ -239,3 +239,121 @@ class HumanFilter:
 
         for run_config_path in run_config_paths:
             self._process_single_run_config_file(run_config_path)
+
+'''
+function human_filter() {
+  #output_dir=$fastq_output/Data/Fastq
+  #pushd $output_dir
+if [[ ! -e ${seqdir}/run_config.txt ]]; then
+  run_param "@"
+fi
+
+  ### temporary callout here?????
+  fastq_output="${seqdir}/Data/Fastq"
+  pushd $seqdir
+
+  ### check run_config.txt for duplicate line_per_split
+  ### possible same project run on multiple samplesheets
+  < run_config.txt sort | uniq > uniq_run_config.txt
+
+  while IFS=" " read project adapter_a adapter_A a_trim h_filter qiita_proj; do
+  #while read line; do
+  #for line in `cat ${seqdir}/run_config.txt`; do
+
+    proj_check=$(echo $project | awk -F_ '{print $NF}')
+    #if [[ $proj_check != $qiita_proj ]]; then
+  #    echo "mismatch ${seqdir}" | mailx -s "data mismatch project $project" -r jdereus@ucsd.edu
+      ### email someone that things don't match
+    #else
+    echo $project $adapter_a $adapter_A $a_trim $h_filter $qiita_proj
+
+    ### remove any trailing newlines (^M) from variable
+    qiita_proj=$(echo -n $qiita_proj)
+    qiita_proj=$(echo "$qiita_proj"|tr -d '\r')
+    #eval $( echo $line | awk '{project=$1; adapter_a=$2; adapter_A=$3; a_trim=$4; h_filter=$5; qiita_proj=$6; print project, adapter_a, adapter_A, a_trim, h_filter, qiita_proj}' )
+    #pushd ${output_dir}/$project
+    pushd ${fastq_output}/${project}
+      input_count=$(ls ${fastq_output}/${project}/*R1*.fastq.gz | wc -l)
+
+      if [[ "${input_count}" -gt "2000" ]]; then
+        split_count=16
+      elif [[ "${input_count}" -le "2000" && "${input_count}" -gt "1000" ]]; then
+        split_count=10
+      elif [[ "${input_count}" -le "1000" && "${input_count}" -gt "500" ]]; then
+        split_count=4
+      else
+        split_count=1
+      fi
+
+      if [[ -z $trim_file ]]; then
+      	trim_file=split_file_
+      fi
+
+      job_count=$(($split_count + 1))
+      file_base=$(basename $seqdir)
+
+      if [[ -e ${trim_file}* ]]; then
+        rm -fv ${trim_file}*
+      fi
+
+      find . -maxdepth 1 -name "*.fastq.gz" -type f | grep "_R1_" | cut -f2 -d"/" > ${file_base}_file_list.txt
+      #ls | grep *.fastq.gz > ${file_base}_file_list.txt
+      line_count=$(cat ${file_base}_file_list.txt | wc -l)
+      line_per_split=$(( $(( $line_count + $split_count -1 ))/$split_count ))
+
+      split -l $line_per_split -d ${file_base}_file_list.txt split_file_; rename ${trim_file}0 ${trim_file} ${trim_file}*
+      if [[ ${line_count} -eq "0" ]]; then
+        :
+      fi
+  cat > ${seqdir}/Data/Fastq/${project}/${file_base}_qsub.sh <<-EOF
+#!/bin/bash
+#SBATCH --job-name=${project}_%A_%a
+#SBATCH --ntasks=${NPROCS}
+#SBATCH --ntasks-per-node=${NPROCS}
+#SBATCH --export=ALL
+#SBATCH --time=72:00:00
+#SBATCH --mem-per-cpu=6G
+#SBATCH --output=${HOME}/filter_jobs/%x_%A_%a.out
+#SBATCH --error=${HOME}/filter_jobs/%x_%A_%a.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=${email_final[@]}
+###jdereus@ucsd.edu
+
+source ~/miniconda3/bin/activate test_env_2
+
+file=${trim_file}\${SLURM_ARRAY_TASK_ID}
+#CHARLIE FOR REAL WE NEED TO DO THIS
+cmd="sh ~/seq_proc_dev/fpmmp.sh -d $seqdir -D /Data/Fastq -S ${trim_file}\${SLURM_ARRAY_TASK_ID} -p $project -C $chemistry -c $NPROCS -o ${output_dir} -O $(basename $seqdir) -a $adapter_a -A $adapter_A -g $a_trim -G $h_filter -q $qiita_proj -f $final_output_dir"
+
+echo "\$cmd"
+date
+echo 'Executing: "\$cmd" '
+eval "\$cmd"
+date
+EOF
+
+    pbs_job_id=$(sbatch --qos=seq_proc --parsable --array=0-$(($split_count - 1)) ${seqdir}/Data/Fastq/${project}/${file_base}_qsub.sh)
+
+    ### this should never fail as it only is executed while there is another project to process
+    ### first time through
+    #if [[ -z $pbs_job_list ]]; then
+      #pbs_job_list="-W depend=afterokarray:$pbs_job_id"
+      pbs_job_array="--dependency=afterok:$pbs_job_id"
+
+    if [[ -z proj_array ]]; then
+      proj_array=$project
+    else
+      proj_array+=$project
+    fi
+
+  ### submit fastqc for current project directory
+  fastqc_process "${seqdir}" "${output_dir}" "${fastq_output}" "${pbs_job_id}" "${pbs_job_array}" "${proj_array[@]}"
+
+  ### out of project directory
+  popd
+
+done < ${seqdir}/uniq_run_config.txt
+	popd
+
+}
+'''

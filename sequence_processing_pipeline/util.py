@@ -34,8 +34,7 @@ def system_call(cmd):
     the authors of this function to port it to Qiita and keep it under BSD
     license.
     """
-    proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE,
-                 stderr=PIPE)
+    proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE, stderr=PIPE)
     # Communicate pulls all stdout/stderr from the PIPEs
     # This call blocks until the command is done
     stdout, stderr = proc.communicate()
