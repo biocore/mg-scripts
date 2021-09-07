@@ -1,41 +1,117 @@
-import logging
-import shutil
-from time import time as epoch_time
-import os
-import time
-from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
-from sequence_processing_pipeline.exceptions import PipelineError
-from sequence_processing_pipeline.HumanFilter import HumanFilter
-from sequence_processing_pipeline.util import system_call
-from time import sleep
-from datetime import datetime
-import pandas as pd
 from sequence_processing_pipeline.BCLConvertJob import BCLConvertJob
 from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
+from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
+from sequence_processing_pipeline.exceptions import PipelineError
+from time import time as epoch_time
+import logging
+import os
+import pandas as pd
 
 
 class Pipeline:
-    def __init__(self, root_dir, output_dir, final_output_dir, younger_than=48, older_than=24, should_filter=False, nprocs=16):
-        """
-        Base class to define Pipelines for different Labs
-        root_dir can be a single directory containing an RTAComplete.txt file
-        or it can be a directory of directories containing RTAComplete.txt files.
-        :param root_dir:
-        """
-        logging.debug("Creating Pipeline Object")
-        self.root_dir = root_dir
+    # TODO: We need to change final_output_directory so that it if there are
+    #  multiple output directories they can all be under output_directory.
+    #  Really these are the outputs of stages.
+    def __init__(self, input_directory, output_directory,
+                 final_output_directory, younger_than=48,
+                 older_than=24, nprocs=16, should_filter=False):
+        self.root_dir = input_directory
         logging.debug("Root directory: %s" % self.root_dir)
         self.sentinel_file = "RTAComplete.txt"
         logging.debug("Sentinel File Name: %s" % self.sentinel_file)
         # internally, threshold will be represented in seconds
         self.younger_than = younger_than * 60 * 60
         self.older_than = older_than * 60 * 60
-        logging.debug("Filter directories younger than %d hours old" % younger_than)
-        logging.debug("Filter directories older than %d hours old" % older_than)
+        s = "Filter directories younger than %d hours old" % younger_than
+        logging.debug(s)
+        s = "Filter directories older than %d hours old" % older_than
+        logging.debug(s)
         self.should_filter = should_filter
         self.nprocs = nprocs
-        self.output_dir = output_dir
-        self.final_output_dir = final_output_dir
+        self.output_dir = output_directory
+        self.final_output_dir = final_output_directory
+
+    def process(self):
+        '''
+        Process a path containing multiple BCL directories.
+        Assume that sample sheets are stored w/in each directory.
+        Assume that filtering directories using timestamps will detect
+         the new directories.
+        :return:
+        '''
+        directories_found = self._find_bcl_directories()
+        results = self._filter_directories_for_time(directories_found)
+        filtered_dirs_w_timestamps = results
+
+        for sequence_directory, timestamp in filtered_dirs_w_timestamps:
+            try:
+                sdo = SequenceDirectory(sequence_directory)
+                sample_sheet_params = sdo.process()
+                s = sample_sheet_params['sample_sheet_path']
+                self._generate_run_config_file(s)
+                job_params = self._prep_function(sample_sheet_params)
+
+                bcl_convert_job = BCLConvertJob(self.root_dir,
+                                                self.should_filter)
+
+                bcl_convert_job.run(sample_sheet_params['sequence_directory'],
+                                    sample_sheet_params['sample_sheet_path'],
+                                    job_params['base_mask'],
+                                    sample_sheet_params['experiment_name'],
+                                    job_params['bclconvert_template'],
+                                    job_params['root_sequence'])
+
+                # once the job has finished successfully (if it doesn't, it'll
+                # raise an PipelineError), follow up with human-filtering.
+
+                # TODO REVISIT THIS LOOP
+                human_filter_job = HumanFilterJob(sdo, self.nprocs,
+                                                  self.output_dir,
+                                                  self.final_output_dir)
+
+                human_filter_job.run()
+
+            except PipelineError as e:
+                logging.error(e)
+
+    def process_one(self, sample_sheet_path):
+        '''
+        Process a single BCL directory.
+        Assume sample sheet is supplied externally.
+        Assume directory doesn't require time period checking.
+        :param sample_sheet:
+        :return:
+        '''
+        try:
+            sdo = SequenceDirectory(self.root_dir,
+                                    external_sample_sheet=sample_sheet_path)
+            sample_sheet_params = sdo.process()
+            s = sample_sheet_params['sample_sheet_path']
+            self._generate_run_config_file(s)
+            job_params = self._prep_function(sample_sheet_params)
+
+            bcl_convert_job = BCLConvertJob(self.root_dir,
+                                            self.should_filter)
+
+            bcl_convert_job.run(sample_sheet_params['sequence_directory'],
+                                sample_sheet_params['sample_sheet_path'],
+                                job_params['base_mask'],
+                                sample_sheet_params['experiment_name'],
+                                job_params['bclconvert_template'],
+                                job_params['root_sequence'])
+
+            # once the job has finished successfully (if it doesn't, it'll
+            # raise an PipelineError), follow up with human-filtering.
+
+            # TODO REVISIT THIS LOOP
+            human_filter_job = HumanFilterJob(sdo, self.nprocs,
+                                              self.output_dir,
+                                              self.final_output_dir)
+
+            human_filter_job.run()
+
+        except PipelineError as e:
+            logging.error(e)
 
     def _time_is_right(self, timestamp):
         # calculate how old the timestamp is
@@ -48,10 +124,10 @@ class Pipeline:
 
         return False
 
-    def _find_scan_directories(self):
+    def _find_bcl_directories(self):
         """
         Walk root directory and locate all scan directory root folders
-        :return:
+        :return: list of BCL directories within root folder.
         """
         new_dirs = []
 
@@ -64,7 +140,8 @@ class Pipeline:
                     # subdirectories. By collecting these subdirectories
                     # and extracting the root directory of each one, we can
                     # build a set of unique root directories.
-                    some_path = some_path.split('/Data/Intensities/BaseCalls')[0]
+                    s = some_path.split('/Data/Intensities/BaseCalls')[0]
+                    some_path = s
                     new_dirs.append(some_path)
 
         # remove duplicates
@@ -77,8 +154,8 @@ class Pipeline:
 
     def _filter_directories_for_time(self, new_dirs):
         """
-        Scan for new sequencing raw data folders
-        :return:
+        Filter directories for those that match allowed timespan.
+        :return: list of BCL directories within timespan.
         """
         filtered_dirs = []
         for some_path in new_dirs:
@@ -92,20 +169,18 @@ class Pipeline:
                 # completed data',then this directory is a legitimate
                 # target.
                 if self._time_is_right(some_timestamp):
-                    formatted_ts = time.strftime('%m/%d/%Y %H:%M:%S (US/Pacific)', time.localtime(some_timestamp))
-                    logging.info("Target found: %s\tTimestamp: %s" % (some_path, formatted_ts))
                     # save the path as well as the original epoch timestamp
                     # as a tuple.
                     filtered_dirs.append((some_path, some_timestamp))
                 else:
-                    logging.debug("The timestamp for %s is not within bounds." % some_path)
+                    s = "The timestamp for {} is not within bounds."
+                    logging.debug(s.format(some_path))
             else:
                 # This is a warning, rather than an error because a
                 # directory of BCL directories would be a valid parameter,
                 # even though it doesn't contain BCL data itself.
-                logging.warning("%s does not contain a file named '%s'." % (some_path, self.sentinel_file))
-
-        logging.debug("%d new directories found." % len(filtered_dirs))
+                s = "{} does not contain a file named '{}'."
+                logging.warning(s.format(some_path, self.sentinel_file))
 
         return filtered_dirs
 
@@ -149,7 +224,7 @@ class Pipeline:
                     # lines to the list buffer. Don't include this
                     # header line, either.
                     sentinel = False
-                elif sentinel == True:
+                elif sentinel is True:
                     # this should be a line in between
                     # [Bioinformatics] and the next section. Copy it
                     # to the buffer.
@@ -160,11 +235,12 @@ class Pipeline:
 
             # remove duplicate lines (this appears to be an issue in
             # the original bash scripts.)
-            l = list(set(metadata))
-            l.sort()
+            metadata = list(set(metadata))
+            metadata.sort()
 
             # write the sanitized data out to legacy file.
-            run_config_file_path = os.path.join(self.root_dir, 'run_config.txt')
+            s = os.path.join(self.root_dir, 'run_config.txt')
+            run_config_file_path = s
             with open(run_config_file_path, 'w') as f2:
                 for line in metadata:
                     # end lines w/proper UNIX-style newline, unless
@@ -189,11 +265,11 @@ class Pipeline:
                     sentinel = True
                 elif lines[i].startswith('['):
                     sentinel = False
-                elif sentinel == True:
+                elif sentinel is True:
                     metadata.append(lines[i])
 
-            l = list(set(metadata))
-            l.sort()
+            metadata = list(set(metadata))
+            metadata.sort()
 
             return metadata
 
@@ -216,7 +292,7 @@ class Pipeline:
                     sentinel = True
                 elif lines[i].startswith('['):
                     sentinel = False
-                elif sentinel == True:
+                elif sentinel is True:
                     count = len(lines[i].split(','))
                     logging.debug("Column Count (+1 over legacy): %s" % count)
                     return count
@@ -239,7 +315,7 @@ class Pipeline:
                     sentinel = True
                 elif lines[i].startswith('['):
                     sentinel = False
-                elif sentinel == True:
+                elif sentinel is True:
                     reads.append(lines[i])
 
             logging.debug("Reads: %s" % reads)
@@ -249,46 +325,8 @@ class Pipeline:
             elif len(reads) == 2:
                 return reads[0], reads[1]
 
-            raise PipelineError("_get_reads() found an unexpected number of values in %s" % sample_sheet_path)
-
-    def process(self):
-        """
-        Process data.
-        :return:
-        """
-        new_dirs = self._find_scan_directories()
-        new_dirs = self._filter_directories_for_time(new_dirs)
-
-        for seq_dir, timestamp in new_dirs:
-            try:
-                sdo = SequenceDirectory(seq_dir)
-                sample_sheet_params = sdo.process()
-                # should this method be moved to SequenceDirectory object?
-                self._generate_run_config_file(sample_sheet_params['sample_sheet_path'])
-                # this should be included in info in sample_sheet_params
-                # contact_info = self._get_contact_information(sample_sheet_params['sample_sheet_path'])
-                job_params = self.prep_function(sample_sheet_params)
-
-                bcl_convert_job = BCLConvertJob(self.root_dir, self.should_filter)
-
-                bcl_convert_job.run(sample_sheet_params['sequence_directory'],
-                                        sample_sheet_params['sample_sheet_path'],
-                                        job_params['base_mask'],
-                                        sample_sheet_params['experiment_name'],
-                                        job_params['bclconvert_template'],
-                                        job_params['root_sequence'])
-
-                # once the job has finished successfully (if it doesn't, it'll
-                # raise an PipelineError), follow up with human-filtering.
-
-                human_filter_job = HumanFilterJob(sdo, self.nprocs, self.output_dir, self.final_output_dir)
-
-                human_filter_job.run()
-
-
-            except PipelineError as e:
-                logging.error(e)
-                # send out email notifications - or make the call to Qiita to let them know here.
+            s = "_get_reads() found an unexpected number of values in {}"
+            raise PipelineError(s.format(sample_sheet_path))
 
     def _process_sample_sheet(self, csv_file):
         '''
@@ -332,7 +370,8 @@ class Pipeline:
 
             # assemble dictionary for csv variables
 
-            keyword_list = ['Experiment', 'Assay', 'Chemistry', 'ReverseComplement']
+            keyword_list = ['Experiment', 'Assay', 'Chemistry',
+                            'ReverseComplement']
             info_df = pd.DataFrame()
 
             for keyword in keyword_list:
@@ -365,21 +404,24 @@ class Pipeline:
                     # we should do that.
                     job_index_val = self.map_n_count[n_count]
 
-            base_mask = "--use-bases-mask Y150,%s,%s,Y150" % (job_index_val, job_index_val)
+            base_mask = "--use-bases-mask Y150,{},{},Y150"
+            base_mask = base_mask.format(job_index_val, job_index_val)
 
-            ### check to see if both Read values are present at 150/151
-            ### if both, direction==2
-            ### else direction==1
-            ### used for bases-mask in bcl2fastq
-            ### pull from read_df or develop other method
+            # check to see if both Read values are present at 150/151
+            # if both, direction==2
+            # else direction==1
+            # used for bases-mask in bcl2fastq
+            # pull from read_df or develop other method
 
-            ### replace N strings if Amplicon Sample sheets with blank for processing.
-            ### can be moved to where we parse chemistry variable.
-            ### we have already copied original to backup location.
-            ### create new sample sheet with same name as original, removing false barcodes
+            # replace N strings if Amplicon Sample sheets with blank for
+            # processing.
+            # can be moved to where we parse chemistry variable.
+            # we have already copied original to backup location.
+            # create new sample sheet with same name as original, removing
+            # false barcodes
             csv_1 = open(csv_file, 'r')
 
-            ### should check to see if NNNNNNNN is present but this is historical
+            # should check to see if NNNNNNNN is present but this is historical
             csv_1 = ''.join([i for i in csv_1]).replace("NNNNNNNNNNNN", "")
 
             # I think instead of making a '.bak' file, reading the original
@@ -411,18 +453,16 @@ class Pipeline:
         read_df = read_df.dropna(how='all')
         logging.debug(read_df)
 
-    def prep_function(self, sample_sheet_path):
+    def _prep_function(self, sample_sheet_path):
         '''
         Get the metadata needed to submit a job.
         :param sample_sheet_path:
         :return:
         '''
-        rn1, rn2 = self._get_reads(sample_sheet_path)
+        rn1, rn2 = self._get_reads(sample_sheet_path)q
         direction = 2 if rn2 else 1
-        job_read_val = 'Y' + str(rn1)
+        job_read_val = 'Y' + str(rn1)q
         column_count = self._get_column_count(sample_sheet_path)
-
-
 
         '''
           if [[ $column_count -eq "8" ]]; then
@@ -450,8 +490,8 @@ class Pipeline:
             job_index_val="I12"
           fi
 
-          ### if index 7 == NNNNNNNNNNNN then must be metagenomic with multiple rows
-          ### because of additional first column
+          # if index 7 == NNNNNNNNNNNN then must be metagenomic with multiple rows
+          # because of additional first column
           if [[ $index_value_7 -eq "NNNNNNNNNNNN" ]]; then
             sed -i.bak s/NNNNNNNNNNNN/g $csvfile
             job_index_val="I12"
@@ -503,9 +543,4 @@ class Pipeline:
         job_params = { 'base_mask': base_mask, 'bclconvert_template': bclconvert_template, 'root_sequence': root_sequence }
 
         return job_params
-
-
-
-
-
 

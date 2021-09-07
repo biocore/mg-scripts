@@ -4,9 +4,10 @@ from sequence_processing_pipeline.Job import Job
 
 
 class HumanFilterJob(Job):
-    def __init__(self, SequenceDirectoryObject, nprocs, job_owner_home, email_list, chemistry, output_dir, final_output_dir):
+    def __init__(self, SequenceDirectoryObject, nprocs, job_owner_home,
+                 email_list, chemistry, output_dir, final_output_dir):
         self.sdo = SequenceDirectoryObject
-        self.seq_dir = self.sdo.seq_dir
+        self.seq_dir = self.sdo.sequence_directory
         self.csv_files = []
         self.nprocs = nprocs
         self.home = job_owner_home
@@ -50,7 +51,7 @@ class HumanFilterJob(Job):
                     # lines to the list buffer. Don't include this
                     # header line, either.
                     sentinel = False
-                elif sentinel == True:
+                elif sentinel is True:
                     # this should be a line in between
                     # [Bioinformatics] and the next section. Copy it
                     # to the buffer.
@@ -61,15 +62,17 @@ class HumanFilterJob(Job):
 
             # remove duplicate lines (this appears to be an issue in
             # the original bash scripts.) and sort.
-            l = list(set(metadata)).sort()
+            metadata = list(set(metadata))
+            metadata.sort()
 
             # before returning, split each line into a list, so it's
             # easier to iterate through each line of values.
-            return [x.split(',') for x in l]
+            return [x.split(',') for x in metadata]
 
-    def _split_list(self, original_list, lines_per_file, file_prefix, file_extension, destination_path):
+    def _split_list(self, original_list, lines_per_file, file_prefix,
+                    file_extension, destination_path):
         def _chunk_list(some_list, n):
-            # taken from https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+            # taken from https://bit.ly/38S9O8Z
             for i in range(0, len(some_list), n):
                 yield some_list[i:i + n]
 
@@ -89,9 +92,9 @@ class HumanFilterJob(Job):
         return new_files
 
     def create_qsub_file(self, seq_dir, project, file_base, home_dir,
-                            email_list, trim_file, slurm_array_task_id,
-                            chemistry, output_dir, adapter_a, adapter_A,
-                            a_trim, h_filter, qiita_proj, final_output_dir):
+                         email_list, trim_file, slurm_array_task_id,
+                         chemistry, output_dir, adapter_a, adapter_A,
+                         a_trim, h_filter, qiita_proj, final_output_dir):
         lines = []
         lines.append("#!/bin/bash")
         lines.append("#SBATCH --job-name={}_%A_%a".format(project))
@@ -102,22 +105,28 @@ class HumanFilterJob(Job):
         lines.append("#SBATCH --time=72:00:00")
         # assuming for now that 6G is proper for all jobs.
         lines.append("#SBATCH --mem-per-cpu=6G")
-        lines.append("#SBATCH --output={}/filter_jobs/%x_%A_%a.out".format(home_dir))
-        lines.append("#SBATCH --error={}/filter_jobs/%x_%A_%a.err".format(home_dir))
+        s = "#SBATCH --output={}/filter_jobs/%x_%A_%a.out".format(home_dir)
+        lines.append(s)
+        s = "#SBATCH --error={}/filter_jobs/%x_%A_%a.err".format(home_dir)
+        lines.append(s)
         lines.append("#SBATCH --mail-type=ALL")
         lines.append("#SBATCH --mail-user=%s" % ','.join(email_list))
         # assume for now this hardcoded path is acceptable
         lines.append("source ~/miniconda3/bin/activate test_env_2")
         # assume for now the backslash below is intentional
-        lines.append("file=%s\%s" % (trim_file, slurm_array_task_id))
-        lines.append('cmd="sh ~/seq_proc_dev/fpmmp.sh -d %s -D /Data/Fastq -S %s\%s -p %s -C %s -c %d -o %s -O %s -a %s -A %s -g %s -G %s -q %s -f %s"' % (seq_dir, trim_file, slurm_array_task_id, project, chemistry, self.nprocs, output_dir, os.path.basename(seq_dir), adapter_a, adapter_A, a_trim, h_filter, qiita_proj, final_output_dir))
+        lines.append("file={}\\{}".format(trim_file, slurm_array_task_id))
+        lines.append(
+            'cmd="sh ~/seq_proc_dev/fpmmp.sh -d %s -D /Data/Fastq -S %s\%s -p %s -C %s -c %d -o %s -O %s -a %s -A %s -g %s -G %s -q %s -f %s"' % (
+            seq_dir, trim_file, slurm_array_task_id, project, chemistry, self.nprocs, output_dir,
+            os.path.basename(seq_dir), adapter_a, adapter_A, a_trim, h_filter, qiita_proj, final_output_dir))
         lines.append('echo "$cmd"')
         lines.append("date")
         lines.append("echo 'Executing: \"$cmd\"'")
         lines.append('eval "$cmd"')
         lines.append("date")
 
-        file_path = os.path.join(seq_dir, 'Data/Fastq', project, file_base + '_qsub.sh')
+        file_path = os.path.join(seq_dir, 'Data', 'Fastq', project,
+                                 f'{file_base}_qsub.sh')
         if os.path.exists(file_path):
             logging.error("%s is being overwritten." % file_path)
 
@@ -129,12 +138,12 @@ class HumanFilterJob(Job):
         metadata = self._get_run_config_info(sample_sheet_path)
         fastq_output = os.path.join(seq_dir, 'Data', 'Fastq')
 
-        for read, project, forward_adapter, reverse_adapter, polyg_trimming, human_filtering, qiita_id in metadata:
+        for read, proj, f_adapter, r_adapter, trim, hfilter, qid in metadata:
             # extract the numerical component from the project string:
             # nnnnnn_ddddd
-            proj_check = project.split('_')[-1]
+            proj_check = proj.split('_')[-1]
             input_count = 0
-            working_dir = os.path.join(fastq_output, project)
+            working_dir = os.path.join(fastq_output, proj)
             for root, dirs, files in os.walk(working_dir):
                 for some_file in files:
                     if some_file.endswith('.fastq.gz'):
@@ -174,46 +183,43 @@ class HumanFilterJob(Job):
             line_count = len(file_base_file_list)
             lines_per_split = (line_count + split_count - 1) / split_count
 
-            self._split_list(file_base_file_list, lines_per_split, trim_file, 'extension', working_dir)
+            self._split_list(file_base_file_list, lines_per_split, trim_file,
+                             'extension', working_dir)
 
-            # TODO: Modify create_qsub_file to take the member variables directly.
+            # TODO: Modify create_qsub_file to take the member variables
+            #  directly.
 
             self.create_qsub_file(self.seq_dir,
-                                    project,
-                                    file_base,
-                                    self.home,
-                                    self.email_list,
-                                    trim_file,
-                                    slurm_array_task_id,
-                                    self.chemistry,
-                                    self.output_dir,
-                                    forward_adapter,
-                                    reverse_adapter,
-                                    polyg_trimming,
-                                    human_filtering,
-                                    qiita_id,
-                                    self.final_output_dir)
+                                  proj,
+                                  file_base,
+                                  self.home,
+                                  self.email_list,
+                                  trim_file,
+                                  slurm_array_task_id,
+                                  self.chemistry,
+                                  self.output_dir,
+                                  f_adapter,
+                                  r_adapter,
+                                  trim,
+                                  hfilter,
+                                  qid,
+                                  self.final_output_dir)
 
             cmd = ['sbatch',
                    '--qos=seq_proc',
                    '--parsable',
-                   '--array=0-%d' % split_count - 1,
-                   os.path.join(seq_dir, 'Data', 'Fastq', project, file_base + '_qsub.sh')]
+                   '--array=0-%d' % int(split_count) - 1,
+                   os.path.join(seq_dir, 'Data', 'Fastq',
+                                proj, file_base + '_qsub.sh')]
 
             # TODO We may or may not want to wait
             pbs_job_id = self.execute_sbatch_job_and_wait(cmd)
 
             pbs_job_array = "--dependency=afterok:$pbs_job_id"
 
-            proj_array = project
+            proj_array = proj
 
             # TODO FastQCJobs should be created from the Pipeline, rather than
             #  within another job.
             ### submit fastqc for current project directory
             # fastqc_process "${seqdir}" "${output_dir}" "${fastq_output}" "${pbs_job_id}" "${pbs_job_array}" "${proj_array[@]}"
-
-
-
-
-
-
