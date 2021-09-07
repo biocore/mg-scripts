@@ -5,7 +5,6 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
 import logging
 import os
-import pandas as pd
 
 
 class Pipeline:
@@ -34,6 +33,7 @@ class Pipeline:
         # hard-code for now
         self.job_owner_home = '/home/jdereus'
         self.email_list = ['jdereus@health.ucsd.edu', 'ccowart@ucsd.edu']
+        self.bclconvert_template = "{}/seq_proc_dev/bclconvert_human_slurm.sh".format(self.job_owner_home)
 
     def process(self):
         '''
@@ -52,21 +52,19 @@ class Pipeline:
                 sdo = SequenceDirectory(sequence_directory)
                 sample_sheet_params = sdo.process()
                 s = sample_sheet_params['sample_sheet_path']
+
                 self._generate_run_config_file(s)
-                job_params = self._prep_function(sample_sheet_params)
 
                 bcl_convert_job = BCLConvertJob(self.root_dir,
                                                 self.should_filter)
 
                 bcl_convert_job.run(sample_sheet_params['sequence_directory'],
                                     sample_sheet_params['sample_sheet_path'],
-                                    job_params['base_mask'],
+                                    sample_sheet_params['base_mask'],
                                     sample_sheet_params['experiment_name'],
-                                    job_params['bclconvert_template'],
-                                    job_params['root_sequence'])
+                                    self.bclconvert_template)
 
                 chemistry = sample_sheet_params['chemistry']
-                slurm_array_task_id = 'UNKNOWN'
 
                 human_filter_job = HumanFilterJob(sdo,
                                                   self.nprocs,
@@ -78,8 +76,7 @@ class Pipeline:
 
                 p1 = sample_sheet_params['sample_sheet_path']
                 p2 = sample_sheet_params['sequence_directory']
-                p3 = slurm_array_task_id
-                human_filter_job.run(p1, p2, p3)
+                human_filter_job.run(p1, p2)
 
             except PipelineError as e:
                 logging.error(e)
@@ -97,21 +94,19 @@ class Pipeline:
                                     external_sample_sheet=sample_sheet_path)
             sample_sheet_params = sdo.process()
             s = sample_sheet_params['sample_sheet_path']
+
             self._generate_run_config_file(s)
-            job_params = self._prep_function(sample_sheet_params)
 
             bcl_convert_job = BCLConvertJob(self.root_dir,
                                             self.should_filter)
 
             bcl_convert_job.run(sample_sheet_params['sequence_directory'],
                                 sample_sheet_params['sample_sheet_path'],
-                                job_params['base_mask'],
+                                sample_sheet_params['base_mask'],
                                 sample_sheet_params['experiment_name'],
-                                job_params['bclconvert_template'],
-                                job_params['root_sequence'])
+                                self.bclconvert_template)
 
             chemistry = sample_sheet_params['chemistry']
-            slurm_array_task_id = 'UNKNOWN'
 
             human_filter_job = HumanFilterJob(sdo,
                                               self.nprocs,
@@ -121,9 +116,9 @@ class Pipeline:
                                               self.output_dir,
                                               self.final_output_dir)
 
-            human_filter_job.run(sample_sheet_path,
-                                 sample_sheet_params['sequence_directory'],
-                                 slurm_array_task_id)
+            p1 = sample_sheet_params['sample_sheet_path']
+            p2 = sample_sheet_params['sequence_directory']
+            human_filter_job.run(p1, p2)
 
         except PipelineError as e:
             logging.error(e)
@@ -342,224 +337,3 @@ class Pipeline:
 
             s = "_get_reads() found an unexpected number of values in {}"
             raise PipelineError(s.format(sample_sheet_path))
-
-    def _process_sample_sheet(self, csv_file):
-        '''
-
-        :param csv_file:
-        :return:
-        '''
-        logging.debug("Reading %s" % csv_file)
-        df = pd.read_csv(csv_file, header=None)
-
-        # drop all lines with no data (all "NaN"). Compresses sample sheet to
-        # no blank lines.
-        df = df.dropna(how='all')
-        df = df.fillna(".")
-
-        # Personally I feel initializing them to None is a better practice,
-        # but we currently we rely on 0 to be the default value if the
-        # elements are not found in the sheet.
-        contact_index = 0
-        bio_index = 0
-        info_dict = {}
-
-        # proposed default values for read_index 1 and 2, if values are not
-        # found.
-        read_index_1 = 151
-        read_index_2 = 151
-
-        for index in range(len(df)):
-            if 'Bioinformatics' in df.iloc[index, 0]:
-                bio_index = index
-                print("bio_index=", index)
-            elif '[Contact' in df.iloc[index, 0]:
-                print("contact_index=", index)
-                contact_index = index + 1
-            else:
-                contact_index = len(df)
-
-            if '[Reads]' in df.iloc[index, 0]:
-                read_index_1 = index
-                read_index_2 = index + 3
-
-            # assemble dictionary for csv variables
-
-            keyword_list = ['Experiment', 'Assay', 'Chemistry',
-                            'ReverseComplement']
-            info_df = pd.DataFrame()
-
-            for keyword in keyword_list:
-                if keyword in df.iloc[index, 0]:
-                    info_df = info_df.append(df.iloc[index])
-                    value = df.iloc[index, 1]
-                    info_dict[keyword] = value
-
-        if info_dict["Chemistry"] == "Amplicon":
-            logging.debug("Amplicon chemistry true. Removing false barcodes")
-
-            n_count = None
-            for line in csv_file:
-                for entry in ["NNNNNNNN", "NNNNNNNNNNNN"]:
-                    if entry in line:
-                        n_count = str(len(entry))
-                        logging.debug("N_count: %s" % n_count)
-                        # assume once we find it in this file, we don't
-                        # need to look further, as that would just
-                        # overwrite the previous value.
-                        break
-
-            # just in case there are instances where n_count won't be found,
-            # this preserves the original idea that 'I12' is the default.
-            job_index_val = 'I12'
-            map_n_count = {'12': 'I12', '8': 'I8', '0': 'I12'}
-
-            if n_count:
-                if n_count in map_n_count:
-                    # if n_count found does not match a known value, we will
-                    # default to 'I12'. If we should raise an Error instead,
-                    # we should do that.
-                    job_index_val = map_n_count[n_count]
-
-            base_mask = "--use-bases-mask Y150,{},{},Y150"
-            base_mask = base_mask.format(job_index_val, job_index_val)
-
-            # check to see if both Read values are present at 150/151
-            # if both, direction==2
-            # else direction==1
-            # used for bases-mask in bcl2fastq
-            # pull from read_df or develop other method
-
-            # replace N strings if Amplicon Sample sheets with blank for
-            # processing.
-            # can be moved to where we parse chemistry variable.
-            # we have already copied original to backup location.
-            # create new sample sheet with same name as original, removing
-            # false barcodes
-            csv_1 = open(csv_file, 'r')
-
-            # should check to see if NNNNNNNN is present but this is historical
-            csv_1 = ''.join([i for i in csv_1]).replace("NNNNNNNNNNNN", "")
-
-            # I think instead of making a '.bak' file, reading the original
-            # file for processing, and then reopening the file to be
-            # overwritten, it would be better to simply read the original
-            # file into memory (ala DF), close it, and write out the processed
-            # contents of the original file to a new file. The names can
-            # always be renamed afterward.
-            csv_2 = open(csv_file, 'w')
-            csv_2.writelines(csv_1)
-            csv_2.close()
-
-        bioinfo_df = pd.DataFrame(df.iloc[bio_index:contact_index - 1])
-
-        logging.debug("contact_index == ", contact_index)
-
-        contact_df = pd.DataFrame(df.iloc[contact_index:])
-        if contact_df.empty:
-            contact_df = pd.DataFrame({"some_email@gmail.com"})
-        logging.debug(contact_df.empty)
-
-        logging.debug("after empty df check")
-        read_df = pd.DataFrame(df.iloc[read_index_1:read_index_2])
-
-        logging.debug(bioinfo_df)
-        logging.debug(contact_df)
-
-        logging.debug(read_df.T)
-        read_df = read_df.dropna(how='all')
-        logging.debug(read_df)
-
-    def _prep_function(self, sample_sheet_path):
-        '''
-        Get the metadata needed to submit a job.
-        :param sample_sheet_path:
-        :return:
-
-        #rn1, rn2 = self._get_reads(sample_sheet_path)q
-        #direction = 2 if rn2 else 1
-        job_read_val = 'Y' + str(rn1)q
-        column_count = self._get_column_count(sample_sheet_path)
-
-
-          if [[ $column_count -eq "8" ]]; then
-            if [[ $(awk '/NNNNNNNNNNNN/{getline;print;}' $csvfile | cut -f6 -d",") -eq "NNNNNNNNNNNN" ]]; then
-              echo "strip line from file with false barcode"
-            fi
-            cutval="7"
-          elif [[ $column_count > "8" ]]; then
-            cutval=""
-          fi
-
-          index_value_6=$(awk '/Sample_ID/{getline;print;}' $csvfile | cut -f6 -d",")
-          index_value_8=$(awk '/Sample_ID/{getline;print;}' $csvfile | cut -f8 -d",")
-          index_size=${#index_value}
-          index_6_size=${#index_value_6}
-
-          if [[ -z $index_value_6 ]]; then
-            job_index_val="I12"
-          elif [[ $index_value_6 -eq "NNNNNNNNNNNN" ]]; then
-            sed -i.bak s/NNNNNNNNNNNN//g $csvfile
-            job_index_val="I12"
-          elif [[ $index_6_size -eq "8" ]]; then
-            job_index_val="I8"
-          elif [[ $index_6_size -eq "12" ]]; then
-            job_index_val="I12"
-          fi
-
-          # if index 7 == NNNNNNNNNNNN then must be metagenomic with multiple rows
-          # because of additional first column
-          if [[ $index_value_7 -eq "NNNNNNNNNNNN" ]]; then
-            sed -i.bak s/NNNNNNNNNNNN/g $csvfile
-            job_index_val="I12"
-          fi
-
-          if [[ $direction -eq "1" ]]; then
-            base_mask="--use-bases-mask Y$rn1,$job_index_val"
-          elif [[ $direction -eq "2" ]]; then
-            base_mask="--use-bases-mask Y$rn1,$job_index_val,$job_index_val,Y$rn1"
-          fi
-
-          chemistry=$(awk -F',' '/Chemistry/{print $2}' $csvfile)
-          echo chemistry==$chemistry
-
-          root_sequence=$(basename $dirpath)
-
-          email_list=null
-          job_o_out=localhost:/home/jede9131/seq_jobs/$(basename ${seqdir})
-          job_e_out=localhost:/home/jede9131/seq_jobs/$(basename ${seqdir})
-
-
-
-        # revisit.
-        index_value_6 = "NOTHING"
-        index_value_7 = "NOTHING"
-        root_sequence = 'NOTHING'
-
-        if index_value_6 == None:
-            job_index_val = 'I12'
-        elif index_value_6 == "NNNNNNNNNNNN":
-            # remove string from csvfile
-            # sed -i.bak s/NNNNNNNNNNNN//g $csvfile
-            job_index_val = "I12"
-        elif index_value_6 == 8:
-            job_index_val = "I8"
-        elif index_value_6 == 12:
-            job_index_val = "I12"
-
-        if index_value_7 == "NNNNNNNNNNNN":
-            # sed -i.bak s/NNNNNNNNNNNN/g $csvfile
-            job_index_val = "I12"
-
-        # assuming direction can only equal 1 or 2:
-        base_mask = "--use-bases-mask Y%s,%s" % (rn1, job_index_val) if direction == 1 else "--use-bases-mask Y%s,%s,%s,Y%s" % (rn1, job_index_val, job_index_val, rn1)
-
-        # this script may need to be obtained from the admin
-        bclconvert_template = "/home/somebody/seq_proc_dev/bclconvert_human_slurm.sh"
-
-        job_params = { 'base_mask': base_mask, 'bclconvert_template': bclconvert_template, 'root_sequence': root_sequence }
-
-        return job_params
-        '''
-        pass
-

@@ -63,8 +63,12 @@ class BCLConvertJob(Job):
 
         return l
 
-    def run(self, seq_dir, csvfile, base_mask, exp_name, bclconvert_template, root_sequence, polling_wait=300):
+    def run(self, seq_dir, csvfile, base_mask, exp_name, bclconvert_template, polling_wait=300):
         # assume this directory has already been created. we know it has been by this point.
+
+        # I believe root_sequence will always be seq_dir post porting.
+        root_sequence = seq_dir
+
         fastq_output = os.path.join(self.root_dir, 'Data', 'Fastq')
         if self.should_filter == False:
             cmd = ['sbatch',

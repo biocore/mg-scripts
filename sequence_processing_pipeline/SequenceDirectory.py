@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import logging
 from sequence_processing_pipeline.PipelineError import PipelineError
+from metapool import KLSampleSheet, validate_sample_sheet
 
 
 class SequenceDirectory:
@@ -92,14 +93,13 @@ class SequenceDirectory:
         # extracted from the csv file.
         results = self._process_sample_sheet(input)
 
+        # add to results other valuable metadata
         results['sequence_directory'] = self.sequence_directory
 
         if self.external_sample_sheet:
             results['sample_sheet_path'] = self.external_sample_sheet
         else:
             results['sample_sheet_path'] = self.sample_sheets[0]
-
-        results['experiment_name'] = 'GET FROM SAMPLE SHEET OR OTHER SOURCE'
 
         return results
 
@@ -142,127 +142,50 @@ class SequenceDirectory:
         except SameFileError as e:
             raise PipelineError(str(e))
 
-    def _process_sample_sheet(self, csv_file):
+    def _process_sample_sheet(self, sample_sheet):
+        results = {}
+        sheet = KLSampleSheet(sample_sheet)
+        valid_sheet = validate_sample_sheet(sheet)
+        if not valid_sheet:
+            s = "Sample sheet %s is not valid." % sample_sheet
+            raise PipelineError(s)
+        header = valid_sheet.Header
+        experiment_name = header['Experiment Name']
+        chemistry = header['Chemistry']
+        reads = valid_sheet.Reads
+        I7_Index_ID = valid_sheet.samples[0]['I7_Index_ID']
+        job_index_val = 'I12'
+
+        '''
+        job_index_val is based off of index_value_6 which is I7_Index_ID using
+        the new library package. However it seems in most cases the value is
+        'I12', and the values of 8 and 12 and no relation to values like
+        iTru7_107_07 so we should inquire as to what this actually means.
+        if [[ -z $index_value_6 ]]; then
+            job_index_val="I12"
+        elif [[ $index_value_6 -eq "NNNNNNNNNNNN" ]]; then
+            sed -i.bak s/NNNNNNNNNNNN//g $csvfile
+            job_index_val="I12"
+        elif [[ $index_6_size -eq "8" ]]; then
+            job_index_val="I8"
+        elif [[ $index_6_size -eq "12" ]]; then
+            job_index_val="I12"
+        fi
         '''
 
-        :param csv_file:
-        :return:
-        '''
-        logging.debug("Reading %s" % csv_file)
-        df = pd.read_csv(csv_file, header=None)
+        if len(reads) == 1:
+            # direction == 1
+            rn1 = reads[0]
+            base_mask = "--use-bases-mask Y{},{}".format(rn1, job_index_val)
+        elif len(reads) == 2:
+            # direction == 2
+            rn1 = reads[0]
+            base_mask = "--use-bases-mask Y{},{},{},Y{}".format(rn1, job_index_val,job_index_val, rn1)
+        else:
+            raise PipelineError("Unexpected number of reads: %s" % str(reads))
 
-        # drop all lines with no data (all "NaN"). Compresses sample sheet to
-        # no blank lines.
-        df = df.dropna(how='all')
-        df = df.fillna(".")
+        results['chemistry'] = chemistry
+        results['base_mask'] = base_mask
+        results['experiment_name'] = experiment_name
 
-        # Personally I feel initializing them to None is a better practice,
-        # but we currently we rely on 0 to be the default value if the
-        # elements are not found in the sheet.
-        contact_index = 0
-        bio_index = 0
-        info_dict = {}
-
-        # proposed default values for read_index 1 and 2, if values are not
-        # found.
-        read_index_1 = 151
-        read_index_2 = 151
-
-        for index in range(len(df)):
-            if 'Bioinformatics' in df.iloc[index, 0]:
-                bio_index = index
-                print("bio_index=", index)
-            elif '[Contact' in df.iloc[index, 0]:
-                print("contact_index=", index)
-                contact_index = index + 1
-            else:
-                contact_index = len(df)
-
-            if '[Reads]' in df.iloc[index, 0]:
-                read_index_1 = index
-                read_index_2 = index + 3
-
-            # assemble dictionary for csv variables
-
-            keyword_list = ['Experiment', 'Assay', 'Chemistry',
-                            'ReverseComplement']
-            info_df = pd.DataFrame()
-
-            for keyword in keyword_list:
-                if keyword in df.iloc[index, 0]:
-                    info_df = info_df.append(df.iloc[index])
-                    value = df.iloc[index, 1]
-                    info_dict[keyword] = value
-
-        if info_dict["Chemistry"] == "Amplicon":
-            logging.debug("Amplicon chemistry true. Removing false barcodes")
-
-            n_count = None
-            for line in csv_file:
-                for entry in ["NNNNNNNN", "NNNNNNNNNNNN"]:
-                    if entry in line:
-                        n_count = str(len(entry))
-                        logging.debug("N_count: %s" % n_count)
-                        # assume once we find it in this file, we don't
-                        # need to look further, as that would just
-                        # overwrite the previous value.
-                        break
-
-            map_n_count = {'12': 'I12', '8': 'I8', '0': 'I12'}
-
-            # just in case there are instances where n_count won't be found,
-            # this preserves the original idea that 'I12' is the default.
-            job_index_val = 'I12'
-            if n_count:
-                if n_count in map_n_count:
-                    # if n_count found does not match a known value, we will
-                    # default to 'I12'. If we should raise an Error instead,
-                    # we should do that.
-                    job_index_val = map_n_count[n_count]
-
-            base_mask = "--use-bases-mask Y150,{},{},Y150"
-            base_mask = base_mask.format(job_index_val, job_index_val)
-
-            ### check to see if both Read values are present at 150/151
-            ### if both, direction==2
-            ### else direction==1
-            ### used for bases-mask in bcl2fastq
-            ### pull from read_df or develop other method
-
-            ### replace N strings if Amplicon Sample sheets with blank for processing.
-            ### can be moved to where we parse chemistry variable.
-            ### we have already copied original to backup location.
-            ### create new sample sheet with same name as original, removing false barcodes
-            csv_1 = open(csv_file, 'r')
-
-            ### should check to see if NNNNNNNN is present but this is historical
-            csv_1 = ''.join([i for i in csv_1]).replace("NNNNNNNNNNNN", "")
-
-            # I think instead of making a '.bak' file, reading the original
-            # file for processing, and then reopening the file to be
-            # overwritten, it would be better to simply read the original
-            # file into memory (ala DF), close it, and write out the processed
-            # contents of the original file to a new file. The names can
-            # always be renamed afterward.
-            csv_2 = open(csv_file, 'w')
-            csv_2.writelines(csv_1)
-            csv_2.close()
-
-        bioinfo_df = pd.DataFrame(df.iloc[bio_index:contact_index - 1])
-
-        logging.debug("contact_index == ", contact_index)
-
-        contact_df = pd.DataFrame(df.iloc[contact_index:])
-        if contact_df.empty:
-            contact_df = pd.DataFrame({"some_email@gmail.com"})
-        logging.debug(contact_df.empty)
-
-        logging.debug("after empty df check")
-        read_df = pd.DataFrame(df.iloc[read_index_1:read_index_2])
-
-        logging.debug(bioinfo_df)
-        logging.debug(contact_df)
-
-        logging.debug(read_df.T)
-        read_df = read_df.dropna(how='all')
-        logging.debug(read_df)
+        return results

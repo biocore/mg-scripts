@@ -134,7 +134,9 @@ class HumanFilterJob(Job):
             for line in lines:
                 f.write("%s\n" % line)
 
-    def run(self, sample_sheet_path, seq_dir, slurm_array_task_id):
+    def run(self, sample_sheet_path, seq_dir):
+        # TODO source of this value is very unclear in the original scripts.
+        slurm_array_task_id = 'UNKNOWN'
         metadata = self._get_run_config_info(sample_sheet_path)
         fastq_output = os.path.join(seq_dir, 'Data', 'Fastq')
 

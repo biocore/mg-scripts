@@ -5,9 +5,6 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # -----------------------------------------------------------------------------
-
-import pandas as pd
-
 from subprocess import Popen, PIPE
 
 
