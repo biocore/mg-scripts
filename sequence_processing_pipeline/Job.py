@@ -1,10 +1,6 @@
 import logging
-import shutil
-import os
 from sequence_processing_pipeline.util import system_call
 from time import sleep
-from datetime import datetime
-from sequence_processing_pipeline.Job import Job
 
 
 class Job:

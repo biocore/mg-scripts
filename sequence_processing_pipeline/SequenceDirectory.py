@@ -3,7 +3,7 @@ from shutil import SameFileError
 import pandas as pd
 import os
 import logging
-from sequence_processing_pipeline.exceptions import PipelineError
+from sequence_processing_pipeline.PipelineError import PipelineError
 
 
 class SequenceDirectory:

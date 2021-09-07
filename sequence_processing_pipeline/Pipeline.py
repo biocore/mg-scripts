@@ -1,7 +1,7 @@
 from sequence_processing_pipeline.BCLConvertJob import BCLConvertJob
 from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
-from sequence_processing_pipeline.exceptions import PipelineError
+from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
 import logging
 import os
@@ -30,6 +30,10 @@ class Pipeline:
         self.nprocs = nprocs
         self.output_dir = output_directory
         self.final_output_dir = final_output_directory
+
+        # hard-code for now
+        self.job_owner_home = '/home/jdereus'
+        self.email_list = ['jdereus@health.ucsd.edu', 'ccowart@ucsd.edu']
 
     def process(self):
         '''
@@ -61,15 +65,21 @@ class Pipeline:
                                     job_params['bclconvert_template'],
                                     job_params['root_sequence'])
 
-                # once the job has finished successfully (if it doesn't, it'll
-                # raise an PipelineError), follow up with human-filtering.
+                chemistry = sample_sheet_params['chemistry']
+                slurm_array_task_id = 'UNKNOWN'
 
-                # TODO REVISIT THIS LOOP
-                human_filter_job = HumanFilterJob(sdo, self.nprocs,
+                human_filter_job = HumanFilterJob(sdo,
+                                                  self.nprocs,
+                                                  self.job_owner_home,
+                                                  self.email_list,
+                                                  chemistry,
                                                   self.output_dir,
                                                   self.final_output_dir)
 
-                human_filter_job.run()
+                p1 = sample_sheet_params['sample_sheet_path']
+                p2 = sample_sheet_params['sequence_directory']
+                p3 = slurm_array_task_id
+                human_filter_job.run(p1, p2, p3)
 
             except PipelineError as e:
                 logging.error(e)
@@ -100,15 +110,20 @@ class Pipeline:
                                 job_params['bclconvert_template'],
                                 job_params['root_sequence'])
 
-            # once the job has finished successfully (if it doesn't, it'll
-            # raise an PipelineError), follow up with human-filtering.
+            chemistry = sample_sheet_params['chemistry']
+            slurm_array_task_id = 'UNKNOWN'
 
-            # TODO REVISIT THIS LOOP
-            human_filter_job = HumanFilterJob(sdo, self.nprocs,
+            human_filter_job = HumanFilterJob(sdo,
+                                              self.nprocs,
+                                              self.job_owner_home,
+                                              self.email_list,
+                                              chemistry,
                                               self.output_dir,
                                               self.final_output_dir)
 
-            human_filter_job.run()
+            human_filter_job.run(sample_sheet_path,
+                                 sample_sheet_params['sequence_directory'],
+                                 slurm_array_task_id)
 
         except PipelineError as e:
             logging.error(e)
@@ -397,12 +412,14 @@ class Pipeline:
             # just in case there are instances where n_count won't be found,
             # this preserves the original idea that 'I12' is the default.
             job_index_val = 'I12'
+            map_n_count = {'12': 'I12', '8': 'I8', '0': 'I12'}
+
             if n_count:
-                if n_count in self.map_n_count:
+                if n_count in map_n_count:
                     # if n_count found does not match a known value, we will
                     # default to 'I12'. If we should raise an Error instead,
                     # we should do that.
-                    job_index_val = self.map_n_count[n_count]
+                    job_index_val = map_n_count[n_count]
 
             base_mask = "--use-bases-mask Y150,{},{},Y150"
             base_mask = base_mask.format(job_index_val, job_index_val)
@@ -458,13 +475,13 @@ class Pipeline:
         Get the metadata needed to submit a job.
         :param sample_sheet_path:
         :return:
-        '''
-        rn1, rn2 = self._get_reads(sample_sheet_path)q
-        direction = 2 if rn2 else 1
+
+        #rn1, rn2 = self._get_reads(sample_sheet_path)q
+        #direction = 2 if rn2 else 1
         job_read_val = 'Y' + str(rn1)q
         column_count = self._get_column_count(sample_sheet_path)
 
-        '''
+
           if [[ $column_count -eq "8" ]]; then
             if [[ $(awk '/NNNNNNNNNNNN/{getline;print;}' $csvfile | cut -f6 -d",") -eq "NNNNNNNNNNNN" ]]; then
               echo "strip line from file with false barcode"
@@ -512,7 +529,7 @@ class Pipeline:
           job_o_out=localhost:/home/jede9131/seq_jobs/$(basename ${seqdir})
           job_e_out=localhost:/home/jede9131/seq_jobs/$(basename ${seqdir})
 
-        '''
+
 
         # revisit.
         index_value_6 = "NOTHING"
@@ -543,4 +560,6 @@ class Pipeline:
         job_params = { 'base_mask': base_mask, 'bclconvert_template': bclconvert_template, 'root_sequence': root_sequence }
 
         return job_params
+        '''
+        pass
 
