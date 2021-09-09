@@ -72,6 +72,19 @@ class BCLConvertJob(Job):
         fastq_output = os.path.join(self.root_dir, 'Data', 'Fastq')
         if self.should_filter == False:
             cmd = ['sbatch',
+                   # we don't need to worry about --parsable.
+                   # --qos is important - it defines the quality of service needed. this value is pre-defined by the admin
+                   # environment variables may or may not be important, or some of them may be important.
+                   # seqdir, outputdir, csvfile, base_mask
+                   # job name is important - it sets the name for the job allocation. should be equal to the experiment name.
+                   # whether this sets it for just one job or all the jobs in a job array I don't know.
+                   # i don't know if sbatch is for arrays or not.
+                   # partition is important too in that it defines which subset of resources this job can/needs to run on.
+                   # Jeff defined 'long' for this job so that's what it should be in Torque if possible.
+                   # the last parameter is the full path to the script to actually run.
+                   # in this case, it was "${HOME}/seq_proc_dev/bclconvert_human_slurm.sh"
+
+
                    '--parsable',
                    # presumably seq_proc is a defined quality of service level in the system
                    '--qos=seq_proc',
