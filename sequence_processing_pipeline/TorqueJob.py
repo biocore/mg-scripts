@@ -2,6 +2,7 @@ import logging
 from sequence_processing_pipeline.Job import Job
 from time import sleep
 from sequence_processing_pipeline.PipelineError import PipelineError
+import re
 
 
 class TorqueJob(Job):
@@ -18,13 +19,19 @@ class TorqueJob(Job):
     def qsub2(self):
         options = '-N %s -l h_vmem=4G -pe smp <num_slots> -o outputlogfile -e errorlogfile'
 
-    def qsub(self, script_path, qsub_parameters='', script_parameters=''):
+    def qsub(self, script_path, qsub_parameters=None, script_parameters=None):
         # -w e: verify options and abort if there's an error.
         # we now define queue (-q long) in the job script.
-        cmd = 'qsub -w e %s %s %s' % (qsub_parameters,
-                                      script_path,
-                                      script_parameters)
+        # cmd = 'qsub -w e %s %s %s' % (qsub_parameters,
+        if qsub_parameters:
+            cmd = 'qsub %s %s' % (qsub_parameters, script_path)
+        else:
+            cmd = 'qsub %s' % (script_path)
 
+        if script_parameters:
+            cmd += ' %s' % script_parameters
+
+        logging.debug("QSUB call: %s" % cmd)
         # if system_call does not raise a PipelineError(), then the qsub
         # successfully submitted the job. In this case, qsub should return
         # the id of the job in stdout.
@@ -44,62 +51,49 @@ class TorqueJob(Job):
             # short period of time. If job_id is not found, treat this as a\
             # job finishing, rather than an error. qstat returns code 153 when
             # this occurs, so we'll allow it in this instance.
-            stdout, stderr = self._system_call("qstat %s" % job_id,
+            stdout, stderr = self._system_call("qstat -x %s" % job_id,
                                                allow_return_codes=[153])
 
-            # assume stdout appears like this:
-            # Job ID      Username  Queue         Jobname     Limit  State  Elapsed
-            # ------      --------  -----         -------     -----  -----  -------
-            # 385         jqpublic  sun-medium    STDIN       06:00  Run    00:03
-            # or like this:
-            # qstat: Unknown Job Id Error 992223.barnacle.ucsd.edu
+            logging.debug("QSTAT STDOUT: %s\n" % stdout)
+            logging.debug("QSTAT STDERR: %s\n" % stderr)
 
             if stdout.startswith("qstat: Unknown Job Id Error"):
                 break
 
-            # break stdout into multiple lines, and extract the line that begins
-            # with the job_id.
-            lines = stdout.strip().split('\n')
-            # remove any beginning or trailing whitespace from each line.
-            lines = [x.strip() for x in lines]
-            # if the line begins with job_id, then that is the one and only one
-            # line we want. To find it, we'll use a list comprehension instead
-            # of breaking a for loop for speed and convenient syntax.
-            # Once we find the line containing job_id, we'll split the line on
-            # whitespace. Since this is a list containing exactly one list, we'll
-            # remove the outer list by taking the element 0.
-            lines = [x.split(' ') for x in lines if x.startswith(job_id)][0]
-            # remove any element from the list that's ''.
-            lines = [x for x in lines if x]
+            job_id = re.search(r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
+            job_name = re.search(r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
+            status = re.search(r"<job_state>(.*?)</job_state>", stdout).group(1)
+            start_time = re.search(r"<ctime>(.*?)</ctime>", stdout).group(1)
+            elapsed_time = re.search(r"<etime>(.*?)</etime>", stdout).group(1)
+            exit_status = re.search(r"<exit_status>(.*?)</exit_status>", stdout)
 
             # update job_info
             # even though job_id doesn't change, use this update as evidence
             # job_id was once in the queue.
             job_info['job_id'] = job_id
-            job_info['job_name'] = lines[3]
-            job_info['status'] = lines[5]
-            job_info['elapsed_time'] = lines[6]
+            job_info['job_name'] = job_name
+            job_info['status'] = status
+            job_info['elapsed_time'] = elapsed_time
+            if exit_status:
+                job_info['exit_status'] = exit_status.group(1)
 
-            logging.debug("Job status for %s" % (job_info))
+            logging.debug("Job info: %s" % job_info)
 
-            if job_info['status'] in ['C', 'E']:
-                # if job is in completed or exiting state, then exit.
-                # this exits earlier than waiting for the entry to
-                # fall out of qstat, and with a known status.
+            if 'exit_status' in job_info:
                 break
 
             # check once every minute - job info records should stay in the
             # queue that long after finishing.
-            sleep(60)
+            sleep(30)
 
         if job_info['job_id']:
             # job was once in the queue
-            if job_info['status'] == 'C':
+            if job_info['exit_status'] == '0':
                 # job completed successfully
                 return job_info
             else:
                 # job exited unsuccessfully
-                raise PipelineError("job %s exited with status %s" % (job_id, job_info['status']))
+                raise PipelineError("job %s exited with status %s" % (job_id, job_info['exit_status']))
         else:
             # job was never in the queue - return an error.
             raise PipelineError("job %s never appeared in the queue." % job_id)

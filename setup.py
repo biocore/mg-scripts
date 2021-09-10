@@ -35,6 +35,6 @@ setup(name='sequence-processing-pipeline',
       packages=['sequence_processing_pipeline'],
       scripts=glob('scripts/*'),
       setup_requires=['numpy', 'cython'],
-      install_requires=['click', 'requests', 'pandas', 'flake8', 'biocore/metagenomics_pooling_notebook'],
+      install_requires=['click', 'requests', 'pandas', 'flake8'],
       classifiers=classifiers
       )

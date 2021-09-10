@@ -1,6 +1,6 @@
 import logging
 from subprocess import Popen, PIPE
-from PipelineError import PipelineError
+from sequence_processing_pipeline.PipelineError import PipelineError
 
 
 class Job:
