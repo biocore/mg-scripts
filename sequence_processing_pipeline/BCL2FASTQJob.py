@@ -1,6 +1,7 @@
 import logging
 from sequence_processing_pipeline.TorqueJob import TorqueJob
 from os.path import join, basename, dirname
+from os import makedirs
 import re
 
 
@@ -10,7 +11,7 @@ class BCL2FASTQJob(TorqueJob):
     It builds on TorqueJob's ability to push a job onto Torque and wait for it
      to finish.
     '''
-    def __init__(self, root_dir, project, sample_sheet_path):
+    def __init__(self, root_dir, project, sample_sheet_path, output_directory):
         super().__init__()
         logging.debug("BCL2FASTQJob Constructor called")
         self.root_dir = root_dir
@@ -19,10 +20,12 @@ class BCL2FASTQJob(TorqueJob):
         self.job_name = "fastqc_%s_%s" % (project, basename(root_dir))
         self.nprocs = 16
         self.sample_sheet_path = sample_sheet_path
-        self.stdout_log_path = 'A'
-        self.stderr_log_path = 'B'
-        self.output_dir_path = 'E'
+        self.stdout_log_path = join(dirname(self.job_script_path), 'BCL2FASTQ.out.log')
+        self.stderr_log_path = join(dirname(self.job_script_path), 'BCL2FASTQ.err.log')
+        self.output_dir_path = output_directory
         self.bcl2fastq_bin_path = "~/bcl2fastq_2_20/bin/bcl2fastq"
+        makedirs(dirname(self.job_script_path), exist_ok=True)
+        makedirs(dirname(self.output_dir_path), exist_ok=True)
 
     def _make_job_script(self):
         lines = []
@@ -114,10 +117,10 @@ class BCL2FASTQJob(TorqueJob):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
-
-    a = '/Users/ccowart/PycharmProjects/mg-scripts/sequence_processing_pipeline/good-bcl-directory'
-
-    job = BCL2FASTQJob(a, 'foo', '%s/good-sample-sheet.csv' % a)
+    job = BCL2FASTQJob('./good-bcl-directory',
+                       'THDMI_US_99999',
+                       './good-bcl-directory/good-sample-sheet.csv',
+                       './good-bcl-directory/Data/Fastq/Output')
     job.run()
 
 
