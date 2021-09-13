@@ -1,5 +1,6 @@
 from sequence_processing_pipeline.BCLConvertJob import BCLConvertJob
 from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
+from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
@@ -78,6 +79,13 @@ class Pipeline:
                 p2 = sample_sheet_params['sequence_directory']
                 human_filter_job.run(p1, p2)
 
+                output_dir = 'foo'
+                project = 'foo'
+
+                fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
+
+                fast_qc_job.run()
+
             except PipelineError as e:
                 logging.error(e)
 
@@ -120,6 +128,13 @@ class Pipeline:
             p2 = sample_sheet_params['sequence_directory']
             human_filter_job.run(p1, p2)
 
+            output_dir = 'foo'
+            project = 'foo'
+
+            fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
+
+            fast_qc_job.run()
+
         except PipelineError as e:
             logging.error(e)
 
@@ -143,7 +158,7 @@ class Pipeline:
 
         for root, dirs, files in os.walk(self.root_dir):
             for some_directory in dirs:
-                some_path = os.path.join(root, some_directory)
+                some_path = join_path(root, some_directory)
                 if '/Data/Intensities/BaseCalls/' in some_path:
                     # the root directory of every scan directory will have
                     # this substring in the path of one or more of their
@@ -172,7 +187,7 @@ class Pipeline:
             # whether a single BCL directory is passed, or a nested tree
             # of directories is passed, assume that a potential BCL
             # directory must contain a file named self.sentinel_file.
-            if os.path.exists(os.path.join(some_path, self.sentinel_file)):
+            if os.path.exists(join_path(some_path, self.sentinel_file)):
                 some_timestamp = os.path.getmtime(some_path)
                 # if the last modified timestamp of the directory is
                 # within the threshold of what is considered 'new and
@@ -249,7 +264,7 @@ class Pipeline:
             metadata.sort()
 
             # write the sanitized data out to legacy file.
-            s = os.path.join(self.root_dir, 'run_config.txt')
+            s = join_path(self.root_dir, 'run_config.txt')
             run_config_file_path = s
             with open(run_config_file_path, 'w') as f2:
                 for line in metadata:

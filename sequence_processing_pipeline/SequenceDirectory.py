@@ -51,7 +51,7 @@ class SequenceDirectory:
                 s = "A suitable sample sheet was not found for %s"
                 raise PipelineError(s.format(self.sequence_directory))
 
-        s = os.path.join(self.sequence_directory, 'Data', 'FastQ')
+        s = join_path(self.sequence_directory, 'Data', 'FastQ')
         self.fastq_results_directory = s
 
         try:
@@ -63,13 +63,13 @@ class SequenceDirectory:
             raise PipelineError(str(e))
 
         if backup_sample_sheet:
-            self.sheet_backup_dir = os.path.join(self.sequence_directory,
+            self.sheet_backup_dir = join_path(self.sequence_directory,
                                                  "orig_sample_sheets")
             os.makedirs(self.sheet_backup_dir, mode=750, exist_ok=True)
 
-        # if not os.path.exists(os.path.join(self.seq_dir, 'alockfile')):
+        # if not os.path.exists(join_path(self.seq_dir, 'alockfile')):
         # raise PipelineError("data already processing? %s" % self.seq_dir)
-        # if os.path.exists(os.path.join(self.seq_dir, 'processed')):
+        # if os.path.exists(join_path(self.seq_dir, 'processed')):
         # raise PipelineError("bcl conversion complete? %s" % self.seq_dir)
 
     def process(self):
@@ -112,7 +112,7 @@ class SequenceDirectory:
             for some_file in files:
                 # look for files that may be in upper or mixed case as well.
                 if some_file.lower().endswith('.csv'):
-                    csv_list.append(os.path.join(root, some_file))
+                    csv_list.append(join_path(root, some_file))
 
         return csv_list
 
@@ -127,7 +127,7 @@ class SequenceDirectory:
         # numerical increments of file copies. One copy only of latest file.
         file_name = os.path.split(csv_file_path)[1] + '.bak'
 
-        archived_path = os.path.join(self.sheet_backup_dir, file_name)
+        archived_path = join_path(self.sheet_backup_dir, file_name)
 
         logging.debug("BACKUP DIR: %s" % self.sheet_backup_dir)
         logging.debug("ARCHIVED_PATH: %s" % archived_path)
