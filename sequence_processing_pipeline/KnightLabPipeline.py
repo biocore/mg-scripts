@@ -2,10 +2,8 @@ from sequence_processing_pipeline.Pipeline import Pipeline
 
 
 class KnightLabPipeline(Pipeline):
-    def __init__(self, scan_dir, lab_output_dir, younger_than=48,
-                 older_than=24, should_filter=False, nprocs=16):
-        # for labs that don't define a final_output_dir, set it equal to
-        # lab_output_dir, for now.
-        super().__init__(scan_dir, lab_output_dir, lab_output_dir,
-                         younger_than, older_than, should_filter=should_filter,
-                         nprocs=nprocs)
+    def __init__(self, input_directory, output_directory,
+                 final_output_directory, younger_than=48,
+                 older_than=24, nprocs=16):
+        super().__init__(input_directory, output_directory, final_output_directory,
+                         younger_than, older_than, nprocs=nprocs)

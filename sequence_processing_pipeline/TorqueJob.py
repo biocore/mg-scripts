@@ -60,6 +60,7 @@ class TorqueJob(Job):
             if stdout.startswith("qstat: Unknown Job Id Error"):
                 break
 
+            # TODO: Use XML parsing package?
             job_id = re.search(r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
             job_name = re.search(r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
             status = re.search(r"<job_state>(.*?)</job_state>", stdout).group(1)

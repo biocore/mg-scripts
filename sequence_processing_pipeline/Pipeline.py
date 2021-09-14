@@ -1,4 +1,4 @@
-from sequence_processing_pipeline.BCLConvertJob import BCLConvertJob
+from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
 from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
 from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
@@ -6,15 +6,13 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
 import logging
 import os
+from os.path import join
 
 
 class Pipeline:
-    # TODO: We need to change final_output_directory so that it if there are
-    #  multiple output directories they can all be under output_directory.
-    #  Really these are the outputs of stages.
     def __init__(self, input_directory, output_directory,
                  final_output_directory, younger_than=48,
-                 older_than=24, nprocs=16, should_filter=False):
+                 older_than=24, nprocs=16):
         self.root_dir = input_directory
         logging.debug("Root directory: %s" % self.root_dir)
         self.sentinel_file = "RTAComplete.txt"
@@ -26,44 +24,43 @@ class Pipeline:
         logging.debug(s)
         s = "Filter directories older than %d hours old" % older_than
         logging.debug(s)
-        self.should_filter = should_filter
         self.nprocs = nprocs
+        logging.debug("nprocs: %d" % nprocs)
         self.output_dir = output_directory
+        logging.debug("Output Directory: %s" % self.output_dir)
         self.final_output_dir = final_output_directory
+        logging.debug("Final Output Directory: %s" % self.final_output_dir)
+        self.bcl2fastq_path = "~/bcl2fastq_2_20/bin/bcl2fastq"
 
         # hard-code for now
-        self.job_owner_home = '/home/jdereus'
-        self.email_list = ['jdereus@health.ucsd.edu', 'ccowart@ucsd.edu']
-        self.bclconvert_template = "{}/seq_proc_dev/bclconvert_human_slurm.sh".format(self.job_owner_home)
+        # self.job_owner_home = '/home/jdereus'
+        # self.email_list = ['jdereus@health.ucsd.edu', 'ccowart@ucsd.edu']
+        # self.bclconvert_template = "{}/seq_proc_dev/bclconvert_human_slurm.sh".format(self.job_owner_home)
 
     def process(self):
         '''
         Process a path containing multiple BCL directories.
         Assume that sample sheets are stored w/in each directory.
-        Assume that filtering directories using timestamps will detect
-         the new directories.
+        Assume that filtering directories using timestamps will detect the new
+        directories.
         :return:
         '''
         directories_found = self._find_bcl_directories()
         results = self._filter_directories_for_time(directories_found)
-        filtered_dirs_w_timestamps = results
 
-        for sequence_directory, timestamp in filtered_dirs_w_timestamps:
+        for sequence_directory, timestamp in results:
             try:
                 sdo = SequenceDirectory(sequence_directory)
                 sample_sheet_params = sdo.process()
+
                 s = sample_sheet_params['sample_sheet_path']
 
-                self._generate_run_config_file(s)
-
-                bcl_convert_job = BCLConvertJob(self.root_dir,
-                                                self.should_filter)
-
-                bcl_convert_job.run(sample_sheet_params['sequence_directory'],
-                                    sample_sheet_params['sample_sheet_path'],
-                                    sample_sheet_params['base_mask'],
-                                    sample_sheet_params['experiment_name'],
-                                    self.bclconvert_template)
+                bcl2fastq_job = BCL2FASTQJob(self.root_dir,
+                                             s,
+                                             self.output_dir,
+                                             self.nprocs,
+                                             self.bcl2fastq_path)
+                bcl2fastq_job.run()
 
                 chemistry = sample_sheet_params['chemistry']
 
@@ -103,12 +100,13 @@ class Pipeline:
             sample_sheet_params = sdo.process()
             s = sample_sheet_params['sample_sheet_path']
 
-            self._generate_run_config_file(s)
+            bcl2fastq_job = BCL2FASTQJob(self.root_dir,
+                                           project,
+                                           s,
+                                           self.output_dir,
+                                           self.nprocs)
 
-            bcl_convert_job = BCLConvertJob(self.root_dir,
-                                            self.should_filter)
-
-            bcl_convert_job.run(sample_sheet_params['sequence_directory'],
+            bcl2fastq_job.run(sample_sheet_params['sequence_directory'],
                                 sample_sheet_params['sample_sheet_path'],
                                 sample_sheet_params['base_mask'],
                                 sample_sheet_params['experiment_name'],
@@ -158,7 +156,7 @@ class Pipeline:
 
         for root, dirs, files in os.walk(self.root_dir):
             for some_directory in dirs:
-                some_path = join_path(root, some_directory)
+                some_path = join(root, some_directory)
                 if '/Data/Intensities/BaseCalls/' in some_path:
                     # the root directory of every scan directory will have
                     # this substring in the path of one or more of their
@@ -187,7 +185,7 @@ class Pipeline:
             # whether a single BCL directory is passed, or a nested tree
             # of directories is passed, assume that a potential BCL
             # directory must contain a file named self.sentinel_file.
-            if os.path.exists(join_path(some_path, self.sentinel_file)):
+            if os.path.exists(join(some_path, self.sentinel_file)):
                 some_timestamp = os.path.getmtime(some_path)
                 # if the last modified timestamp of the directory is
                 # within the threshold of what is considered 'new and
@@ -208,69 +206,6 @@ class Pipeline:
                 logging.warning(s.format(some_path, self.sentinel_file))
 
         return filtered_dirs
-
-    def _generate_run_config_file(self, sample_sheet_path):
-        '''
-        Generates a run_config.txt file in self.root based on data found in
-        sample_sheet_path.
-        :param sample_sheet_path: Path to a sample sheet CSV file.
-        :return: None
-        '''
-        with open(sample_sheet_path, 'r') as f:
-            # we can (and should) open up this file as a proper INI
-            # file. However it may have trailing ',' characters,
-            # which may impede this. Hence, open it as a regular
-            # file and clean it up before processing.
-            lines = f.readlines()
-            # first, let's strip out \n and \r\n and any leading or
-            # trailing whitespaces
-            lines = [x.strip() for x in lines]
-            # second, let's strip out trailing ',' characters, if
-            # they're present. We'll keep any leading ',' characters
-            # or in-line ',' characters.
-            lines = [x.rstrip(',') for x in lines]
-            # lastly, there have been cases where lines contain only
-            # ',' characters. Hence, look for and remove these now
-            # empty lines before continuing.
-            lines = [x for x in lines if x]
-            # since the file is already in memory, we won't use INI
-            # library to parse it, (for now). Although it would be
-            # cleaner.
-            metadata = []
-            sentinel = False
-            for i in range(0, len(lines)):
-                if lines[i] == '[Bioinformatics]':
-                    # when Bioinformatics section is found, start
-                    # copying lines to the list buffer, but don't
-                    # copy the header itself.
-                    sentinel = True
-                elif lines[i].startswith('['):
-                    # when the next header is found, stop copying
-                    # lines to the list buffer. Don't include this
-                    # header line, either.
-                    sentinel = False
-                elif sentinel is True:
-                    # this should be a line in between
-                    # [Bioinformatics] and the next section. Copy it
-                    # to the buffer.
-                    metadata.append(lines[i])
-                # if the end of the file is reached before the next
-                # header is found, that means there were no more
-                # headers and that's okay too.
-
-            # remove duplicate lines (this appears to be an issue in
-            # the original bash scripts.)
-            metadata = list(set(metadata))
-            metadata.sort()
-
-            # write the sanitized data out to legacy file.
-            s = join_path(self.root_dir, 'run_config.txt')
-            run_config_file_path = s
-            with open(run_config_file_path, 'w') as f2:
-                for line in metadata:
-                    # end lines w/proper UNIX-style newline, unless
-                    # Windows '\r\n' is preferred.
-                    f2.write("%s\n" % line)
 
     def _get_contact_information(self, sample_sheet_path):
         '''

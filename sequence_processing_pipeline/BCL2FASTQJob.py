@@ -1,31 +1,32 @@
 import logging
 from sequence_processing_pipeline.TorqueJob import TorqueJob
-from os.path import join, basename, dirname, abspath
-from os import makedirs
+from os.path import join, abspath
 import re
 
 
 class BCL2FASTQJob(TorqueJob):
     '''
-    BCL2FASTQJob implements a way run bcl2fastq on a directory of BCL files.
-    It builds on TorqueJob's ability to push a job onto Torque and wait for it
-     to finish.
+    BCL2FASTQJob implements a way to run bcl2fastq on a directory of BCL
+    files. It builds on TorqueJob's ability to push a job onto Torque and wait
+    for it to finish.
     '''
-    def __init__(self, root_dir, project, sample_sheet_path, output_directory):
+    def __init__(self, root_dir, sample_sheet_path, output_directory, nprocs, bcl2fastq_path):
         super().__init__()
         logging.debug("BCL2FASTQJob Constructor called")
         self.root_dir = abspath(root_dir)
-        self.project = project
-        self.job_script_path = join(self.root_dir, 'Data', 'Fastq', project, 'fastqc_qsub.sh')
-        self.job_name = "fastqc_%s_%s" % (project, basename(self.root_dir))
-        self.nprocs = 16
+        tmp = join(self.root_dir, 'Data', 'Fastq')
+        self.job_script_path = join(tmp, 'BCL2FASTQ.sh')
+        self.stdout_log_path = join(tmp, 'BCL2FASTQ.out.log')
+        self.stderr_log_path = join(tmp, 'BCL2FASTQ.err.log')
+        # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
+        self.unique_name = self.root_dir.split('/')[-1]
+        self.job_name = "BCL2FASTQ_%s" % self.unique_name
+        self.nprocs = nprocs
         self.sample_sheet_path = sample_sheet_path
-        self.stdout_log_path = join(dirname(self.job_script_path), 'BCL2FASTQ.out.log')
-        self.stderr_log_path = join(dirname(self.job_script_path), 'BCL2FASTQ.err.log')
-        self.output_dir_path = abspath(output_directory)
-        self.bcl2fastq_bin_path = "~/bcl2fastq_2_20/bin/bcl2fastq"
-        makedirs(dirname(self.job_script_path), exist_ok=True)
-        makedirs(dirname(self.output_dir_path), exist_ok=True)
+        # TODO: Not certain yet whether output_directory should reference the environment variable setting
+        #  or should output be directed to a subdirectory under self.root_dir, as seems to be the case.
+        self.output_directory = output_directory
+        self.bcl2fastq_path = bcl2fastq_path
 
     def _make_job_script(self):
         lines = []
@@ -39,6 +40,8 @@ class BCL2FASTQJob(TorqueJob):
         # declare a name for this job to be sample_job
         lines.append("#PBS -N %s" % self.job_name)
 
+        # TODO: parameterize the useful PBS parameters to change.
+        # TODO: Use Jinja template instead
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so this
@@ -62,6 +65,7 @@ class BCL2FASTQJob(TorqueJob):
         lines.append("#PBS -m bea")
 
         # specify your email address
+        # TODO: Send an email to jeff, and qiita.help as well.
         lines.append("#PBS -M ccowart@ucsd.edu")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
@@ -75,22 +79,23 @@ class BCL2FASTQJob(TorqueJob):
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
 
-        # We probably do not need to activate this Python environment, but I
-        # will store it here in comments.
-        # source ~/miniconda3/bin/activate test_env_2
-
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use root_dir instead.
+        lines.append("set -x")
+        # lines.append("module load gcc_4.9.1")
         lines.append("cd %s"  % self.root_dir)
+        # lines.append("export PATH=$PATH:/usr/local/bin")
         lines.append('cmd="%s --sample-sheet %s --mask-short-adapter-reads \
                       1 -R . -o %s --loading-threads 8 --processing-threads \
+                      --minimum-trimmed-read-length 1 \
                       8 --writing-threads 2 --create-fastq-for-index-reads \
-                      --ignore-missing-bcls"' % (self.bcl2fastq_bin_path,
+                      --ignore-missing-bcls"' % (self.bcl2fastq_path,
                                                  self.sample_sheet_path,
-                                                 self.output_dir_path))
+                                                 self.output_directory))
         lines.append("echo $cmd")
         lines.append("eval $cmd")
         lines.append("return_code=$?")
+        # path should really be: echo $returncode > ~/seq_proc_jobs/${SLURM_JOB_ID}_bcl_status
         p = "%s/%s.return_code" % (self.root_dir, self.job_name)
         lines.append("echo $returncode > %s" % p)
         lines.append("date >> %s" % p)
@@ -110,15 +115,3 @@ class BCL2FASTQJob(TorqueJob):
         # if the job returned successfully, we may want to send an
         # email to the user. If an error occurs, the user will
         # be notified by the email triggered by PipelineError().
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-
-    job = BCL2FASTQJob('./good-bcl-directory',
-                       'THDMI_US_99999',
-                       './good-bcl-directory/good-sample-sheet.csv',
-                       './good-bcl-directory/Data/Fastq/Output')
-    job.run()
-
-
