@@ -2,6 +2,7 @@ import logging
 from sequence_processing_pipeline.TorqueJob import TorqueJob
 from os.path import join, abspath
 import re
+from os import makedirs
 
 
 class BCL2FASTQJob(TorqueJob):
@@ -10,25 +11,23 @@ class BCL2FASTQJob(TorqueJob):
     files. It builds on TorqueJob's ability to push a job onto Torque and wait
     for it to finish.
     '''
-    def __init__(self, root_dir, sample_sheet_path, output_directory, nprocs, bcl2fastq_path):
+    def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path):
         super().__init__()
-        logging.debug("BCL2FASTQJob Constructor called")
         self.root_dir = abspath(root_dir)
         tmp = join(self.root_dir, 'Data', 'Fastq')
-        self.job_script_path = join(tmp, 'BCL2FASTQ.sh')
-        self.stdout_log_path = join(tmp, 'BCL2FASTQ.out.log')
-        self.stderr_log_path = join(tmp, 'BCL2FASTQ.err.log')
+        makedirs(tmp, exist_ok=True)
+        self.job_script_path = join(self.root_dir, 'BCL2FASTQ.sh')
+        self.stdout_log_path = join(self.root_dir, 'BCL2FASTQ.out.log')
+        self.stderr_log_path = join(self.root_dir, 'BCL2FASTQ.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
         self.unique_name = self.root_dir.split('/')[-1]
         self.job_name = "BCL2FASTQ_%s" % self.unique_name
-        self.nprocs = nprocs
         self.sample_sheet_path = sample_sheet_path
-        # TODO: Not certain yet whether output_directory should reference the environment variable setting
-        #  or should output be directed to a subdirectory under self.root_dir, as seems to be the case.
         self.output_directory = output_directory
         self.bcl2fastq_path = bcl2fastq_path
 
-    def _make_job_script(self):
+    def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit):
+        # TODO: Use Jinja template instead
         lines = []
 
         lines.append("#!/bin/bash")
@@ -40,24 +39,22 @@ class BCL2FASTQJob(TorqueJob):
         # declare a name for this job to be sample_job
         lines.append("#PBS -N %s" % self.job_name)
 
-        # TODO: parameterize the useful PBS parameters to change.
-        # TODO: Use Jinja template instead
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so this
         # will go unused in translation.)
-        lines.append("#PBS -q long8gb")
+        lines.append("#PBS -q %s" % queue_name)
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
-        lines.append("#PBS -l nodes=1:ppn=%d" % self.nprocs)
+        lines.append("#PBS -l nodes=%d:ppn=%d" % (node_count, nprocs))
 
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
 
         # Slurm walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (36 vs 24 hours)
-        lines.append("#PBS -l walltime=36:00:00")
+        lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
         # send email to charlie when a job starts and when it terminates or
         # aborts. This is used to confirm the package's own reporting
@@ -92,7 +89,6 @@ class BCL2FASTQJob(TorqueJob):
                       --ignore-missing-bcls"' % (self.bcl2fastq_path,
                                                  self.sample_sheet_path,
                                                  self.output_directory))
-        lines.append("echo $cmd")
         lines.append("eval $cmd")
         lines.append("return_code=$?")
         # path should really be: echo $returncode > ~/seq_proc_jobs/${SLURM_JOB_ID}_bcl_status
@@ -107,11 +103,12 @@ class BCL2FASTQJob(TorqueJob):
                 line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
 
-    def run(self):
-        # we may actually need to make the job script in a sub-dir.
-        self._make_job_script()
-        job_info = self.qsub(self.job_script_path, None, None)
+    def run(self, queue_name, node_count, nprocs, wall_time_limit):
+        self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit)
 
-        # if the job returned successfully, we may want to send an
-        # email to the user. If an error occurs, the user will
-        # be notified by the email triggered by PipelineError().
+        job_info = self.qsub(self.job_script_path, None, None)
+        logging.info("Successful job: %s" % job_info)
+
+        # TODO: if job returns successfully, notify user(s).
+        #  Users will be notified through PipelineErrors for
+        #  unsuccessful jobs.
