@@ -16,10 +16,7 @@ class TorqueJob(Job):
         self.qsub('myqueue', 'nooptions', '/mypath', 'noparameters')
         logging.debug("TorqueJob run() method exiting.")
 
-    def qsub2(self):
-        options = '-N %s -l h_vmem=4G -pe smp <num_slots> -o outputlogfile -e errorlogfile'
-
-    def qsub(self, script_path, qsub_parameters=None, script_parameters=None):
+    def qsub(self, script_path, qsub_parameters=None, script_parameters=None, wait=True):
         # -w e: verify options and abort if there's an error.
         # we now define queue (-q long) in the job script.
         # cmd = 'qsub -w e %s %s %s' % (qsub_parameters,
@@ -44,7 +41,7 @@ class TorqueJob(Job):
         job_info = {'job_id': None, 'job_name': None, 'status': None,
                     'elapsed_time': None}
 
-        while True:
+        while wait:
             # wait for the job to complete. Periodically check on the status
             # of the job using the 'qstat' command before sleep()ing again.
             # Recently completed and exited jobs appear in qstat for only a

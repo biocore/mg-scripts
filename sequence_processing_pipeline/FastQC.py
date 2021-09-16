@@ -1,72 +1,113 @@
-import os
-from sequence_processing_pipeline.Job import Job
-from os import makedirs, listdir
-from os.path import join, dirname, abspath, exists, isfile, basename
+from os.path import join
 from sequence_processing_pipeline.TorqueJob import TorqueJob
-from time import sleep
-from zipfile import ZipFile
 import logging
 import os
 import re
-import shutil
 
 
-class FastQCJOb(Job):
-    def __init__(self, root_dir, output_dir, nprocs, project):
+class FastQCJOb(TorqueJob):
+    def __init__(self, root_dir, output_dir, nprocs, project, fastqc_path):
         super().__init__()
         self.root_dir = root_dir
         self.output_dir = output_dir
+        self.job_script_path = join(self.root_dir, 'FASTQC.sh')
         self.project = project
         self.nprocs = nprocs
-        self.job_file_path = join(self.root_dir, 'Data/Fastq', self.project, 'fastqc_qsub.sh')
+        self.stdout_log_path = join(self.root_dir, 'FASTQC_{}-{}.out.log')
+        self.stderr_log_path = join(self.root_dir, 'FASTQC_{}-{}.err.log')
+        self.fastqc_path = fastqc_path
 
-    def _generate_job_file(self, labname, chemistry, home, email_list, x, y):
+    def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit, chemistry,  x, y):
+        # filepath = ${seqdir}/Data/Fastq/${project}/fastqc_qsub.sh
+        # TODO: Use Jinja template instead
         lines = []
 
         lines.append("#!/bin/bash")
-        lines.append("#SBATCH --job-name=fastqc_%s_%s" % (self.project, os.path.basename(self.root_dir)))
-        lines.append("#SBATCH --nodes=1")
-        lines.append("#SBATCH --ntasks-per-node=%s" % self.nprocs)
-        lines.append("#SBATCH --export=ALL")
-        lines.append("#SBATCH --time=24:00:00")
-        lines.append("#SBATCH --mem-per-cpu=6G")
-        lines.append("#SBATCH --output=%s/fastqc_jobs/\%x-\%j.out" % (home, x, y))
-        lines.append("#SBATCH --error=%s/fastqc_jobs/\%x-\%j.err" % (home, x, y))
-        lines.append("#SBATCH --mail-type=ALL")
-        lines.append("#SBATCH --mail-user=%s" % ','.join(email_list))
-        # lines.append("source ~/miniconda3/bin/activate test_env_2")
-        # lines.append("file=%s\%s" % (trim_file, slurm_array_task_id))
-        lines.append('cmd="sh ~/seq_proc_dev/fastqc_parallel_bclconvert.sh %s %s %d %s %s %s"' % (
-            self.root_dir, self.output_dir, self.nprocs, self.project, labname, chemistry))
-        lines.append('echo "\$cmd"')
-        lines.append("date")
-        lines.append('echo "Executing: "\$cmd"')
-        lines.append('eval "\$cmd"')
-        lines.append("date")
+        # The Torque equiv for calling SBATCH on this script and supplying params
+        # w/environment variables is to do the same on QSUB but with -v instead of
+        # --export. The syntax of the values are otherwise the same.
+        # -v <variable[=value][,variable2=value2[,...]]>
 
-        with open(self.job_file_path, 'w') as f:
+        # declare a name for this job to be sample_job
+        job_name = "fastqc_%s_%s" % (self.project, os.path.basename(self.root_dir))
+        lines.append("#PBS -N %s" % job_name)
+
+        # what torque calls a queue, slurm calls a partition
+        # SBATCH -p SOMETHING -> PBS -q SOMETHING
+        # (Torque doesn't appear to have a quality of service (-q) option. so this
+        # will go unused in translation.)
+        lines.append("#PBS -q %s" % queue_name)
+
+        # request one node
+        # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
+        lines.append("#PBS -l nodes=%d:ppn=%d" % (node_count, nprocs))
+
+        # Slurm --export=ALL -> Torque's -V
+        lines.append("#PBS -V")
+
+        # Slurm walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
+        # using the larger value found in the two scripts (36 vs 24 hours)
+        lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
+
+        # send email to charlie when a job starts and when it terminates or
+        # aborts. This is used to confirm the package's own reporting
+        # mechanism is reporting correctly.
+        lines.append("#PBS -m bea")
+
+        # specify your email address
+        # TODO: Send an email to jeff, and qiita.help as well.
+        lines.append("#PBS -M ccowart@ucsd.edu")
+
+        # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
+        # taking the larger of both values (10G > 6G)
+        #lines.append("#PBS -l pmem=10gb")
+
+        # --output -> -o
+        lines.append("#PBS -o %s" % self.stdout_log_path.format(x, y))
+        lines.append("#PBS -e %s" % self.stderr_log_path.format(x, y))
+
+        # there is no equivalent for this in Torque, I believe
+        # --cpus-per-task 1
+
+        # By default, PBS scripts execute in your home directory, not the
+        # directory from which they were submitted. Use root_dir instead.
+        lines.append("set -x")
+        lines.append("date '+%s' > /{}/{}.log".format(self.root_dir, job_name))
+        lines.append("source ~/miniconda3/bin/activate test_env_2")
+        lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
+        lines.append("cd %s"  % self.root_dir)
+        # lines.append("export PATH=$PATH:/usr/local/bin")
+        lines.append("#file=${trim_file}\${SLURM_ARRAY_TASK_ID}")
+        lines.append('%s %s %s %s %s %s' %  (self.fastqc_path, self.root_dir, self.output_dir, self.nprocs, self.project, chemistry))
+        lines.append("echo $? >> /%s/%s.log" % (self.root_dir, job_name))
+        lines.append("date '+%s' >> /{}/{}.log".format(self.root_dir, job_name))
+
+        with open(self.job_script_path, 'w') as f:
+            logging.debug("Writing job script to %s" % self.job_script_path)
             for line in lines:
+                # remove long spaces in some lines.
+                line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
 
-    def run(self):
-        # suffix=R*.fastq*
-        # data_prefix=/projects/fastqc
+    def run(self, queue_name, node_count, nprocs, wall_time_limit, chemistry, x, y):
+        self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit, chemistry,  x, y)
 
-        # fastq_raw=$fastq_output
-        # atropos_qc_output=$fastq_output/*/atropos_qc
-        # fastq_trimmed=$fastq_output/*/filtered_sequences
+        job_info = self.qsub(self.job_script_path, None, None)
+        logging.info("Successful job: %s" % job_info)
 
-        self._generate_job_file(labname, chemistry, home, email_list, x, y)
+        '''
+        parsable just means sbatch prints out the jobid and hte cluster name, kind of like qsub does.
+        qos=sec_proc is just the quality of service profile. look for an  equivalent on our torque install.
+        depdendency=afterok:pbs_job_id means that this job is allowed to run only after pbs_job_id has completed successfully with a return code of 0.
+            curiously, it doesn't say if the job queue aborts early if this dependency can never be met.
+            it also says that you can't redo the job that failed successfully and have this job suddenly run. one time only
+        initial=true isn't needed, because initial is already reassigned inside the script fastqc_qsub.sh calls.
+        '''
+        fastqc_job_id =$(sbatch - -parsable - -qos
+                         =seq_proc --dependency=afterok:${pbs_job_id} --export=initial="true" ${seqdir} / Data / Fastq / ${project} / fastqc_qsub.sh)
 
-        cmd = ['sbatch',
-               '--parsable',
-               '--qos=seq_proc',
-               '--dependency=afterok:${pbs_job_id}',
-               '--export=initial="true"',
-               self.job_file_path]
+        # TODO: if job returns successfully, notify user(s).
+        #  Users will be notified through PipelineErrors for
+        #  unsuccessful jobs.
 
-        # TODO We may or may not want to wait
-        fastqc_job_id = self.execute_sbatch_job_and_wait(cmd)
-
-        # keep fastqc_parallel_bclconvert.sh as is for now.
 

@@ -292,8 +292,6 @@ class HumanFilterJob(TorqueJob):
             # | $minimap2 -ax sr -t $NPROCS $db - -a
             # | $samtools fastq -@ $NPROCS -f 12 -F 256 -1 $final_output/${project}/filtered_sequences/${filename1_short}.trimmed.fastq.gz -2 $final_output/${project}/filtered_sequences/${filename2_short}.trimmed.fastq.gz
 
-
-
 ###
             cmd_list = ['fastp']
 
@@ -361,6 +359,7 @@ class HumanFilterJob(TorqueJob):
         # email to the user. If an error occurs, the user will
         # be notified by the email triggered by PipelineError().
         '''
+        self._make_job_script()
 
         if not isinstance(a_trim, bool):
             raise ValueError("a_trim must be a boolean value.")
@@ -464,9 +463,6 @@ class HumanFilterJob(TorqueJob):
                             # echo syncing file ${final_output}/${file}_R1_*.trimmed.fastq.gz ${final_output}/${file}_R2_*.trimmed.fastq.gz
                             pass
 
-
-
-
     def _make_job_script(self):
         lines = []
 
@@ -496,7 +492,7 @@ class HumanFilterJob(TorqueJob):
         # using the larger value found in the two scripts (72 vs ? hours)
         lines.append("#PBS -l walltime=72:00:00")
 
-        # send email to charlie when a job starts and when it terminates or
+        # send email to ccowart when a job starts and when it terminates or
         # aborts. This is used to confirm the package's own reporting
         # mechanism is reporting correctly.
         lines.append("#PBS -m bea")
@@ -524,8 +520,6 @@ class HumanFilterJob(TorqueJob):
         # directory from which they were submitted. Use root_dir instead.
         lines.append("cd %s"  % self.root_dir)
         '''
-        MAKE SURE ATRIM AND HFILTER ARE TRUE/False or CONVERTED TO IT
-        MAKE SURE adapter_a and ADAPTER_A are None if they are NA
                 lines.append(
                     'cmd="sh ~/seq_proc_dev/fpmmp.sh -d %s -D /Data/Fastq -S %s\%s -p %s -C %s -c %d -o %s -O %s -a %s -A %s -g %s -G %s -q %s -f %s"' % (
                     seq_dir, trim_file, slurm_array_task_id, project, chemistry, self.nprocs, output_dir,
@@ -550,8 +544,6 @@ class HumanFilterJob(TorqueJob):
                 # remove long spaces in some lines.
                 line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
-
-
 
 
 if __name__ == '__main__':

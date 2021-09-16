@@ -75,26 +75,22 @@ class BCL2FASTQJob(TorqueJob):
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
-
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use root_dir instead.
         lines.append("set -x")
-        # lines.append("module load gcc_4.9.1")
+        lines.append("date '+%s' > /{}/{}.log".format(self.root_dir, self.job_name))
+        lines.append("module load bcl2fastq_2.20.0.422")
         lines.append("cd %s"  % self.root_dir)
         # lines.append("export PATH=$PATH:/usr/local/bin")
-        lines.append('cmd="%s --sample-sheet %s --mask-short-adapter-reads \
+        lines.append('%s --sample-sheet %s --mask-short-adapter-reads \
                       1 -R . -o %s --loading-threads 8 --processing-threads \
                       --minimum-trimmed-read-length 1 \
                       8 --writing-threads 2 --create-fastq-for-index-reads \
-                      --ignore-missing-bcls"' % (self.bcl2fastq_path,
+                      --ignore-missing-bcls' % (self.bcl2fastq_path,
                                                  self.sample_sheet_path,
                                                  self.output_directory))
-        lines.append("eval $cmd")
-        lines.append("return_code=$?")
-        # path should really be: echo $returncode > ~/seq_proc_jobs/${SLURM_JOB_ID}_bcl_status
-        p = "%s/%s.return_code" % (self.root_dir, self.job_name)
-        lines.append("echo $returncode > %s" % p)
-        lines.append("date >> %s" % p)
+        lines.append("echo $? >> /%s/%s.log" % (self.root_dir, self.job_name))
+        lines.append("date '+%s' >> /{}/{}.log".format(self.root_dir, self.job_name))
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)
