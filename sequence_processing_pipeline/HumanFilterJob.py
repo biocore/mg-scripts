@@ -1,469 +1,160 @@
-from os import makedirs, listdir
-from os.path import join, dirname, abspath, exists, isfile, basename
 from sequence_processing_pipeline.TorqueJob import TorqueJob
-from time import sleep
-from zipfile import ZipFile
+from metapool import KLSampleSheet, validate_sample_sheet
+from sequence_processing_pipeline.PipelineError import PipelineError
+from os.path import join, basename, dirname
+from os import walk, remove
 import logging
-import os
-import re
-import shutil
 
 
-#source ~/.seqvars
-#module load fastp_0.20.1 samtools_1.12 minimap2_2.18
-
-
-class HumanFilterJob(TorqueJob):
-    def __init__(self, root_dir, project, sample_sheet_path, output_directory, output2_directory, forward, reverse, project2=None):
+class HumanFilter2Job(TorqueJob):
+    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs):
         super().__init__()
-        logging.debug("HumanFilterJob Constructor called")
+        self.root_dir = root_dir
+        metadata = self._process_sample_sheet(sample_sheet_path)
+        self.project_data = metadata['projects']
+        self.trim_file = 'split_file_'
+        self.log_directory = log_directory
+        self.fpmmp_path = fpmmp_path
+        self.nprocs = nprocs
+        self.chemistry = metadata['chemistry']
 
-        self.job_script_path = join(self.project_fastq_dir, 'fastqc_qsub.sh')
-        self.job_name = "%s_%s_%s" % (project, forward, reverse)
-        self.nprocs = 16
-        self.sample_sheet_path = sample_sheet_path
-        self.stdout_log_path = join(self.project_fastq_dir, 'something_%s_%s.out.log' % forward, reverse)
-        self.stderr_log_path = join(self.project_fastq_dir, 'something_%s_%s.err.log' % forward, reverse)
-        self.output_dir_path = abspath(output_directory)
-        # sometimes called final_output_directory and used by CMI.
-        self.output2_dir_path = abspath(output2_directory)
-        self.bcl2fastq_bin_path = "~/bcl2fastq_2_20/bin/bcl2fastq"
+    def run(self):
+        for project in self.project_data:
+            fastq_files = self._find_fastq_files(project['project_name'])
+            split_count = self._generate_split_count(len(fastq_files))
+            job_count = split_count + 1
+            file_base = basename(self.root_dir)  # this might need to be data/fastq instead
+            self._clear_trim_files()
+            self.lines_per_split = (len(fastq_files) + split_count - 1) / split_count
+            trim_files = self._generate_trim_files(fastq_files, split_count)
+            proj_array = []
 
-        # this should be written out to
-        # $final_output/${project}/empty_file_list.txt if needed.
-        self.empty_file_list_txt = []
+            # TODO: Replace with appropriate relative paths
+            output_dir = 'MyOutputDirectory'
+            final_output_dir = 'MyFinalOutputDirectory'
 
-        self.trim_list = self._generate_trim_list()
-        self._create_directories(root_dir, project, project2)
+            script_path = self._make_job_script(project['project_name'],
+                                                self.chemistry,
+                                                output_dir,
+                                                project['adapter_a'],
+                                                project['adapter_A'],
+                                                project['a_trim'],
+                                                project['h_filter'],
+                                                project['qiita_proj'],
+                                                final_output_dir)
 
-    def _generate_trim_list(self):
+            # TODO: We need to supply qsub with the Torque version of
+            #  pbs_job_id=$(sbatch --qos=seq_proc --parsable --array=0-$(($split_count - 1)) ${seqdir}/Data/Fastq/${project}/${file_base}_qsub.sh)
+            #  pbs_job_array="--dependency=afterok:$pbs_job_id"
+            job_info = self.qsub(script_path, None, None)
+
+            proj_array.append(project['project_name'])
+            # fastqc_process "${seqdir}" "${output_dir}" "${fastq_output}" "${pbs_job_id}" "${pbs_job_array}" "${proj_array[@]}"
+
+        # Don't bother creating uniq_run_config.txt at this time.
+        # done < ${seqdir} / uniq_run_config.txt
+
+    def _generate_trim_files(self, fastq_files, split_count):
+        def _chunk_list(some_list, n):
+            # taken from https://bit.ly/38S9O8Z
+            for i in range(0, len(some_list), n):
+                yield some_list[i:i + n]
+
+        # put these split files in the same location as the fastq_files for
+        # the project. Assume all filepaths in fastq_files have the same
+        # result for dirname().
+        destination_path = dirname(fastq_files[0])
+
+        new_files = []
+        count = 0
+        for chunk in _chunk_list(fastq_files, split_count):
+            trim_file_name = '%s%d' % (self.trim_file, count)
+            trim_file_path = join(destination_path, trim_file_name)
+            with open(trim_file_path, 'w') as f:
+                for line in chunk:
+                    f.write(line)
+            new_files.append(trim_file_path)
+            count += 1
+
+        return new_files
+
+    def _clear_trim_files(self):
+        # remove all files with a name beginning in self.trim_file.
+        # assume cleaning the entire root_dir is overkill, but won't
+        # hurt anything.
+        for root, dirs, files in walk(self.root_dir):
+            for some_file in files:
+                if self.trim_file in some_file:
+                    some_path = join(root, some_file)
+                    remove(some_path)
+
+    def _process_sample_sheet(self, sample_sheet_path):
+        # Some column headers in some sample sheets appear to use
+        # different names for the same metadata. This dict maps the names
+        # commonly found to the internal name used by the code.
+        # TODO: Not certain BarcodesAreRC == PolyGTrimming == a_trim. Confirm
+        name_map = {'Sample_Project': 'project_name', 'Project': 'project_name', 'QiitaID': 'qiita_proj',
+                    'BarcodesAreRC': 'a_trim', 'PolyGTrimming': 'a_trim', 'ForwardAdapter': 'adapter_a',
+                    'ReverseAdapter': 'adapter_A', 'HumanFiltering': 'h_filter'}
+
+        sheet = KLSampleSheet(sample_sheet_path)
+        valid_sheet = validate_sample_sheet(sheet)
+
+        if not valid_sheet:
+            s = "Sample sheet %s is not valid." % sample_sheet_path
+            raise PipelineError(s)
+
+        header = valid_sheet.Header
+        chemistry = header['chemistry']
+
+        bioinformatics = valid_sheet.Bioinformatics
+
+        # reorganize the data into a list of dictionaries, one for each row.
+        # the ordering of the rows will be preserved in the order of the list.
+
         l = []
-        for item in listdir(self.project_fastq_dir):
-            if isfile(join(self.project_fastq_dir, item)):
-                if item.endswith('.fastq.gz'):
-                    if '_R1_' in item:
-                        l.append(item)
+        for i in range(0, len(bioinformatics)):
+            l.append({})
+
+        for item in bioinformatics:
+            my_series = bioinformatics[item]
+            for index, value in my_series.items():
+                key = name_map[item]
+                # convert all manner of positive/negative implying strings
+                # into a true boolean value.
+                if key in ['a_trim', 'h_filter']:
+                    value = value.strip().lower()
+                    value = True if value in ['true', 'yes'] else False
+                l[index][key] = value
+
+        # human-filtering jobs are scoped by project. Each job requires
+        # particular knowledge of the project.
+        return {'chemistry': chemistry, 'projects': l}
+
+    def _find_fastq_files(self, project_name):
+        search_path = join(self.root_dir, 'Data', 'Fastq', project_name)
+        l = []
+        for root, dirs, files in walk(search_path):
+            for some_file in files:
+                some_file = some_file.decode('UTF-8')
+                if some_file.endswith('fastq.gz'):
+                    if '_R1_' in some_file:
+                        some_path = join(self.root_dir, some_file)
+                        l.append(some_path)
         return l
 
-    def _create_directories(self, root_dir, project, project2=None):
-        # this Job creates a lot of new directories. It's easier to simply
-        # create all of the ones needed and walk the tree after processing
-        # to remove empty directories. What's important for the copy and move
-        # operations is that the destination directories exist.
-        path_list = []
-
-        self.project = project
-        self.root_dir = abspath(root_dir)
-        self.project_dir = join(self.root_dir, project)
-        self.fastq_dir = join(self.root_dir, 'Data', 'Fastq')
-        self.project_fastq_dir = join(self.fastq_dir, project)
-
-        path_list.append(self.root_dir)
-        path_list.append(self.project_dir)
-        path_list.append(self.fastq_dir)
-        path_list.append(self.project_fastq_dir)
-
-        path_list.append(join(self.project_fastq_dir, 'html'))
-        path_list.append(join(self.project_fastq_dir, 'json'))
-
-        path_list.append(join(self.project_dir, 'fastp_qc', 'fastp_fastqc'))
-        path_list.append(join(self.project_dir, 'fastp_qc', 'fastp_logs'))
-
-        filtered_sequences_location_1 = join(self.project_dir, 'filtered_sequences')
-        path_list.append(filtered_sequences_location_1)
-        path_list.append(join(filtered_sequences_location_1, 'trim_logs'))
-        path_list.append(join(filtered_sequences_location_1, 'zero_files'))
-
-        trimmed_sequences_location_1 = join(self.project_dir, 'trimmed_sequences')
-        path_list.append(trimmed_sequences_location_1)
-
-        if project2:
-            filtered_sequences_location_2 = join(self.project_dir, project2, 'filtered_sequences')
-            path_list.append(filtered_sequences_location_2)
-            path_list.append(join(filtered_sequences_location_2, 'trim_logs'))
-            path_list.append(join(filtered_sequences_location_2, 'zero_files'))
-
-            trimmed_sequences_location_2 = join(self.project_dir, project2, 'trimmed_sequences')
-            path_list.append(trimmed_sequences_location_2)
-
-        path_list.append(join(self.root_dir, 'html'))
-        path_list.append(join(self.project_dir, 'html'))
-
-        path_list.append(join(self.root_dir, 'json'))
-        path_list.append(join(self.project_dir, 'json'))
-
-        path_list.append(join(self.root_dir, 'trim_logs'))
-        path_list.append(join(self.project_dir, 'trim_logs'))
-
-        path_list.append(join(self.root_dir, 'zero_files'))
-        path_list.append(join(self.project_dir, 'zero_files'))
-
-        path_list.append(join(self.project_dir, 'fastp_qc', 'fastp_fastqc'))
-        path_list.append(join(self.project_dir, 'fastp_qc', 'fastp_logs'))
-        path_list.append(join(self.project_dir, 'fastp_qc', 'processed_qc'))
-
-        path_list.append(join(self.project_fastq_dir, 'fastp_qc', 'fastp_fastqc'))
-        path_list.append(join(self.project_fastq_dir, 'fastp_qc', 'fastp_logs'))
-        path_list.append(join(self.project_fastq_dir, 'fastp_qc', 'processed_qc'))
-
-        path_list.append(join(self.output2_dir_path, self.project, 'amplicon'))
-
-        # intentionally wrong location.
-        path_list.append(join(self.project_dir, 'wrong_location'))
-
-        for path in path_list:
-            makedirs(path, exist_ok=True)
-
-    def zip_files(self, file_paths, zip_path):
-        with ZipFile(zip_path, 'w') as zip:
-            for file in file_paths:
-                zip.write(file)
-
-    def copy_directory_contents(self, source_directory, destination_directory, ends_with=None, contains=None,
-                                starts_with=None, delete_after=False, uid=None, gid=None):
-        if uid and not gid:
-            raise ValueError("You must define both uid and gid")
-        elif not gid and uid:
-            raise ValueError("You must define both uid and gid")
-
-        files = listdir(source_directory)
-        # convert from bytes output of listdir to string
-        files = [str(x) for x in files]
-        for some_file in files:
-            match_count = 0
-            count = 0
-            if starts_with:
-                count += 1
-                if some_file.startswith(starts_with):
-                    match_count += 1
-            elif ends_with:
-                count += 1
-                if some_file.endswith(ends_with):
-                    match_count += 1
-            elif contains:
-                count += 1
-                if contains in some_file:
-                    match_count += 1
-
-            if count == match_count and count != 0:
-                # if multiple filters were provided, we need to match all of
-                # them before moving/copying files.
-                if delete_after:
-                    shutil.move(join(source_directory, some_file), destination_directory)
-                else:
-                    shutil.copyfile(join(source_directory, some_file), destination_directory)
-
-                if uid and gid:
-                    os.chown(join(destination_directory, some_file), uid, gid)
-
-    def possible_amplicon(self, adapter_a, adapter_A, chemistry, qiita_proj, copy_file):
-        for file in self.trim_list:
-            filepath1 = file
-            filepath2 = file.replace('_R1_00', '_R2_00')
-            filename1 = basename(file)
-            filename2 = filename1.replace('_R1_00', '_R2_00')
-
-            filename1_short = filename1.replace('.fastq.gz', '')
-            filename2_short = filename2.replace('.fastq.gz', '')
-
-            filename_index1 = filename1.replace('_R1_', '_I1_')
-            filename_index2 = filename2.replace('_R1_', '_I1_')
-
-            cmd_list = ['fastp']
-
-            if adapter_a != None and adapter_A != None:
-                cmd_list.append('--adapter_sequence')
-                cmd_list.append(adapter_a)
-                cmd_list.append('--adapter_sequence_r2')
-                cmd_list.append(adapter_A)
-
-            f1 = join(self.project_dir, 'trimmed_sequences', filename1_short + '.fastp.fastq.gz')
-            f2 = join(self.project_dir, 'trimmed_sequences', filename2_short + '.fastp.fastq.gz')
-
-            cmd_list += ['-l', '100',
-                         '-i', filepath1,
-                         '-I', filepath2,
-                         '-w', self.nprocs,
-                         '-j', join(self.project_dir, 'json', filename1_short + '.json'),
-                         '-h', join(self.project_dir, 'html', filename1_short + '.html'),
-                         '-o', f1,
-                         '-O', f2,
-                         '-R', filename1_short + '_report'
-                         ]
-
-            out, err, rc = self._system_call(cmd_list)
-
-            size1 = os.stat(f1).st_size
-            size2 = os.stat(f2).st_size
-
-            ### amplicon/16s data. include index files
-            if chemistry == 'Amplicon':
-                dst = join(self.project_dir, 'trimmed_sequences')
-                self.copy_directory_contents(self.project_dir, dst, contains=filename_index1)
-                self.copy_directory_contents(self.project_dir, dst, contains=filename_index2)
-
-            if size1 <= 500 or size2 <= 500:
-                src = join(self.project_dir, 'trimmed_sequences')
-                dst = join(self.project_dir, 'zero_files')
-                self.copy_directory_contents(src, dst, contains=filename1_short, delete_after=True)
-                self.copy_directory_contents(src, dst, contains=filename2_short, delete_after=True)
-
-                a = join(src, filename1_short + '.fastp.fastq.gz')
-                b = join(src, filename2_short + '.fastp.fastq.gz')
-
-                self.empty_file_list_txt.append(a)
-                self.empty_file_list_txt.append(size1)
-                self.empty_file_list_txt.append(b)
-                self.empty_file_list_txt.append(size2)
-
-        for some_file in self.trim_list:
-            transfer1 = some_file.replace('.fastq.gz', '')
-            transfer2 = transfer1.replace('_R1_00', '_R2_00')
-
-            if chemistry == 'Amplicon':
-                src = join(self.project_dir, 'trimmed_sequences')
-                # unsure what dst should be.
-                dst = join(self.project_dir, 'wrong_location')
-                self.copy_directory_contents(src, dst, ends_with='.fastp.fastq.gz')
-            else:
-                # unsure what dst should be.
-                dst = join(self.project_dir, 'wrong_location')
-                self.copy_directory_contents(self.project_dir, dst, ends_with=some_file)
-                filter = transfer2 + '.fastq.gz'
-                self.copy_directory_contents(self.project_dir, dst, ends_with=filter)
-
-            if qiita_proj == 'NA':
-                if chemistry == 'Amplicon' and copy_file == 'TRUE':
-                    src = join(self.project_dir, 'trimmed_sequences')
-                    dst = '/qmounts/qiita_data/uploads/%s/' % qiita_proj
-                    self.copy_directory_contents(src, dst, ends_with='.fastq.gz', contains='_R1_', uid='5500', gid='5500')
-                    self.copy_directory_contents(src, dst, ends_with='.fastq.gz', contains='_R2_', uid='5500', gid='5500')
-                    self.copy_directory_contents(src, dst, ends_with='.fastq.gz', contains='_I1_', uid='5500', gid='5500')
-                elif copy_file == 'TRUE':
-                    dst = '/qmounts/qiita_data/uploads/%s/' % qiita_proj
-                    src1 = join(self.project_dir, 'trimmed_sequences', transfer1 + '.fastp.fastq.gz')
-                    self.copy_directory_contents(src1, dst, uid='5500', gid='5500')
-                    src2 = join(self.project_dir, 'trimmed_sequences', transfer2 + '.fastp.fastq.gz')
-                    self.copy_directory_contents(src2, dst, uid='5500', gid='5500')
-
-        # commented-out: Not  sure why we would have to do this
-        # rsync -avp --progress ${final_output}/${project}/ ${final_output_dir}/${base_seq_dir}
-
-    def possible_amplicon2(self, adapter_a, adapter_A, final_output, copy_file, qiita_proj):
-        partial_path = join(final_output, self.project)
-        for file in self.trim_list:
-            parent_dir = dirname(file)
-            tmp = parent_dir.split('/')
-            # if tmp begins with a leading empty string '', this will remove it.
-            tmp = [x for x in tmp if x]
-            project_dir = tmp[0]
-            filename1 = basename(file)
-            filename1_short = filename1.replace('.fastq.gz', '')
-            filename2 = filename1.replace('_R1_00', '_R2_00')
-            filename2_short = filename2.replace('.fastq.gz', '')
-            if adapter_a == 'NA' or adapter_A == 'NA':
-                pass
-            # $fastp
-            # -l
-            # 100
-            # -i
-            # $filename1
-            # -I
-            # $filename2
-            # -w
-            # $NPROCS
-            # --stdout
-            # -j
-            # ${dir}/${project}/json/${filename1_short}.json
-            # -h
-            # ${dir}/${project}/html/${filename1_short}.html
-            # | $minimap2 -ax sr -t $NPROCS $db - -a
-            # | $samtools fastq -@ $NPROCS -f 12 -F 256 -1 $final_output/${project}/filtered_sequences/${filename1_short}.trimmed.fastq.gz -2 $final_output/${project}/filtered_sequences/${filename2_short}.trimmed.fastq.gz
-            else:
-                pass
-            # $fastp
-            # --adapter_sequence
-            # ${adapter_a}
-            # --adapter_sequence_r2
-            # ${adapter_A}
-            # -l
-            # 100
-            # -i $filename1 -I $filename2 -w $NPROCS --stdout -j ${dir}/${project}/json/${filename1_short}.json -h ${dir}/${project}/html/${filename1_short}.html
-            # | $minimap2 -ax sr -t $NPROCS $db - -a
-            # | $samtools fastq -@ $NPROCS -f 12 -F 256 -1 $final_output/${project}/filtered_sequences/${filename1_short}.trimmed.fastq.gz -2 $final_output/${project}/filtered_sequences/${filename2_short}.trimmed.fastq.gz
-
-###
-            cmd_list = ['fastp']
-
-            if adapter_a != None and adapter_A != None:
-                cmd_list.append('--adapter_sequence')
-                cmd_list.append(adapter_a)
-                cmd_list.append('--adapter_sequence_r2')
-                cmd_list.append(adapter_A)
-
-            f1 = join(self.project_dir, 'trimmed_sequences', filename1_short + '.fastp.fastq.gz')
-            f2 = join(self.project_dir, 'trimmed_sequences', filename2_short + '.fastp.fastq.gz')
-
-            cmd_list += ['-l', '100',
-                         '-i', filepath1,
-                         '-I', filepath2,
-                         '-w', self.nprocs,
-                         '-j', join(self.project_dir, 'json', filename1_short + '.json'),
-                         '-h', join(self.project_dir, 'html', filename1_short + '.html'),
-                         '-o', f1,
-                         '-O', f2,
-                         '-R', filename1_short + '_report'
-                         ]
-###
-            f1 = join(partial_path, 'filtered_sequences', filename1_short + '.trimmed.fastq.gz')
-            f2 = join(partial_path, 'filtered_sequences', filename2_short + '.trimmed.fastq.gz')
-
-            size1 = os.stat(f1).st_size
-            size2 = os.stat(f2).st_size
-
-            if size1 <= 500 or size2 <= 500:
-                src = join(partial_path, 'trimmed_sequences')
-                dst = join(partial_path, 'zero_files')
-
-                # mv $final_output/${project}/filtered_sequences/${filename1_short}* $final_output/${project}/filtered_sequences/${filename2_short}* ${final_output}/${project}/zero_files
-                self.copy_directory_contents(self.dir, dst, contains=filename1_short, delete_after=True)
-
-                self.empty_file_list_txt.append(
-                    join(partial_path, 'filtered_sequences$', filename1_short + '.trimmed.fastq.gz'))
-                self.empty_file_list_txt.append(size1)
-                self.empty_file_list_txt.append(
-                    join(partial_path, 'filtered_sequences$', filename2_short + '.trimmed.fastq.gz'))
-                self.empty_file_list_txt.append(size2)
-
-        ### always executes
-        if copy_file:
-            for file_transfer in self.trim_list:
-                # transfer_1=$(echo "$file_transfer" | cut -f1 -d".")
-                # transfer_2=$(echo "$transfer_1" | sed -e 's/_R1_00/_R2_00/g')
-                # rsync -avp --progress ${final_output}/${project}/filtered_sequences/${transfer_1}.trimmed.fastq.gz ${final_output}/${project}/filtered_sequences/${transfer_2}.trimmed.fastq.gz ${final_output_dir}/${base_seq_dir}/${project}/filtered_sequences/
-                if qiita_proj != 'NA' and copy_file == 'TRUE':
-                    pass
-
-        # sudo -u qiita rsync -avp --chown 5500:5500 ${final_output}/${project}/filtered_sequences/${transfer_1}.trimmed.fastq.gz ${final_output}/${project}/filtered_sequences/${transfer_2}.trimmed.fastq.gz /qmounts/qiita_data/uploads/${qiita_proj}/
-
-        # rsync -avp --progress ${final_output} ${final_output_dir}/
-
-    def run(self, rundir, filter_db, a_trim, h_filter, chemistry, qiita_proj, copy_file, adapter_a, adapter_A, nprocs,
-             final_output):
-        '''
-        # we may actually need to make the job script in a sub-dir.
-        self._make_job_script()
-        job_info = self.qsub(self.job_script_path, None, None)
-
-        # if the job returned successfully, we may want to send an
-        # email to the user. If an error occurs, the user will
-        # be notified by the email triggered by PipelineError().
-        '''
-        self._make_job_script()
-
-        if not isinstance(a_trim, bool):
-            raise ValueError("a_trim must be a boolean value.")
-
-        if not isinstance(h_filter, bool):
-            raise ValueError("h_filter must be a boolean value.")
-
-        if exists(join(rundir, 'run_config.h')):
-            pass
-        # TODO: source the file - we'll need to find an alternative method
-        #  to take in the settings
-
-        filter_db = "/databases/bowtie/Human/Human"
-
-        # move sample sheets into place
-        # pull everything from original location to top level output
-        self.copy_directory_contents(self.dir, self.output_dir, '.csv')
-
-        ### amplicon MiSeq sequencing
-        if not a_trim and not h_filter:
-            ### just copy data to qiita study.  16s data.
-            if chemistry == 'Amplicon':
-                src = join(self.dir, self.project)
-                dst = join(self.output2_dir_path, self.project, 'amplicon')
-                self.copy_directory_contents(src, dst, '.fastq.gz')
-            if qiita_proj:
-                if qiita_proj != 'NA' and copy_file != 'FALSE':
-                    src = join(self.dir, self.project)
-                    dst = join('qmounts', 'qiita_data', 'uploads', qiita_proj)
-                    # these probably need to change ownership to qiita and group to the proper group as well.
-                    self.copy_directory_contents(src, dst, '.fastq.gz')
-
-        if a_trim and not h_filter:
-            self.possible_amplicon(adapter_a, adapter_A, chemistry, qiita_proj, copy_file)
-        elif a_trim and h_filter:
-            self.possible_amplicon2(adapter_a, adapter_A, final_output, copy_file, qiita_proj)
-
-        if not h_filter:
-            # if the files failed to transfer then exit with -1
-            pass
-        else:
-            exit(0)
-
-        do_bowtie = True
-
-        if do_bowtie:
-            for some_file in self.trim_list:
-                final_output = join(self.dir, self.project, 'filtered_sequences')
-                parent_dir = dirname(some_file)
-                tmp = parent_dir.split('/')
-                # if tmp begins with a leading empty string '', this will remove it.
-                tmp = [x for x in tmp if x]
-                project_dir = tmp[0]
-                filename1 = basename(some_file)
-                filename1_short = filename1 + '.fastq.gz'
-                filename2 = filename1.replace('_R1_', '_R2_')
-                filename2_short = filename2 + '.fastq.gz'
-
-                from subprocess import Popen, PIPE
-
-                p1 = join(self.fastp_qc_output, filename1)
-                p2 = join(self.fastp_qc_output, filename2)
-
-                bowtie_log = join(final_output, 'trim_logs', filename1_short + '.log')
-                with open(bowtie_log, 'a') as f:
-                    bowtie = Popen(['bowtime', '-p', nprocs, '-x', filter_db, '--very-sensitive', '-1', p1, '-2', p2],
-                                   stdout=PIPE, stderr=f)
-                    samtools1 = Popen(['samtools', 'view', '-f', '12', '-F', '256'], stdout=PIPE, stderr=PIPE,
-                                      stdin=bowtie.stdout)
-                    samtools2 = Popen(['samtools', 'sort', '-@', '16', '-n'], stdout=PIPE, stderr=PIPE,
-                                      stdin=samtools1.stdout)
-                    samtools3 = Popen(['samtools', 'view', '-bS'], stdout=PIPE, stderr=PIPE, stdin=samtools2.stdout)
-                    bedtools = Popen(['bedtools', 'bamtofastq', '-i', '-', '-fq',
-                                      join(final_output, filename1_short + '.trimmed.fastq'), '-fq2',
-                                      join(final_output, filename1_short + '.trimmed.fastq')], stdout=f, stderr=PIPE,
-                                     stdin=samtools3.stdout)
-
-                    stdout, stderr = bedtools.communicate()
-                    return_code = bedtools.returncode
-
-                    file1 = join(final_output, filename1_short + '.trimmed.fastq')
-                    self.zip_files(file1, file1 + '.zip')
-                    file2 = join(final_output, filename2_short + '.trimmed.fastq')
-                    self.zip_files(file2, file2 + '.zip')
-
-                    # TODO: Find an alternate method to check and see if the two
-                    #  files gzipped above should be added to zero_files.txt and
-                    #  the gzips deleted.
-                    for some_file in self.trim_list:
-                        tmp = some_file.split('_')
-                        # extract 'X00178928_S1_L003' from
-                        # 'X00178928_S1_L003_R1_001.fastq.gz' ...
-                        tmp = '_'.join(tmp[0:3])
-
-                        # this code may be vestigial. the contents of both
-                        # conditionals were commented out.
-                        if qiita_proj != 'NA':
-                            # echo copying files ${final_output}/${file}_R1_*.trimmed.fastq.gz ${final_output}/${file}_R2_*.trimmed.fastq.gz
-                            pass
-                        else:
-                            # echo syncing file ${final_output}/${file}_R1_*.trimmed.fastq.gz ${final_output}/${file}_R2_*.trimmed.fastq.gz
-                            pass
-
-    def _make_job_script(self):
+    def _generate_split_count(self, count):
+        if count > 2000:
+            return 16
+        elif count <= 2000 and count > 1000:
+            return 10
+        elif count <= 1000 and count > 500:
+            return 4
+
+        return 1
+
+    def _make_job_script(self, project_name, chemistry, output_dir, adapter_a, adapter_A, a_trim, h_filter, qiita_proj,
+                         final_output_dir):
         lines = []
 
         lines.append("#!/bin/bash")
@@ -473,7 +164,7 @@ class HumanFilterJob(TorqueJob):
         # -v <variable[=value][,variable2=value2[,...]]>
 
         # declare a name for this job to be sample_job
-        lines.append("#PBS -N %s" % self.job_name)
+        lines.append("#PBS -N {}_%A_%a".format(project_name))
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
@@ -492,7 +183,7 @@ class HumanFilterJob(TorqueJob):
         # using the larger value found in the two scripts (72 vs ? hours)
         lines.append("#PBS -l walltime=72:00:00")
 
-        # send email to ccowart when a job starts and when it terminates or
+        # send email to charlie when a job starts and when it terminates or
         # aborts. This is used to confirm the package's own reporting
         # mechanism is reporting correctly.
         lines.append("#PBS -m bea")
@@ -502,12 +193,12 @@ class HumanFilterJob(TorqueJob):
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
-        #lines.append("#PBS -l pmem=10gb")
+        # lines.append("#PBS -l pmem=10gb")
         # revisit the mem stuff later.
 
         # --output -> -o
-        lines.append("#PBS -o %s" % self.stdout_log_path)
-        lines.append("#PBS -e %s" % self.stderr_log_path)
+        lines.append("#PBS -o Localhost:{}/filter_jobs/%x_%A_%a.out".format(self.log_directory))
+        lines.append("#PBS -e Localhost:{}/filter_jobs/%x_%A_%a.err".format(self.log_directory))
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
@@ -518,41 +209,87 @@ class HumanFilterJob(TorqueJob):
 
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use root_dir instead.
-        lines.append("cd %s"  % self.root_dir)
-        '''
-                lines.append(
-                    'cmd="sh ~/seq_proc_dev/fpmmp.sh -d %s -D /Data/Fastq -S %s\%s -p %s -C %s -c %d -o %s -O %s -a %s -A %s -g %s -G %s -q %s -f %s"' % (
-                    seq_dir, trim_file, slurm_array_task_id, project, chemistry, self.nprocs, output_dir,
-                    os.path.basename(seq_dir), adapter_a, adapter_A, a_trim, h_filter, qiita_proj, final_output_dir))
-        '''
-        lines.append('cmd="%s --sample-sheet %s --mask-short-adapter-reads \
-                      1 -R . -o %s --loading-threads 8 --processing-threads \
-                      8 --writing-threads 2 --create-fastq-for-index-reads \
-                      --ignore-missing-bcls"' % (self.bcl2fastq_bin_path,
-                                                 self.sample_sheet_path,
-                                                 self.output_dir_path))
-        lines.append("echo $cmd")
-        lines.append("eval $cmd")
-        lines.append("return_code=$?")
-        p = "%s/%s.return_code" % (self.root_dir, self.job_name)
-        lines.append("echo $returncode > %s" % p)
-        lines.append("date >> %s" % p)
+        lines.append("set -x")
+        lines.append("date '+%s'")
+        lines.append("cd %s" % self.root_dir)
+        # lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
+
+        cmd = []
+        cmd.append(self.fpmmp_path)
+        cmd.append('-d %s' % self.root_dir)
+        cmd.append('-D /Data/Fastq')
+        cmd.append('-S {}\${SLURM_ARRAY_TASK_ID}'.format(self.trim_file))
+        cmd.append('-p %s' % project_name)
+        cmd.append('-C %s' % chemistry)
+        cmd.append('-c %s' % self.nprocs)
+        cmd.append('-o %s' % output_dir)
+        cmd.append('-O %s' % basename(self.root_dir))
+        cmd.append('-a %s' % adapter_a)
+        cmd.append('-A %s' % adapter_A)
+        cmd.append('-g %s' % a_trim)
+        cmd.append('-G %s' % h_filter)
+        cmd.append('-q %s' % qiita_proj)
+        cmd.append('-f %s' % final_output_dir)
+
+        lines.append(' '.join(cmd))
+        lines.append("echo $?")
+        lines.append("date '+%s'")
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)
             for line in lines:
                 # remove long spaces in some lines.
-                line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    import json
 
-    job = HumanFilterJob('./good-bcl-directory',
-                       'THDMI_US_99999',
-                       './good-bcl-directory/good-sample-sheet.csv',
-                       './good-bcl-directory/Data/Fastq/Output')
-    job.run()
+    hf2job = HumanFilter2Job('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
+    results = hf2job._process_sample_sheet('./good-sample-sheet.csv')
+    for key in results:
+        print(key)
+        print(json.dumps(results[key], indent=2))
 
+'''
+FIND=$(platform FIND)
+  ### check filesystem for new sequence directory
+  ### if exists, check for RTAComplete.txt files
+pushd $seqpath/
+path_count=(echo ${#raw_sequencing_loc[@]})
+declare -a newdirs=$(echo "("; $FIND $seqpath/ -maxdepth 2 ! -path $seqpath/ -type d -mtime -1 ; echo ")")
+count=${#newdirs[@]}
+popd
+labadmin_run=""
+###sleep 5
+echo sleeping
+for dirpath in "${newdirs[@]}"
+  do
+    echo dirpath==$dirpath
+		echo myfind==$myfind
+		echo dirpath==$dirpath
+    seqloc=$($myfind $dirpath -maxdepth 1 ! -path $dirpath -type f -name "RTAComplete.txt")
 
+		#if [[ -e $dirpath/RTAComplete.txt ]]; then
+    seqdir=$dirpath     ###$(dirname $seqloc)
+		echo seqdir==${seqdir}
+    fastq_output=$seqdir
+    if [[ $seqloc ]]; then
+      prep_data_loc "${seqdir}"
+      #if [[ $filter_proc == "false" ]]; then
+        if [[ $? == 0 ]]; then
+          ###sleep 15
+          process_data "${seqdir}" "$dirpath" ###"$curl"
+        fi
+      #fi
+        #bcl_exit_status="0"
+        if [[ $bcl_exit_status == "0" ]]; then
+				  human_filter "${seqdir}" "$output_dir" "${fastq_output}"
+
+          #fastqc_process "@"
+        fi
+    fi
+		### end checking for RTAComplete.txt
+  done
+
+'''
