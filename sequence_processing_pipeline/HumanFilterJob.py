@@ -6,7 +6,7 @@ from os import walk, remove
 import logging
 
 
-class HumanFilter2Job(TorqueJob):
+class HumanFilterJob(TorqueJob):
     def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs):
         super().__init__()
         self.root_dir = root_dir
@@ -245,51 +245,8 @@ class HumanFilter2Job(TorqueJob):
 if __name__ == '__main__':
     import json
 
-    hf2job = HumanFilter2Job('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
+    hf2job = HumanFilterJob('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
     results = hf2job._process_sample_sheet('./good-sample-sheet.csv')
     for key in results:
         print(key)
         print(json.dumps(results[key], indent=2))
-
-'''
-FIND=$(platform FIND)
-  ### check filesystem for new sequence directory
-  ### if exists, check for RTAComplete.txt files
-pushd $seqpath/
-path_count=(echo ${#raw_sequencing_loc[@]})
-declare -a newdirs=$(echo "("; $FIND $seqpath/ -maxdepth 2 ! -path $seqpath/ -type d -mtime -1 ; echo ")")
-count=${#newdirs[@]}
-popd
-labadmin_run=""
-###sleep 5
-echo sleeping
-for dirpath in "${newdirs[@]}"
-  do
-    echo dirpath==$dirpath
-		echo myfind==$myfind
-		echo dirpath==$dirpath
-    seqloc=$($myfind $dirpath -maxdepth 1 ! -path $dirpath -type f -name "RTAComplete.txt")
-
-		#if [[ -e $dirpath/RTAComplete.txt ]]; then
-    seqdir=$dirpath     ###$(dirname $seqloc)
-		echo seqdir==${seqdir}
-    fastq_output=$seqdir
-    if [[ $seqloc ]]; then
-      prep_data_loc "${seqdir}"
-      #if [[ $filter_proc == "false" ]]; then
-        if [[ $? == 0 ]]; then
-          ###sleep 15
-          process_data "${seqdir}" "$dirpath" ###"$curl"
-        fi
-      #fi
-        #bcl_exit_status="0"
-        if [[ $bcl_exit_status == "0" ]]; then
-				  human_filter "${seqdir}" "$output_dir" "${fastq_output}"
-
-          #fastqc_process "@"
-        fi
-    fi
-		### end checking for RTAComplete.txt
-  done
-
-'''
