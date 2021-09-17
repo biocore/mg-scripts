@@ -7,7 +7,7 @@ import logging
 
 
 class HumanFilterJob(TorqueJob):
-    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs):
+    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs, job_script_path):
         super().__init__()
         self.root_dir = root_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -17,17 +17,19 @@ class HumanFilterJob(TorqueJob):
         self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
+        self.job_script_path = job_script_path
 
     def run(self):
+        metadata = []
+
         for project in self.project_data:
             fastq_files = self._find_fastq_files(project['project_name'])
             split_count = self._generate_split_count(len(fastq_files))
-            job_count = split_count + 1
-            file_base = basename(self.root_dir)  # this might need to be data/fastq instead
             self._clear_trim_files()
-            self.lines_per_split = (len(fastq_files) + split_count - 1) / split_count
-            trim_files = self._generate_trim_files(fastq_files, split_count)
-            proj_array = []
+            lines_per_split = (len(fastq_files) + split_count - 1) / split_count
+            trim_files = self._generate_trim_files(fastq_files, lines_per_split)
+            if len(trim_files) != split_count:
+                logging.warning("The number of trim files does not equal the number of files we were supposed to have.")
 
             # TODO: Replace with appropriate relative paths
             output_dir = 'MyOutputDirectory'
@@ -41,18 +43,29 @@ class HumanFilterJob(TorqueJob):
                                                 project['a_trim'],
                                                 project['h_filter'],
                                                 project['qiita_proj'],
-                                                final_output_dir)
+                                                final_output_dir,
+                                                split_count)
 
-            # TODO: We need to supply qsub with the Torque version of
-            #  pbs_job_id=$(sbatch --qos=seq_proc --parsable --array=0-$(($split_count - 1)) ${seqdir}/Data/Fastq/${project}/${file_base}_qsub.sh)
-            #  pbs_job_array="--dependency=afterok:$pbs_job_id"
-            job_info = self.qsub(script_path, None, None)
+            d = {'project_name': project['project_name']}
+            # pbs_job_array="--dependency=afterok:$pbs_job_id"
 
-            proj_array.append(project['project_name'])
-            # fastqc_process "${seqdir}" "${output_dir}" "${fastq_output}" "${pbs_job_id}" "${pbs_job_array}" "${proj_array[@]}"
+            # TODO: replace w/job_info information, etc.
+            fastq_output = None
+            pbs_job_id = None
+            pbs_job_array = None
+            proj_array = None
 
-        # Don't bother creating uniq_run_config.txt at this time.
-        # done < ${seqdir} / uniq_run_config.txt
+            d['job_info'] =  self.qsub(script_path, None, None)
+            d['fastqc_params'] = {}
+            d['fastqc_params']['seqdir'] = self.root_dir
+            d['fastqc_params']['output_dir'] = output_dir
+            d['fastqc_params']['fastq_output'] = fastq_output
+            d['fastqc_params']['pbs_job_id'] = pbs_job_id
+            d['fastqc_params']['pbs_job_array'] = pbs_job_array
+            d['fastqc_params']['proj_array'] = proj_array
+            metadata.append(d)
+
+        return metadata
 
     def _generate_trim_files(self, fastq_files, split_count):
         def _chunk_list(some_list, n):
@@ -154,7 +167,7 @@ class HumanFilterJob(TorqueJob):
         return 1
 
     def _make_job_script(self, project_name, chemistry, output_dir, adapter_a, adapter_A, a_trim, h_filter, qiita_proj,
-                         final_output_dir):
+                         final_output_dir, split_count):
         lines = []
 
         lines.append("#!/bin/bash")
@@ -197,8 +210,11 @@ class HumanFilterJob(TorqueJob):
         # revisit the mem stuff later.
 
         # --output -> -o
-        lines.append("#PBS -o Localhost:{}/filter_jobs/%x_%A_%a.out".format(self.log_directory))
-        lines.append("#PBS -e Localhost:{}/filter_jobs/%x_%A_%a.err".format(self.log_directory))
+        lines.append("#PBS -o localhost:{}/filter_jobs/%x_%A_%a.out".format(self.log_directory))
+        lines.append("#PBS -e localhost:{}/filter_jobs/%x_%A_%a.err".format(self.log_directory))
+
+        # array input files are labeled file0, file1,...filen-1
+        lines.append("#PBS -t 0-%d" % split_count - 1)
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
@@ -218,7 +234,10 @@ class HumanFilterJob(TorqueJob):
         cmd.append(self.fpmmp_path)
         cmd.append('-d %s' % self.root_dir)
         cmd.append('-D /Data/Fastq')
-        cmd.append('-S {}\${SLURM_ARRAY_TASK_ID}'.format(self.trim_file))
+        # even though we have a list of all of the trim_files0-(n-1),
+        # we use this syntax so that we only need to qsub one job file, insteaf
+        # of n job files.
+        cmd.append('-S %s${PBS_ARRAYID}' % self.trim_file)
         cmd.append('-p %s' % project_name)
         cmd.append('-C %s' % chemistry)
         cmd.append('-c %s' % self.nprocs)

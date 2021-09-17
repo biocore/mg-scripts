@@ -5,26 +5,26 @@ import re
 from os import makedirs
 
 
-class BCL2FASTQJob(TorqueJob):
+class BCLConvertJob(TorqueJob):
     '''
-    BCL2FASTQJob implements a way to run bcl2fastq on a directory of BCL
+    BCLConvertJob implements a way to run bcl-convert on a directory of BCL
     files. It builds on TorqueJob's ability to push a job onto Torque and wait
     for it to finish.
     '''
-    def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path):
+    def __init__(self, root_dir, sample_sheet_path, output_directory, bclconvert_path):
         super().__init__()
         self.root_dir = abspath(root_dir)
         tmp = join(self.root_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
-        self.job_script_path = join(self.root_dir, 'BCL2FASTQ.sh')
-        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'BCL2FASTQ.out.log')
-        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'BCL2FASTQ.err.log')
+        self.job_script_path = join(self.root_dir, 'BCLConvert.sh')
+        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'BCLConvert.out.log')
+        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'BCLConvert.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
         self.unique_name = self.root_dir.split('/')[-1]
-        self.job_name = "BCL2FASTQ_%s" % self.unique_name
+        self.job_name = "BCLConvert_%s" % self.unique_name
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
-        self.bcl2fastq_path = bcl2fastq_path
+        self.bclconvert_path = bclconvert_path
 
     def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit):
         # TODO: Use Jinja template instead
@@ -79,14 +79,14 @@ class BCL2FASTQJob(TorqueJob):
         # directory from which they were submitted. Use root_dir instead.
         lines.append("set -x")
         lines.append("date '+%s' > /{}/{}.log".format(self.root_dir, self.job_name))
-        lines.append("module load bcl2fastq_2.20.0.422")
+        lines.append("module load bclconvert_3.7.5")
         lines.append("cd %s"  % self.root_dir)
         # lines.append("export PATH=$PATH:/usr/local/bin")
         lines.append('%s --sample-sheet %s --mask-short-adapter-reads \
                       1 -R . -o %s --loading-threads 8 --processing-threads \
                       --minimum-trimmed-read-length 1 \
                       8 --writing-threads 2 --create-fastq-for-index-reads \
-                      --ignore-missing-bcls' % (self.bcl2fastq_path,
+                      --ignore-missing-bcls' % (self.bclconvert_path,
                                                  self.sample_sheet_path,
                                                  self.output_directory))
         lines.append("echo $? >> /%s/%s.log" % (self.root_dir, self.job_name))
