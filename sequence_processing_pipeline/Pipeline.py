@@ -1,20 +1,38 @@
 from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
 from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
-from sequence_processing_pipeline.FastQC import FastQCJOb
+#from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
 import logging
 import os
-from os.path import join
+from os.path import join, exists
 
 
 class Pipeline:
     def __init__(self, input_directory, output_directory,
                  final_output_directory, younger_than=48,
                  older_than=24, nprocs=16):
+
+        if output_directory == final_output_directory:
+            raise PipelineError("output_directory '%s' is the same as final_output_directory '%s'." % (output_directory, final_output_directory))
+
+        self._directory_check(input_directory, create=False)
+        self._directory_check(output_directory, create=True)
+        self._directory_check(final_output_directory, create=True)
+
+        if nprocs > 16:
+            raise PipelineError('nprocs cannot exceed 16.')
+        elif nprocs < 1:
+            raise PipelineError('nprocs cannot be less than 1.')
+
+        if older_than >= younger_than:
+            raise PipelineError('older_than cannot be equal to or less than younger_than.')
+
         self.root_dir = input_directory
+
         logging.debug("Root directory: %s" % self.root_dir)
+
         self.sentinel_file = "RTAComplete.txt"
         logging.debug("Sentinel File Name: %s" % self.sentinel_file)
         # internally, threshold will be represented in seconds
@@ -31,6 +49,21 @@ class Pipeline:
         self.final_output_dir = final_output_directory
         logging.debug("Final Output Directory: %s" % self.final_output_dir)
         self.bcl2fastq_path = "/usr/local/bin/bcl2fastq"
+
+    def _directory_check(self, directory_path, create=False):
+        if exists(directory_path):
+            logging.debug("directory '%s' exists." % directory_path)
+        else:
+            if create:
+                try:
+                    os.makedirs(directory_path, exist_ok=True)
+                except OSError as e:
+                    # this is a known potential error. Re-raise it as a
+                    # PinelineError, so it gets handled in the same location as the
+                    # others.
+                    raise PipelineError(str(e))
+            else:
+                raise PipelineError("directory_path '%s' does not exist." % directory_path)
 
     def process(self, sample_sheet_path):
         '''
@@ -58,6 +91,8 @@ class Pipeline:
             job_owner_home = None
             email_list = None
 
+            '''
+            
             human_filter_job = HumanFilterJob(sdo,
                                               self.nprocs,
                                               job_owner_home,
@@ -65,17 +100,18 @@ class Pipeline:
                                               chemistry,
                                               self.output_dir,
                                               self.final_output_dir)
+            '''
 
             p1 = sample_sheet_params['sample_sheet_path']
             p2 = sample_sheet_params['sequence_directory']
-            human_filter_job.run(p1, p2)
+            # human_filter_job.run(p1, p2)
 
             output_dir = 'foo'
             project = 'foo'
 
-            fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
+            #fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
 
-            fast_qc_job.run()
+            #fast_qc_job.run()
 
         except PipelineError as e:
             logging.error(e)

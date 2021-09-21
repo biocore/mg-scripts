@@ -1,16 +1,30 @@
 import logging
 from subprocess import Popen, PIPE
 from sequence_processing_pipeline.PipelineError import PipelineError
+from os.path import exists
 
 
 class Job:
     def __init__(self):
         logging.debug("Job Constructor called.")
-        logging.debug("Job Constructor exiting.")
 
     def run(self):
         logging.debug("Job run() method called.")
-        logging.debug("Job run() method exiting.")
+
+    def _directory_check(self, directory_path, create=False):
+        if exists(directory_path):
+            logging.debug("directory '%s' exists." % directory_path)
+        else:
+            if create:
+                try:
+                    os.makedirs(directory_path, exist_ok=True)
+                except OSError as e:
+                    # this is a known potential error. Re-raise it as a
+                    # PinelineError, so it gets handled in the same location as the
+                    # others.
+                    raise PipelineError(str(e))
+            else:
+                raise PipelineError("directory_path '%s' does not exist." % directory_path)
 
     def _system_call(self, cmd, allow_return_codes=[]):
         """Call command and return (stdout, stderr, return_value)
@@ -35,11 +49,17 @@ class Job:
         the authors of this function to port it to Qiita and keep it under BSD
         license.
         """
+        logging.debug("Job _system_call() method called.")
+
         proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE, stderr=PIPE)
         # Communicate pulls all stdout/stderr from the PIPEs
         # This call blocks until the command is done
         stdout, stderr = proc.communicate()
         return_code = proc.returncode
+
+        logging.debug("stdout: %s" % stdout)
+        logging.debug("stderr: %s" % stderr)
+        logging.debug("return code: %s" % return_code)
 
         acceptable_return_codes = [0] + allow_return_codes
 
@@ -51,7 +71,7 @@ class Job:
             logging.error(s)
             raise PipelineError(message=s)
 
-        return stdout, stderr
+        return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
 
 class lsJob(Job):
@@ -59,24 +79,10 @@ class lsJob(Job):
         super().__init__()
         logging.debug("lsJob Constructor called.")
         self.path = path
-        logging.debug("lsJob Constructor exiting.")
 
     def run(self):
         logging.debug("lsJob run() method called.")
-        out, err, rc = self._system_call(['ls', self.path])
-        logging.debug("ls returned: %d" % rc)
-        logging.debug("ls stdout: %s" % out)
-        logging.debug("ls stderr: %s" % err)
-        logging.debug("lsJob run() method exiting.")
 
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-
-    job = Job()
-    job.run()
-
-    logging.debug("Hello World!")
-
-    job = lsJob('/tmp')
-    job.run()
+        cmd = 'ls %s' % self.path
+        logging.debug(cmd)
+        return self._system_call(cmd)

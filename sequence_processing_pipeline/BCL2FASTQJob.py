@@ -1,8 +1,9 @@
 import logging
 from sequence_processing_pipeline.TorqueJob import TorqueJob
-from os.path import join, abspath
+from sequence_processing_pipeline.PipelineError import PipelineError
+from os.path import join, abspath, exists
 import re
-from os import makedirs
+from os import makedirs, walk
 
 
 class BCL2FASTQJob(TorqueJob):
@@ -14,6 +15,9 @@ class BCL2FASTQJob(TorqueJob):
     def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path):
         super().__init__()
         self.root_dir = abspath(root_dir)
+        self._directory_check(self.root_dir, create=False)
+        self._validate_bcl_directory()
+
         tmp = join(self.root_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
         self.job_script_path = join(self.root_dir, 'BCL2FASTQ.sh')
@@ -25,6 +29,36 @@ class BCL2FASTQJob(TorqueJob):
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
         self.bcl2fastq_path = bcl2fastq_path
+
+        '''
+           
+                root_dir does not contain any BCL files
+                (at least some of) those BCL files are not within /Data/Intensities and/or Data/Intensities does not exist.
+                sample_sheet_path is not a real sheet path
+                sample_sheet path is not a valid sheet
+                 (we can assume has the data points we need if it passes)
+                output directory must be creatable if not present.
+                bcl2fastq_path needs to point to a real executable binary.
+
+                '''
+
+    def _validate_bcl_directory(self):
+        bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')
+        bcl_count = 0
+        if exists(bcl_directory):
+            for root, dirs, files in walk(bcl_directory):
+                for some_file in files:
+                    # subdirectories and files other than '.bcl' files from
+                    # bcl_directory are to be expected.
+                    if some_file.endswith('.bcl') or some_file.endswith('.cbcl'):
+                        bcl_count += 1
+        else:
+            logging.debug("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
+            raise PipelineError("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
+
+        if bcl_count < 1:
+            # we can increase to whatever threshold is acceptable.
+            raise PipelineError("input_directory '%s' does not contain enough bcl files (%d)." % (bcl_directory, bcl_count))
 
     def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit):
         # TODO: Use Jinja template instead

@@ -22,7 +22,7 @@ class SequenceDirectory:
                 self.external_sample_sheet = external_sample_sheet
             else:
                 s = "External sample sheet {} does not exist."
-                raise PipelineError(s.format(self.external_sample_sheet))
+                raise PipelineError(s.format(external_sample_sheet))
         else:
             s = "An external sample sheet must be supplied."
             raise PipelineError(s.format(self.external_sample_sheet))
