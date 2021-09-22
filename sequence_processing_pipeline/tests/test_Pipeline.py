@@ -1,8 +1,10 @@
-import unittest
-from sequence_processing_pipeline.Pipeline import Pipeline
+from os import makedirs
+from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
 from sequence_processing_pipeline.PipelineError import PipelineError
+from shutil import rmtree
 import logging
-from os.path import exists
+import unittest
+
 
 logging.basicConfig(level=logging.DEBUG)
 

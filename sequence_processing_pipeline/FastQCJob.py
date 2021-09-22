@@ -89,25 +89,28 @@ class FastQCJOb(TorqueJob):
                 line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
 
-    def run(self, queue_name, node_count, nprocs, wall_time_limit, chemistry, x, y):
+    def run(self):
+        pass
+        '''
+        #def run(self, queue_name, node_count, nprocs, wall_time_limit, chemistry, x, y):
         self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit, chemistry,  x, y)
 
         job_info = self.qsub(self.job_script_path, None, None)
         logging.info("Successful job: %s" % job_info)
 
-        '''
         parsable just means sbatch prints out the jobid and hte cluster name, kind of like qsub does.
         qos=sec_proc is just the quality of service profile. look for an  equivalent on our torque install.
         depdendency=afterok:pbs_job_id means that this job is allowed to run only after pbs_job_id has completed successfully with a return code of 0.
             curiously, it doesn't say if the job queue aborts early if this dependency can never be met.
             it also says that you can't redo the job that failed successfully and have this job suddenly run. one time only
         initial=true isn't needed, because initial is already reassigned inside the script fastqc_qsub.sh calls.
-        '''
+  
         fastqc_job_id =$(sbatch - -parsable - -qos
                          =seq_proc --dependency=afterok:${pbs_job_id} --export=initial="true" ${seqdir} / Data / Fastq / ${project} / fastqc_qsub.sh)
 
         # TODO: if job returns successfully, notify user(s).
         #  Users will be notified through PipelineErrors for
         #  unsuccessful jobs.
+        '''
 
 

@@ -1,8 +1,10 @@
-import logging
+from metapool import KLSampleSheet, validate_sample_sheet
+from os import makedirs, walk
+from os.path import join, abspath, exists
+from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.TorqueJob import TorqueJob
-from os.path import join, abspath
+import logging
 import re
-from os import makedirs
 
 
 class BCLConvertJob(TorqueJob):
@@ -14,6 +16,8 @@ class BCLConvertJob(TorqueJob):
     def __init__(self, root_dir, sample_sheet_path, output_directory, bclconvert_path):
         super().__init__()
         self.root_dir = abspath(root_dir)
+        self._directory_check(self.root_dir, create=False)
+        self._validate_bcl_directory()
         tmp = join(self.root_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
         self.job_script_path = join(self.root_dir, 'BCLConvert.sh')
@@ -25,6 +29,30 @@ class BCLConvertJob(TorqueJob):
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
         self.bclconvert_path = bclconvert_path
+
+        # Base checks are duplicated between BCL2FASTQJob and BCLConvertJob.
+        # In the future, it may be good to make them part of a base clas or
+        # a friend function.
+
+        if not exists(self.sample_sheet_path):
+            raise PipelineError("Sample sheet %s does not exist." % self.sample_sheet_path)
+
+        klss = KLSampleSheet(self.sample_sheet_path)
+
+        if not validate_sample_sheet(klss):
+            # if sample sheet is valid, we can assume it has the parameters
+            # that we will need. No need to check for individual params.
+            raise PipelineError("Sample sheet %s is not valid." % self.sample_sheet_path)
+
+        if not exists(self.output_directory):
+            try:
+                makedirs(self.output_directory, exist_ok=True)
+            except OSError as e:
+                raise PipelineError("Cannot create output directory %s. %s" % (self.output_directory, str(e)))
+
+        if not exists(self.bclconvert_path):
+            raise PipelineError("Path to bcl-convert binary '%s' is not valid." % self.bclconvert_path)
+
 
     def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit):
         # TODO: Use Jinja template instead
@@ -98,6 +126,30 @@ class BCLConvertJob(TorqueJob):
                 # remove long spaces in some lines.
                 line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
+
+    def _validate_bcl_directory(self):
+        '''
+        This method is also found in BCL2FASTQJob.py. In the future, it may
+        be good to make this method part of a base class for both, or perhaps
+        a friend.
+        :return:
+        '''
+        bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')
+        bcl_count = 0
+        if exists(bcl_directory):
+            for root, dirs, files in walk(bcl_directory):
+                for some_file in files:
+                    # subdirectories and files other than '.bcl' files from
+                    # bcl_directory are to be expected.
+                    if some_file.endswith('.bcl') or some_file.endswith('.cbcl'):
+                        bcl_count += 1
+        else:
+            logging.debug("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
+            raise PipelineError("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
+
+        if bcl_count < 1:
+            # we can increase to whatever threshold is acceptable.
+            raise PipelineError("input_directory '%s' does not contain enough bcl files (%d)." % (bcl_directory, bcl_count))
 
     def run(self, queue_name, node_count, nprocs, wall_time_limit):
         self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit)

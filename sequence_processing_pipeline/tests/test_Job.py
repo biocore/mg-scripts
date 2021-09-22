@@ -1,5 +1,9 @@
 import unittest
 from sequence_processing_pipeline.Job import lsJob
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class TestJob(unittest.TestCase):
@@ -23,5 +27,5 @@ class TestJob(unittest.TestCase):
         self.assertEqual(results['stderr'], exp_stderr)
         self.assertEqual(results['return_code'], exp_return_code)
 
-
+        # TODO: Optionally test _directory_check() and _system_call()
 

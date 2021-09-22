@@ -4,6 +4,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, abspath, exists
 import re
 from os import makedirs, walk
+from metapool import KLSampleSheet, validate_sample_sheet
 
 
 class BCL2FASTQJob(TorqueJob):
@@ -30,17 +31,24 @@ class BCL2FASTQJob(TorqueJob):
         self.output_directory = output_directory
         self.bcl2fastq_path = bcl2fastq_path
 
-        '''
-           
-                root_dir does not contain any BCL files
-                (at least some of) those BCL files are not within /Data/Intensities and/or Data/Intensities does not exist.
-                sample_sheet_path is not a real sheet path
-                sample_sheet path is not a valid sheet
-                 (we can assume has the data points we need if it passes)
-                output directory must be creatable if not present.
-                bcl2fastq_path needs to point to a real executable binary.
+        if not exists(self.sample_sheet_path):
+            raise PipelineError("Sample sheet %s does not exist." % self.sample_sheet_path)
 
-                '''
+        klss = KLSampleSheet(self.sample_sheet_path)
+
+        if not validate_sample_sheet(klss):
+            # if sample sheet is valid, we can assume it has the parameters
+            # that we will need. No need to check for individual params.
+            raise PipelineError("Sample sheet %s is not valid." % self.sample_sheet_path)
+
+        if not exists(self.output_directory):
+            try:
+                makedirs(self.output_directory, exist_ok=True)
+            except OSError as e:
+                raise PipelineError("Cannot create output directory %s. %s" % (self.output_directory, str(e)))
+
+        if not exists(self.bcl2fastq_path):
+            raise PipelineError("Path to bcl2fastq binary '%s' is not valid." % self.bcl2fastq_path)
 
     def _validate_bcl_directory(self):
         bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')

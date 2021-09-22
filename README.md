@@ -1,6 +1,10 @@
 # Sequencing Process Pipeline
 Python packaged implementation of our internal pipeline for generating fastqc output from sequence bcl.
 
+run unittests:
+cd sequence_processing_pipeline
+python -m unittest discover tests
+
 [ToDo: add explanation, installation instructions]
 
 # Legacy Shell Scripts

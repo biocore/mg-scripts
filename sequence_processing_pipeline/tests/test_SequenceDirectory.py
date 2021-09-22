@@ -2,6 +2,10 @@ import unittest
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 import os
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class TestSequenceDirectory(unittest.TestCase):

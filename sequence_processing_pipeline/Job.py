@@ -2,14 +2,12 @@ import logging
 from subprocess import Popen, PIPE
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import exists
+from os import makedirs
 
 
 class Job:
     def __init__(self):
         logging.debug("Job Constructor called.")
-
-    def run(self):
-        logging.debug("Job run() method called.")
 
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -17,7 +15,7 @@ class Job:
         else:
             if create:
                 try:
-                    os.makedirs(directory_path, exist_ok=True)
+                    makedirs(directory_path, exist_ok=True)
                 except OSError as e:
                     # this is a known potential error. Re-raise it as a
                     # PinelineError, so it gets handled in the same location as the
