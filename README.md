@@ -7,6 +7,14 @@ python -m unittest discover tests
 
 [ToDo: add explanation, installation instructions]
 
+These need to be available to the job-script for human-filtering.
+without them, the job won't work. the location of the .mmi file
+needs to be hardcoded in fpmmp.beautified.sh. or change the .sh file to
+accept a parameter to the mmi file. Also, the .sh file itself
+needs to be known to the job object.
+scripts/fpmmp.beautified.sh
+scripts/human-phix-db.mmi
+
 # Legacy Shell Scripts
 Earlier Knight Lab internal Metagenomic processing scripts for demultiplexing, QC and host removal.
 

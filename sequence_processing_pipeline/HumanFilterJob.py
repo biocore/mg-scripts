@@ -7,7 +7,7 @@ import logging
 
 
 class HumanFilterJob(TorqueJob):
-    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs, job_script_path):
+    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs, job_script_path, mmi_db_path):
         super().__init__()
         self.root_dir = root_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -18,6 +18,7 @@ class HumanFilterJob(TorqueJob):
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
         self.job_script_path = job_script_path
+        self.mmi_db_path = mmi_db_path
 
     def run(self):
         metadata = []
@@ -238,6 +239,7 @@ class HumanFilterJob(TorqueJob):
         # we use this syntax so that we only need to qsub one job file, insteaf
         # of n job files.
         cmd.append('-S %s${PBS_ARRAYID}' % self.trim_file)
+        cmd.append('-x %s' % self.mmi_db_path)
         cmd.append('-p %s' % project_name)
         cmd.append('-C %s' % chemistry)
         cmd.append('-c %s' % self.nprocs)

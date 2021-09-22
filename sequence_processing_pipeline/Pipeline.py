@@ -49,6 +49,8 @@ class Pipeline:
         self.final_output_dir = final_output_directory
         logging.debug("Final Output Directory: %s" % self.final_output_dir)
         self.bcl2fastq_path = "/usr/local/bin/bcl2fastq"
+        self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
+        self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -86,25 +88,18 @@ class Pipeline:
 
             bcl2fastq_job.run("long8gb", 1, 16, 36)
 
-            chemistry = sample_sheet_params['chemistry']
+            filter_logs_dir = join(self.root_dir, 'filter_logs')
+            os.makedirs(filter_logs_dir)
 
-            job_owner_home = None
-            email_list = None
-
-            '''
-            
-            human_filter_job = HumanFilterJob(sdo,
+            human_filter_job = HumanFilterJob(self.root_dir,
+                                              sample_sheet_params['sample_sheet_path'],
+                                              filter_logs_dir,
+                                              self.fpmmp_path,
                                               self.nprocs,
-                                              job_owner_home,
-                                              email_list,
-                                              chemistry,
-                                              self.output_dir,
-                                              self.final_output_dir)
-            '''
+                                              self.job_script_path,
+                                              self.mmi_db_path)
 
-            p1 = sample_sheet_params['sample_sheet_path']
-            p2 = sample_sheet_params['sequence_directory']
-            # human_filter_job.run(p1, p2)
+            human_filter_job.run()
 
             output_dir = 'foo'
             project = 'foo'
