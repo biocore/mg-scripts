@@ -1,4 +1,4 @@
-from sequence_processing_pipeline.TorqueJob import TorqueJob
+from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, basename, dirname
@@ -6,7 +6,7 @@ from os import walk, remove
 import logging
 
 
-class HumanFilterJob(TorqueJob):
+class HumanFilterJob(Job):
     def __init__(self, root_dir, sample_sheet_path, fpmmp_path, nprocs, mmi_db_path):
         super().__init__()
         self.root_dir = root_dir

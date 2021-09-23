@@ -1,5 +1,5 @@
 import logging
-from sequence_processing_pipeline.TorqueJob import TorqueJob
+from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, abspath, exists
 import re
@@ -7,7 +7,7 @@ from os import makedirs, walk
 from metapool import KLSampleSheet, validate_sample_sheet
 
 
-class BCL2FASTQJob(TorqueJob):
+class BCL2FASTQJob(Job):
     '''
     BCL2FASTQJob implements a way to run bcl2fastq on a directory of BCL
     files. It builds on TorqueJob's ability to push a job onto Torque and wait

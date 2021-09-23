@@ -1,5 +1,5 @@
 import unittest
-from sequence_processing_pipeline.Job import lsJob
+from sequence_processing_pipeline.Job import Job
 import logging
 
 
@@ -7,11 +7,16 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class TestJob(unittest.TestCase):
-    def test_job(self):
-        # Job is a minimal base-class. Use lsJob to test basic Job
-        # functionality.
-        job = lsJob('sequence_processing_pipeline')
-        results = job.run()
+    def test_run(self, queue_name, node_count, nprocs, wall_time_limit):
+        pass
+
+    def test_directory_check(self, directory_path, create=False):
+        pass
+
+    def test_system_call(self, cmd, allow_return_codes=[]):
+        job = Job()
+        results = job._system_call('ls')
+
         exp_stdout = {'Job.py', 'FastQC.py', 'PipelineError.py',
                       'dir_locations.txt', '__init__.py',
                       'main.py',
@@ -27,5 +32,5 @@ class TestJob(unittest.TestCase):
         self.assertEqual(results['stderr'], exp_stderr)
         self.assertEqual(results['return_code'], exp_return_code)
 
-        # TODO: Optionally test _directory_check() and _system_call()
-
+    def test_qsub(self, script_path, qsub_parameters=None, script_parameters=None, wait=True):
+        pass

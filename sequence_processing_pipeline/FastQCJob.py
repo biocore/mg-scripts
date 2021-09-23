@@ -1,11 +1,11 @@
 from os.path import join
-from sequence_processing_pipeline.TorqueJob import TorqueJob
+from sequence_processing_pipeline.Job import Job
 import logging
 import os
 import re
 
 
-class FastQCJOb(TorqueJob):
+class FastQCJOb(Job):
     def __init__(self, root_dir, output_dir, nprocs, project, fastqc_path):
         super().__init__()
         self.root_dir = root_dir

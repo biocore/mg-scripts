@@ -46,3 +46,5 @@ class TestBCL2FASTQJob(unittest.TestCase):
 
         rmtree('tests/data/sample-sequence-directory/Data/Intensities')
 
+
+

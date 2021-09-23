@@ -2,12 +2,12 @@ from metapool import KLSampleSheet, validate_sample_sheet
 from os import makedirs, walk
 from os.path import join, abspath, exists
 from sequence_processing_pipeline.PipelineError import PipelineError
-from sequence_processing_pipeline.TorqueJob import TorqueJob
+from sequence_processing_pipeline.Job import Job
 import logging
 import re
 
 
-class BCLConvertJob(TorqueJob):
+class BCLConvertJob(Job):
     '''
     BCLConvertJob implements a way to run bcl-convert on a directory of BCL
     files. It builds on TorqueJob's ability to push a job onto Torque and wait
