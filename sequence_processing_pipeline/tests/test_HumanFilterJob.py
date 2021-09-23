@@ -5,6 +5,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestHumanFilterJob(unittest.TestCase):
+class TestQCJob(unittest.TestCase):
     def test_something(self):
         pass

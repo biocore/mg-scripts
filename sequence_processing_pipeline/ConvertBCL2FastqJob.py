@@ -7,13 +7,14 @@ from os import makedirs, walk
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
-class ConvertBCL2FastqJob(Job):
+class ConvertConvertConvertBCL2FastqJob(Job):
     '''
-    BCL2FASTQJob implements a way to run bcl2fastq on a directory of BCL
-    files. It builds on TorqueJob's ability to push a job onto Torque and wait
-    for it to finish.
+    ConvertConvertBCL2FastqJob implements a way to run bcl2fastq on a directory
+    of BCL files. It builds on TorqueJob's ability to push a job onto Torque
+    and wait for it to finish.
     '''
-    def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path, use_bcl_convert):
+    def __init__(self, root_dir, sample_sheet_path, output_directory,
+                 bcl2fastq_path, use_bcl_convert):
         super().__init__()
         self.root_dir = abspath(root_dir)
         self._directory_check(self.root_dir, create=False)
@@ -22,8 +23,10 @@ class ConvertBCL2FastqJob(Job):
         tmp = join(self.root_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
         self.job_script_path = join(self.root_dir, 'ConvertBCL2Fastq.sh')
-        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'ConvertBCL2Fastq.out.log')
-        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'ConvertBCL2Fastq.err.log')
+        self.stdout_log_path = 'localhost:' + join(
+            self.root_dir, 'ConvertBCL2Fastq.out.log')
+        self.stderr_log_path = 'localhost:' + join(
+            self.root_dir, 'ConvertBCL2Fastq.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
         self.unique_name = self.root_dir.split('/')[-1]
         self.job_name = "ConvertBCL2Fastq_%s" % self.unique_name
@@ -52,23 +55,28 @@ class ConvertBCL2FastqJob(Job):
             self.bcl_tool = d['bcl2fastq']
 
         if not exists(self.sample_sheet_path):
-            raise PipelineError("Sample sheet %s does not exist." % self.sample_sheet_path)
+            raise PipelineError(
+                "Sample sheet %s does not exist." % self.sample_sheet_path)
 
         klss = KLSampleSheet(self.sample_sheet_path)
 
         if not validate_and_scrub_sample_sheet(klss):
             # if sample sheet is valid, we can assume it has the parameters
             # that we will need. No need to check for individual params.
-            raise PipelineError("Sample sheet %s is not valid." % self.sample_sheet_path)
+            raise PipelineError(
+                "Sample sheet %s is not valid." % self.sample_sheet_path)
 
         if not exists(self.output_directory):
             try:
                 makedirs(self.output_directory, exist_ok=True)
             except OSError as e:
-                raise PipelineError("Cannot create output directory %s. %s" % (self.output_directory, str(e)))
+                raise PipelineError("Cannot create output directory %s. %s" % (
+                    self.output_directory, str(e)))
 
         if not exists(self.bcl2fastq_path):
-            raise PipelineError("Path to bcl2fastq binary '%s' is not valid." % self.bcl2fastq_path)
+
+            raise PipelineError("Path to bcl2fastq binary "
+                                "'%s' is not valid." % self.bcl2fastq_path)
 
     def _validate_bcl_directory(self):
         bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')
@@ -78,24 +86,27 @@ class ConvertBCL2FastqJob(Job):
                 for some_file in files:
                     # subdirectories and files other than '.bcl' files from
                     # bcl_directory are to be expected.
-                    if some_file.endswith('.bcl') or some_file.endswith('.cbcl'):
+                    if some_file.endswith(('.bcl', '.cbcl')):
                         bcl_count += 1
         else:
-            logging.debug("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
-            raise PipelineError("input_directory '%s' does not contain subdirectory Data/Intensities/BaseCalls." % self.root_dir)
+            raise PipelineError(f"input_directory '{self.root_dir}' does not "
+                                "contain subdirectory "
+                                "Data/Intensities/BaseCalls.")
 
         if bcl_count < 1:
             # we can increase to whatever threshold is acceptable.
-            raise PipelineError("input_directory '%s' does not contain enough bcl files (%d)." % (bcl_directory, bcl_count))
+            raise PipelineError("input_directory '%s' does not contain enough "
+                                "bcl files (%d)." % (bcl_directory, bcl_count))
 
-    def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit):
+    def _generate_job_script(self, queue_name, node_count,
+                             nprocs, wall_time_limit):
         # TODO: Use Jinja template instead
         lines = []
 
         lines.append("#!/bin/bash")
-        # The Torque equiv for calling SBATCH on this script and supplying params
-        # w/environment variables is to do the same on QSUB but with -v instead of
-        # --export. The syntax of the values are otherwise the same.
+        # The Torque equiv for calling SBATCH on this script and supplying
+        # params w/environment variables is to do the same on QSUB but with -v
+        # instead of --export. The syntax of the values are otherwise the same.
         # -v <variable[=value][,variable2=value2[,...]]>
 
         # declare a name for this job to be sample_job
@@ -103,8 +114,8 @@ class ConvertBCL2FastqJob(Job):
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
-        # (Torque doesn't appear to have a quality of service (-q) option. so this
-        # will go unused in translation.)
+        # (Torque doesn't appear to have a quality of service (-q) option. so
+        # this will go unused in translation.)
         lines.append("#PBS -q %s" % queue_name)
 
         # request one node
@@ -114,7 +125,8 @@ class ConvertBCL2FastqJob(Job):
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
 
-        # Slurm walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
+        # Slurm
+        # walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (36 vs 24 hours)
         lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
@@ -145,29 +157,29 @@ class ConvertBCL2FastqJob(Job):
 
         if self.use_bcl_convert:
             lines.append('%s --sample-sheet %s \
-                                  --mask-short-adapter-reads 1 \
-                                  -R . \
-                                  -o %s \
-                                  --loading-threads 8 \
-                                  --processing-threads 8 \
-                                  --minimum-trimmed-read-length 1 \
-                                  --writing-threads 2 \
-                                  --create-fastq-for-index-reads \
-                                  --ignore-missing-bcls' % (self.bcl_tool['executable_path'],
-                                                            self.sample_sheet_path,
-                                                            self.output_directory))
+                          --mask-short-adapter-reads 1 \
+                          -R . \
+                          -o %s \
+                          --loading-threads 8 \
+                          --processing-threads 8 \
+                          --minimum-trimmed-read-length 1 \
+                          --writing-threads 2 \
+                          --create-fastq-for-index-reads \
+                          --ignore-missing-bcls' % (
+                self.bcl_tool['executable_path'], self.sample_sheet_path,
+                self.output_directory))
         else:
             lines.append('%s \
-                            --sample-sheet %s \
-                            --output-directory %s \
-                            --bcl-input-directory . \
-                            --bcl-num-decompression-threads 8 \
-                            --bcl-num-conversion-threads 8 \
-                            --bcl-num-compression-threads 16 \
-                            --bcl-num-parallel-tiles 8 \
-                            --bcl-sampleproject-subdirectories true --force' % (self.bcl_tool['executable_path'],
-                                                                                self.sample_sheet_path,
-                                                                                self.output_directory))
+                          --sample-sheet %s \
+                          --output-directory %s \
+                          --bcl-input-directory . \
+                          --bcl-num-decompression-threads 8 \
+                          --bcl-num-conversion-threads 8 \
+                          --bcl-num-compression-threads 16 \
+                          --bcl-num-parallel-tiles 8 \
+                          --bcl-sampleproject-subdirectories true --force' % (
+                self.bcl_tool['executable_path'], self.sample_sheet_path,
+                self.output_directory))
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)

@@ -1,5 +1,5 @@
 from os import makedirs
-from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
+from sequence_processing_pipeline.ConvertConvertBCL2FastqJob import ConvertConvertBCL2FastqJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from shutil import rmtree
 import logging
@@ -9,7 +9,7 @@ import unittest
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestBCL2FASTQJob(unittest.TestCase):
+class TestConvertConvertBCL2FastqJob(unittest.TestCase):
     def test_creation(self):
         # currently, the root directory of a job is going to be the
         # root directory of the single sequence directory given as
@@ -23,21 +23,21 @@ class TestBCL2FASTQJob(unittest.TestCase):
         invalid_output_directory = 'tests/data/invalid_output_directory'
         invalid_final_output_directory = 'tests/data/invalid_output_directory_two'
 
-        # BCL2FASTQJob should assert due to invalid_input_directory.
-        self.assertRaises(PipelineError, BCL2FASTQJob, invalid_input_directory, sample_sheet_path, output_directory, bcl2fastq_path)
+        # ConvertConvertBCL2FastqJob should assert due to invalid_input_directory.
+        self.assertRaises(PipelineError, ConvertConvertBCL2FastqJob, invalid_input_directory, sample_sheet_path, output_directory, bcl2fastq_path)
 
-        # BCL2FASTQJob should assert due root_dir/Data directory being devoid of BCL files.
-        self.assertRaises(PipelineError, BCL2FASTQJob, root_dir, sample_sheet_path, output_directory, bcl2fastq_path)
+        # ConvertConvertBCL2FastqJob should assert due root_dir/Data directory being devoid of BCL files.
+        self.assertRaises(PipelineError, ConvertConvertBCL2FastqJob, root_dir, sample_sheet_path, output_directory, bcl2fastq_path)
 
         # Create fake BCL files in the directory structure seen in real-world examples.
         makedirs('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003', exist_ok=True)
         with open('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003/fake.bcl', 'w')  as f:
             f.write('this is a text file.')
 
-        # BCL2FASTQJob should not assert an error now.
+        # ConvertConvertBCL2FastqJob should not assert an error now.
         msg = None
         try:
-            BCL2FASTQJob(root_dir, sample_sheet_path, output_directory, bcl2fastq_path)
+            ConvertConvertBCL2FastqJob(root_dir, sample_sheet_path, output_directory, bcl2fastq_path)
         except PipelineError as e:
             msg = str(e)
 

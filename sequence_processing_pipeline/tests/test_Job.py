@@ -21,9 +21,9 @@ class TestJob(unittest.TestCase):
                       'dir_locations.txt', '__init__.py',
                       'main.py',
                       'good-bcl-directory', 'TorqueJob.py', 'notes.txt',
-                      'SequenceDirectory.py', 'HumanFilterJob.py',
+                      'SequenceDirectory.py', 'QCJob.py',
                       'metagenomics_pooling_notebook',
-                      'BCLConvertJob.py', 'BCL2FASTQJob.py', 'Pipeline.py'}
+                      'BCLConvertJob.py', 'ConvertConvertBCL2FastqJob.py', 'Pipeline.py'}
         exp_stderr = ""
         exp_return_code = 0
         obs_std_out = results['stdout'].split('\n')

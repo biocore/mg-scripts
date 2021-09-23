@@ -1,5 +1,5 @@
 from os import makedirs
-from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
+from sequence_processing_pipeline.ConvertConvertBCL2FastqJob import ConvertConvertBCL2FastqJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from shutil import rmtree
 import logging

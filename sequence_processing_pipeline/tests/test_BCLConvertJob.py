@@ -23,10 +23,10 @@ class TestBCLConvertJob(unittest.TestCase):
         invalid_output_directory = 'tests/data/invalid_output_directory'
         invalid_final_output_directory = 'tests/data/invalid_output_directory_two'
 
-        # BCL2FASTQJob should assert due to invalid_input_directory.
+        # ConvertConvertBCL2FastqJob should assert due to invalid_input_directory.
         self.assertRaises(PipelineError, BCLConvertJob, invalid_input_directory, sample_sheet_path, output_directory, bcl2fastq_path)
 
-        # BCL2FASTQJob should assert due root_dir/Data directory being devoid of BCL files.
+        # ConvertConvertBCL2FastqJob should assert due root_dir/Data directory being devoid of BCL files.
         self.assertRaises(PipelineError, BCLConvertJob, root_dir, sample_sheet_path, output_directory, bcl2fastq_path)
 
         # Create fake BCL files in the directory structure seen in real-world examples.
@@ -34,7 +34,7 @@ class TestBCLConvertJob(unittest.TestCase):
         with open('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003/fake.bcl', 'w')  as f:
             f.write('this is a text file.')
 
-        # BCL2FASTQJob should not assert an error now.
+        # ConvertConvertBCL2FastqJob should not assert an error now.
         msg = None
         try:
             BCLConvertJob(root_dir, sample_sheet_path, output_directory, bcl2fastq_path)

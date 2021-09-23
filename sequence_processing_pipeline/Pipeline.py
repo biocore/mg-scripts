@@ -1,6 +1,7 @@
-from sequence_processing_pipeline.ConvertBCL2FastqJob import ConvertBCL2FastqJob
+from sequence_processing_pipeline.ConvertConvertConvertBCL2FastqJob import (
+    ConvertConvertConvertBCL2FastqJob)
 from sequence_processing_pipeline.QCJob import QCJob
-#from sequence_processing_pipeline.FastQC import FastQCJOb
+# from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
@@ -20,7 +21,10 @@ class Pipeline:
         self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
         if output_directory == final_output_directory:
-            raise PipelineError("output_directory '%s' is the same as final_output_directory '%s'." % (output_directory, final_output_directory))
+            raise PipelineError(
+                "output_directory '%s' is the same as "
+                "final_output_directory '%s'." % (
+                    output_directory, final_output_directory))
 
         self._directory_check(input_directory, create=False)
         self._directory_check(output_directory, create=True)
@@ -32,7 +36,8 @@ class Pipeline:
             raise PipelineError('nprocs cannot be less than 1.')
 
         if older_than >= younger_than:
-            raise PipelineError('older_than cannot be equal to or less than younger_than.')
+            raise PipelineError(
+                'older_than cannot be equal to or less than younger_than.')
 
         self.root_dir = input_directory
 
@@ -63,8 +68,8 @@ class Pipeline:
                     os.makedirs(directory_path, exist_ok=True)
                 except OSError as e:
                     # this is a known potential error. Re-raise it as a
-                    # PinelineError, so it gets handled in the same location as the
-                    # others.
+                    # PinelineError, so it gets handled in the same location
+                    # as the others.
                     raise PipelineError(str(e))
             else:
                 raise PipelineError("directory_path '%s' does not exist." % directory_path)
@@ -84,7 +89,7 @@ class Pipeline:
             ss_path = sample_sheet_params['sample_sheet_path']
 
             fastq_output_directory = join(self.root_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvertBCL2FastqJob(self.root_dir,
+            bcl2fastq_job = ConvertConvertConvertBCL2FastqJob(self.root_dir,
                                          ss_path,
                                          fastq_output_directory,
                                          self.bcl2fastq_path, True)

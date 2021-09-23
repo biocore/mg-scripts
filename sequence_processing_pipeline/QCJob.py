@@ -7,7 +7,8 @@ import logging
 
 
 class QCJob(Job):
-    def __init__(self, root_dir, sample_sheet_path, fpmmp_path, nprocs, mmi_db_path):
+    def __init__(self, root_dir, sample_sheet_path, fpmmp_path,
+                 nprocs, mmi_db_path):
         super().__init__()
         self.root_dir = root_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -18,8 +19,10 @@ class QCJob(Job):
         self.chemistry = metadata['chemistry']
         # self.job_script_path = join(self.root_dir, 'human-filtering.sh')
         self.mmi_db_path = mmi_db_path
-        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.out.log')
-        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.err.log')
+        self.stdout_log_path = 'localhost:' + join(
+            self.root_dir, 'human-filtering.out.log')
+        self.stderr_log_path = 'localhost:' + join(
+            self.root_dir, 'human-filtering.err.log')
 
     def run(self, queue_name, node_count, nprocs, wall_time_limit):
         metadata = []
@@ -28,10 +31,13 @@ class QCJob(Job):
             fastq_files = self._find_fastq_files(project['project_name'])
             split_count = self._generate_split_count(len(fastq_files))
             self._clear_trim_files()
-            lines_per_split = (len(fastq_files) + split_count - 1) / split_count
-            trim_files = self._generate_trim_files(fastq_files, lines_per_split)
+            lines_per_split = (
+                len(fastq_files) + split_count - 1) / split_count
+            trim_files = self._generate_trim_files(
+                fastq_files, lines_per_split)
             if len(trim_files) != split_count:
-                logging.warning("The number of trim files does not equal the number of files we were supposed to have.")
+                logging.warning("The number of trim files does not equal the "
+                                "number of files we were supposed to have.")
 
             script_path = self._generate_job_script(queue_name,
                                                     node_count,
@@ -59,7 +65,8 @@ class QCJob(Job):
             d['fastqc_params']['seqdir'] = self.root_dir
             # for now, define output_dir in two locations until the location
             # is settled.
-            d['fastqc_params']['output_dir'] = join(self.root_dir, 'human-filtering_output')
+            d['fastqc_params']['output_dir'] = join(
+                self.root_dir, 'human-filtering_output')
             d['fastqc_params']['fastq_output'] = fastq_output
             d['fastqc_params']['pbs_job_id'] = pbs_job_id
             d['fastqc_params']['pbs_job_array'] = pbs_job_array
@@ -107,9 +114,11 @@ class QCJob(Job):
         # different names for the same metadata. This dict maps the names
         # commonly found to the internal name used by the code.
         # TODO: Not certain BarcodesAreRC == PolyGTrimming == a_trim. Confirm
-        name_map = {'Sample_Project': 'project_name', 'Project': 'project_name', 'QiitaID': 'qiita_proj',
-                    'BarcodesAreRC': 'a_trim', 'PolyGTrimming': 'a_trim', 'ForwardAdapter': 'adapter_a',
-                    'ReverseAdapter': 'adapter_A', 'HumanFiltering': 'h_filter'}
+        name_map = {
+            'Sample_Project': 'project_name', 'Project': 'project_name',
+            'QiitaID': 'qiita_proj', 'BarcodesAreRC': 'a_trim',
+            'PolyGTrimming': 'a_trim', 'ForwardAdapter': 'adapter_a',
+            'ReverseAdapter': 'adapter_A', 'HumanFiltering': 'h_filter'}
 
         sheet = KLSampleSheet(sample_sheet_path)
         valid_sheet = validate_and_scrub_sample_sheet(sheet)
@@ -167,14 +176,17 @@ class QCJob(Job):
 
         return 1
 
-    def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit, split_count, project_name,
-                             adapter_a, adapter_A, a_trim, h_filter, qiita_proj):
+    def _generate_job_script(self, queue_name, node_count, nprocs,
+                             wall_time_limit, split_count, project_name,
+                             adapter_a, adapter_A, a_trim, h_filter,
+                             qiita_proj):
         lines = []
 
         lines.append("#!/bin/bash")
-        # The Torque equiv for calling SBATCH on this script and supplying params
-        # w/environment variables is to do the same on QSUB but with -v instead of
-        # --export. The syntax of the values are otherwise the same.
+        # The Torque equiv for calling SBATCH on this script and supplying
+        # params w/environment variables is to do the same on QSUB but with
+        # -v instead of --export. The syntax of the values are otherwise the
+        # same.
         # -v <variable[=value][,variable2=value2[,...]]>
 
         # declare a name for this job to be sample_job
@@ -183,8 +195,8 @@ class QCJob(Job):
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
-        # (Torque doesn't appear to have a quality of service (-q) option. so this
-        # will go unused in translation.)
+        # (Torque doesn't appear to have a quality of service (-q) option. so
+        # this will go unused in translation.)
         lines.append("#PBS -q %s" % queue_name)
 
         # request one node
@@ -194,7 +206,8 @@ class QCJob(Job):
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
 
-        # Slurm walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
+        # Slurm
+        # walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (72 vs ? hours)
         lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
@@ -269,10 +282,11 @@ class QCJob(Job):
         cmd.append('-f %s' % final_output_dir)
         lines.append(' '.join(cmd))
 
-        # unlike w/BCL2FASTQJob, multiple human-filtering.sh scripts
-        # will be generated, one for each project defined in the
+        # unlike w/ConvertConvertBCL2FastqJob, multiple human-filtering.sh
+        # scripts will be generated, one for each project defined in the
         # sample sheet.
-        job_script_path = join(self.root_dir, 'human-filtering-%s.sh' % project_name)
+        job_script_path = join(
+            self.root_dir, 'human-filtering-%s.sh' % project_name)
         with open(job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % job_script_path)
             for line in lines:
@@ -283,7 +297,7 @@ class QCJob(Job):
 if __name__ == '__main__':
     import json
 
-    hf2job = HumanFilterJob('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
+    hf2job = QCJob('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
     results = hf2job._process_sample_sheet('./good-sample-sheet.csv')
     for key in results:
         print(key)

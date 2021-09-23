@@ -23,11 +23,12 @@ class Job:
                     makedirs(directory_path, exist_ok=True)
                 except OSError as e:
                     # this is a known potential error. Re-raise it as a
-                    # PinelineError, so it gets handled in the same location as the
-                    # others.
+                    # PinelineError, so it gets handled in the same location as
+                    # the others.
                     raise PipelineError(str(e))
             else:
-                raise PipelineError("directory_path '%s' does not exist." % directory_path)
+                raise PipelineError(
+                    "directory_path '%s' does not exist." % directory_path)
 
     def _system_call(self, cmd, allow_return_codes=[]):
         """Call command and return (stdout, stderr, return_value)
@@ -35,8 +36,8 @@ class Job:
         Parameters
         ----------
         cmd : str or iterator of str
-            The string containing the command to be run, or a sequence of strings
-            that are the tokens of the command.
+            The string containing the command to be run, or a sequence of
+            strings that are the tokens of the command.
 
         Returns
         -------
@@ -47,15 +48,16 @@ class Job:
 
         Notes
         -----
-        This function is ported from QIIME (http://www.qiime.org), previously named
-        qiime_system_call. QIIME is a GPL project, but we obtained permission from
-        the authors of this function to port it to Qiita and keep it under BSD
-        license.
+        This function is ported from QIIME (http://www.qiime.org), previously
+        named qiime_system_call. QIIME is a GPL project, but we obtained
+        permission from the authors of this function to port it to Qiita and
+        keep it under BSD license.
         """
         logging.debug("Job _system_call() method called.")
 
         for i in range(1, 4):
-            proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE, stderr=PIPE)
+            proc = Popen(cmd, universal_newlines=True, shell=True,
+                         stdout=PIPE, stderr=PIPE)
             # Communicate pulls all stdout/stderr from the PIPEs
             # This call blocks until the command is done
             stdout, stderr = proc.communicate()
@@ -88,7 +90,8 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def qsub(self, script_path, qsub_parameters=None, script_parameters=None, wait=True):
+    def qsub(self, script_path, qsub_parameters=None,
+             script_parameters=None, wait=True):
         # -w e: verify options and abort if there's an error.
         # we now define queue (-q long) in the job script.
         # cmd = 'qsub -w e %s %s %s' % (qsub_parameters,
@@ -139,11 +142,16 @@ class Job:
             # update job_info
             # even though job_id doesn't change, use this update as evidence
             # job_id was once in the queue.
-            job_info['job_id'] = search(r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
-            job_info['job_name'] = search(r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
-            job_info['status'] = search(r"<job_state>(.*?)</job_state>", stdout).group(1)
-            job_info['elapsed_time'] = search(r"<etime>(.*?)</etime>", stdout).group(1)
-            exit_status = search(r"<exit_status>(.*?)</exit_status>", stdout)
+            job_info['job_id'] = search(
+                r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
+            job_info['job_name'] = search(
+                r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
+            job_info['status'] = search(
+                r"<job_state>(.*?)</job_state>", stdout).group(1)
+            job_info['elapsed_time'] = search(
+                r"<etime>(.*?)</etime>", stdout).group(1)
+            exit_status = search(
+                r"<exit_status>(.*?)</exit_status>", stdout)
             if exit_status:
                 job_info['exit_status'] = exit_status.group(1)
 
