@@ -4,7 +4,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, abspath, exists
 import re
 from os import makedirs, walk
-from metapool import KLSampleSheet, validate_sample_sheet
+from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
 class ConvertBCL2FastqJob(Job):
@@ -56,7 +56,7 @@ class ConvertBCL2FastqJob(Job):
 
         klss = KLSampleSheet(self.sample_sheet_path)
 
-        if not validate_sample_sheet(klss):
+        if not validate_and_scrub_sample_sheet(klss):
             # if sample sheet is valid, we can assume it has the parameters
             # that we will need. No need to check for individual params.
             raise PipelineError("Sample sheet %s is not valid." % self.sample_sheet_path)

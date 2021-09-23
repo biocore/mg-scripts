@@ -1,5 +1,5 @@
 from sequence_processing_pipeline.Job import Job
-from metapool import KLSampleSheet, validate_sample_sheet
+from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, basename, dirname
 from os import walk, remove
@@ -112,7 +112,7 @@ class QCJob(Job):
                     'ReverseAdapter': 'adapter_A', 'HumanFiltering': 'h_filter'}
 
         sheet = KLSampleSheet(sample_sheet_path)
-        valid_sheet = validate_sample_sheet(sheet)
+        valid_sheet = validate_and_scrub_sample_sheet(sheet)
 
         if not valid_sheet:
             s = "Sample sheet %s is not valid." % sample_sheet_path

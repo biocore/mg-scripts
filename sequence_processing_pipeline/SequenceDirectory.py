@@ -1,7 +1,7 @@
 import os
 import logging
 from sequence_processing_pipeline.PipelineError import PipelineError
-from metapool import KLSampleSheet, validate_sample_sheet
+from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os.path import join, exists
 
 
@@ -52,7 +52,7 @@ class SequenceDirectory:
 
     def _process_sample_sheet(self, sample_sheet):
         results = {}
-        valid_sheet = validate_sample_sheet(KLSampleSheet(sample_sheet))
+        valid_sheet = validate_and_scrub_sample_sheet(KLSampleSheet(sample_sheet))
 
         if not valid_sheet:
             s = "Sample sheet %s is not valid." % sample_sheet
