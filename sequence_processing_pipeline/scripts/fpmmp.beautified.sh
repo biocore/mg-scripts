@@ -3,7 +3,6 @@ set -x
 
 source ~/.seqvars
 
-###source /home/jede9131/miniconda3/bin/activate test_env_2
 module load fastp_0.20.1 samtools_1.12 minimap2_2.18
 
 while getopts ":d:D:S:s:p:c:B:o:O:a:A:q:g:G:C:m:f:" opt; do
@@ -75,6 +74,7 @@ if [[ -z $dir ]]; then
     echo Directory is required
     exit 1
 fi
+
 ### set a couple defaults
 if [[ -z $NPROCS ]]; then
     NPROCS=16
@@ -102,20 +102,18 @@ fi
 if [[ -z $chemistry ]]; then
     chemistry="Default"
 fi
+
 ### copy files to qiita by default if project defined.
 if [[ -z $copy_file ]]; then
     copy_file="TRUE"
 fi
 
 data_prefix=/var/www/html/seq_fastqc
-#bowtie=$(which bowtie2)
 samtools=$(which samtools)
-#bedtools=$(which bedtools)
 fastp=$(which fastp)
 minimap2=$(which minimap2)
 gui_output=gui_files
 indiv_output=run_files
-
 
 suffix=R*.fastq*
 
@@ -130,8 +128,6 @@ else
     _zip="gzip -f"
 fi
 
-#filter_db="/databases/bowtie/Human_phiX174/Human_phix174"
-#filter_db="/databases/bowtie/phiX/phiX"
 tar="/bin/tar"
 
 fastp_qc_output=${dir}/${project}/fastp_qc
@@ -140,25 +136,6 @@ if [[ -e ${rundir}/run_config.sh ]]; then
     source ${rundir}/run_config.sh
     ### parse runconfig file
 fi
-
-### default settings
-#if [[ -z $adapter_a ]]; then
-#  adapter_a="GATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
-#fi
-#if [[ -z $adapter_A ]]; then
-#  adapter_A="GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT"
-#fi
-#if [[ -z $adapter_polyg_a ]]; then
-#	adapter_polyg_a="GGGGGGGGGG"
-#fi
-#if [[ -z $adapter_polyg_A ]]; then
-#	adapter_polyg_A="GGGGGGGGGG"
-#fi
-if [[ -z $filter_db ]]; then
-    #  filter_db="/databases/bowtie/Human_phiX174/Human_phix174"
-    filter_db="/databases/bowtie/Human/Human"
-fi
-
 
 dir=${dir}/${file_dir}
 pushd $dir/$project
@@ -185,10 +162,7 @@ for stat_dir in "${dir_arr[@]}"; do
         mkdir ${dir}/${project}/${stat_dir}
     fi
 done
-### moved to individual tri/mmed/filtered directory
-#if [[ -d ${final_output}/${location}/filtered_sequences ]]; then
-#	mkdir ${final_output}/${location}/filtered_sequences
-#fi
+
 dir_arr=("trim_logs" "zero_files")
 for location in "${dir_arr[@]}"; do
     if [[ ! -d ${final_output}/${project}/${location} ]]; then
@@ -202,7 +176,6 @@ if [[ ! -d ${seqdir} ]]; then
     mkdir ${fastp_qc_output}/fastp_fastqc
 fi
 
-
 if [[ ! -e $trim_file ]]; then
     find . -maxdepth 1 -name "*.fastq.gz" -type f | grep "_R1_" | cut -f2 -d"/" > ${trim_file}
 fi
@@ -214,12 +187,10 @@ h_filter=$(echo ${h_filter^^})
 ### amplicon MiSeq sequencing
 if [[ ($a_trim =~ ^(FALSE|NO)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then ### && ( ! -z $qiita_proj) ]]; then
     ### just copy data to qiita study.  16s data.
-    ###if [[ $qiita_proj ]]; then
     if [[ $chemistry == "Amplicon" ]]; then
         mkdir ${final_output_dir}/${project}/amplicon
         ### copy all files to final location
         cp ${dir}/${project}/*.fastq.gz ${final_output_dir}/${project}/amplicon
-        ###:
     fi
     if [[ $qiita_proj ]]; then
         filename_index_1=$(echo "$filename1" | sed -e 's/_R1_/_I1_/g')
@@ -233,13 +204,9 @@ if [[ ($a_trim =~ ^(FALSE|NO)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then ### &&
             pushd ${dir}/${project}
             sudo -u qiita rsync -avp --progress *.fastq.gz /qmounts/qiita_data/uploads/${qiita_proj}
         fi
-        #if [[ $(stat -c '%U' /qmounts/qiita_data/uploads/${qiita_proj} ) != 'qiita' ]]; then
-        #	sudo chown -v 5500:5500 /qmounts/qiita_data/uploads/${qiita_proj}
-        #fi
+
         popd
 
-        ###fi
-        ###			rsync -avp --progress --rsync-path="pfexec rsync" --chown qiita:qiita ${final_output}/${project}/trimmed_sequences/${transfer_3}.fastq.gz ${final_output}/${project}/trimmed_sequences/${transfer_4}.fastq.gz jdereus@10.210.38.14:/z2pool-1/data/qiita_data/uploads/${qiita_proj}/
     fi
 fi
 
@@ -248,7 +215,6 @@ if [[ ($a_trim =~ ^(TRUE|YES)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then
     if [[ ! -d ${final_output}/${project}/trimmed_sequences ]]; then
         mkdir -p ${final_output}/${project}/trimmed_sequences
     fi
-    echo "here i am inside true/false"
     for file in `cat ${dir}/${project}/${trim_file} | grep "_R1_"`;
     do
         parent_dir=$(dirname $file)
@@ -264,18 +230,11 @@ if [[ ($a_trim =~ ^(TRUE|YES)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then
         filename_index2=$(echo "$filename2" | sed -e 's/_R2_/_I2_/g')
 
         ### changed output of json/html from ${dir} to ${final_output} 10/6/20
-        #if [[ $adapter_a == 'NA' || $adapter_A == 'NA' ]]; then
         if [[ -z $adapter_a || -z $adapter_A || $adapter_a == "NA" || $adapter_A == "NA" ]]; then
             $fastp -l 100 -i $filename1 -I $filename2 -w $NPROCS -j ${final_output}/${project}/json/${filename1_short}.json -h ${final_output}/${project}/html/${filename1_short}.html -o $final_output/${project}/trimmed_sequences/${filename1_short}.fastp.fastq.gz -O $final_output/${project}/trimmed_sequences/${filename2_short}.fastp.fastq.gz -R ${filename1_short}_report
         else
             $fastp --adapter_sequence ${adapter_a} --adapter_sequence_r2 ${adapter_A} -l 100 -i $filename1 -I $filename2 -w $NPROCS -j ${final_output}/${project}/json/${filename1_short}.json -h ${final_output}/${project}/html/${filename1_short}.html -o $final_output/${project}/trimmed_sequences/${filename1_short}.fastp.fastq.gz -O $final_output/${project}/trimmed_sequences/${filename2_short}.fastp.fastq.gz -R ${filename1_short}_report ### -h ${filename1_short}.html
         fi
-
-        #pushd $final_output/${project}/trimmed_sequences/
-
-        #$_zip ${filename1_short}.fastp.fastq
-        #$_zip ${filename2_short}.fastp.fastq
-        #popd
 
         size1=$(stat -c%s $final_output/${project}/trimmed_sequences/${filename1_short}.fastp.fastq.gz)
         size2=$(stat -c%s $final_output/${project}/trimmed_sequences/${filename2_short}.fastp.fastq.gz)
@@ -303,9 +262,6 @@ if [[ ($a_trim =~ ^(TRUE|YES)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then
     ### done.  move files to qiita study if possible
     echo qiita project == $qiita_proj
 
-    #if [[ ! $copy_file ]]; then
-    ### qiita project is defined
-    #if [[ $qiita_proj != "NA" ]]; then
     for file_transfer in `cat ${dir}/${project}/${trim_file}`; do
         transfer_1=$(echo "$file_transfer" | cut -f1 -d".")
         transfer_2=$(echo "$transfer_1" | sed -e 's/_R1_00/_R2_00/g')
@@ -388,19 +344,11 @@ elif [[ ($a_trim =~ ^(TRUE|YES)$) && ($h_filter =~ ^(TRUE|YES)$) ]]; then
             transfer_1=$(echo "$file_transfer" | cut -f1 -d".")
             transfer_2=$(echo "$transfer_1" | sed -e 's/_R1_00/_R2_00/g')
             rsync -avp --progress ${final_output}/${project}/filtered_sequences/${transfer_1}.trimmed.fastq.gz ${final_output}/${project}/filtered_sequences/${transfer_2}.trimmed.fastq.gz ${final_output_dir}/${base_seq_dir}/${project}/filtered_sequences/
-
             if [[ $qiita_proj != "NA" && $copy_file == "TRUE" ]]; then
                 sudo -u qiita rsync -avp --chown 5500:5500 ${final_output}/${project}/filtered_sequences/${transfer_1}.trimmed.fastq.gz ${final_output}/${project}/filtered_sequences/${transfer_2}.trimmed.fastq.gz /qmounts/qiita_data/uploads/${qiita_proj}/
-            fi ###rsync -avp --rsync-path="pfexec rsync" --chown qiita:qiita ${final_output}/${project}/filtered_sequences/${transfer_1}.trimmed.fastq.gz ${final_output}/${project}/filtered_sequences/${transfer_2}.trimmed.fastq.gz jdereus@10.210.38.14:/z2pool-1/data/qiita_data/uploads/${qiita_proj}/
+            fi
         done
         rsync -avp --progress ${final_output} ${final_output_dir}/
-        #			if [[ $(stat -c '%U' /qmounts/qiita_data/uploads/${qiita_proj} ) != 'qiita' ]]; then
-        #				sudo chown -v 5500:5500 /qmounts/qiita_data/uploads/${qiita_proj}/
-        #			fi
-        ###ssh jdereus@10.210.38.14 "pfexec /usr/gnu/bin/chown -v qiita:qiita /z2pool-1/data/qiita_data/uploads/${qiita_proj}/"
-        ###fi
-        ###fi
-
     fi
 fi
 
@@ -432,10 +380,10 @@ fi
 
 
 #####################
-bowtie shouldn't be called. minimap should be doing the human filtering
-conditionals should make it so we exit with 0 or -1 and don't move onto using bowtie
-bowtie + atropos = wrong. minimap + fastp = good.
-send an email to jeff to make sure that bowtie and atropos were never called. if so we need to know when and why.
+#bowtie shouldn't be called. minimap should be doing the human filtering
+#conditionals should make it so we exit with 0 or -1 and don't move onto using bowtie
+#bowtie + atropos = wrong. minimap + fastp = good.
+#send an email to jeff to make sure that bowtie and atropos were never called. if so we need to know when and why.
 #####################
 
 #for file in `find ${fastp_qc_output} -maxdepth 1 -type f -name "*.fastq" | grep _R1_`;

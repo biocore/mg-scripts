@@ -14,6 +14,10 @@ class Pipeline:
                  final_output_directory, younger_than=48,
                  older_than=24, nprocs=16):
 
+        self.bcl2fastq_path = "/usr/local/bin/bcl2fastq"
+        self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
+        self.mmi_db_path = "/path/to/human-phix-db.mmi"
+
         if output_directory == final_output_directory:
             raise PipelineError("output_directory '%s' is the same as final_output_directory '%s'." % (output_directory, final_output_directory))
 
@@ -48,9 +52,6 @@ class Pipeline:
         logging.debug("Output Directory: %s" % self.output_dir)
         self.final_output_dir = final_output_directory
         logging.debug("Final Output Directory: %s" % self.final_output_dir)
-        self.bcl2fastq_path = "/usr/local/bin/bcl2fastq"
-        self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
-        self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -81,13 +82,15 @@ class Pipeline:
             sample_sheet_params = sdo.process()
             ss_path = sample_sheet_params['sample_sheet_path']
 
+            fastq_output_directory = join(self.root_dir, 'Data', 'Fastq')
             bcl2fastq_job = BCL2FASTQJob(self.root_dir,
                                          ss_path,
-                                         self.output_dir,
+                                         fastq_output_directory,
                                          self.bcl2fastq_path)
 
             bcl2fastq_job.run("long8gb", 1, 16, 36)
 
+            '''
             filter_logs_dir = join(self.root_dir, 'filter_logs')
             os.makedirs(filter_logs_dir)
 
@@ -107,7 +110,7 @@ class Pipeline:
             #fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
 
             #fast_qc_job.run()
-
+            '''
         except PipelineError as e:
             logging.error(e)
 

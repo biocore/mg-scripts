@@ -120,9 +120,10 @@ class BCL2FASTQJob(TorqueJob):
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use root_dir instead.
         lines.append("set -x")
-        lines.append("date '+%s' > /{}/{}.log".format(self.root_dir, self.job_name))
+        lines.append("cd %s" % self.root_dir)
+        lines.append("date '+%s' > bcl2fastq.job.log")
         lines.append("module load bcl2fastq_2.20.0.422")
-        lines.append("cd %s"  % self.root_dir)
+
         # lines.append("export PATH=$PATH:/usr/local/bin")
         lines.append('%s --sample-sheet %s --mask-short-adapter-reads \
                       1 -R . -o %s --loading-threads 8 --processing-threads \
@@ -131,8 +132,8 @@ class BCL2FASTQJob(TorqueJob):
                       --ignore-missing-bcls' % (self.bcl2fastq_path,
                                                  self.sample_sheet_path,
                                                  self.output_directory))
-        lines.append("echo $? >> /%s/%s.log" % (self.root_dir, self.job_name))
-        lines.append("date '+%s' >> /{}/{}.log".format(self.root_dir, self.job_name))
+        lines.append("echo $? >> bcl2fastq.job.log")
+        lines.append("date '+%s' >> bcl2fastq.job.log")
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)
@@ -142,6 +143,16 @@ class BCL2FASTQJob(TorqueJob):
                 f.write("%s\n" % line)
 
     def run(self, queue_name, node_count, nprocs, wall_time_limit):
+        '''
+        Run BCL2Fastq conversion on data in root directory.
+        Job-related parameters are specified here for easy adjustment and
+        job restart.
+        :param queue_name:
+        :param node_count:
+        :param nprocs:
+        :param wall_time_limit:
+        :return:
+        '''
         self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit)
 
         job_info = self.qsub(self.job_script_path, None, None)

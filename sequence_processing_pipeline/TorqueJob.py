@@ -9,12 +9,10 @@ class TorqueJob(Job):
     def __init__(self):
         super().__init__()
         logging.debug("TorqueJob Constructor called.")
-        logging.debug("TorqueJob Constructor exiting.")
 
     def run(self):
         logging.debug("TorqueJob run() method called.")
         self.qsub('myqueue', 'nooptions', '/mypath', 'noparameters')
-        logging.debug("TorqueJob run() method exiting.")
 
     def qsub(self, script_path, qsub_parameters=None, script_parameters=None, wait=True):
         # -w e: verify options and abort if there's an error.
