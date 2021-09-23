@@ -54,11 +54,23 @@ class Job:
         """
         logging.debug("Job _system_call() method called.")
 
-        proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE, stderr=PIPE)
-        # Communicate pulls all stdout/stderr from the PIPEs
-        # This call blocks until the command is done
-        stdout, stderr = proc.communicate()
-        return_code = proc.returncode
+        for i in range(1, 4):
+            proc = Popen(cmd, universal_newlines=True, shell=True, stdout=PIPE, stderr=PIPE)
+            # Communicate pulls all stdout/stderr from the PIPEs
+            # This call blocks until the command is done
+            stdout, stderr = proc.communicate()
+            return_code = proc.returncode
+
+            # qstat becomes unavailable at random times w/out explanation.
+            # standard remedy for this situation is to repeat qstat exec()
+            # up to three times before accepting defeat.
+            if 'command not found' in stderr or return_code == 127:
+                logging.debug("'%s' not found. Retrying (%d out of 3 tries)..." % (cmd, i))
+                if i < 3:
+                    sleep(3)
+                    continue
+                else:
+                    raise PipelineError("Command '%s' not found." % (cmd))
 
         logging.debug("stdout: %s" % stdout)
         logging.debug("stderr: %s" % stderr)
@@ -98,6 +110,12 @@ class Job:
         # job id.
         job_id = stdout.split('\n')[0]
 
+        # job_info acts as a sentinel value, as well as a return value.
+        # if job_id is not None, then that means the job has appeared in qstat
+        # at least once. This helps us distinguish between two states -
+        # one where the loop is starting and the job has never appeared in
+        # qstat yet, and the second where we slept too long in between
+        # checking and the job has disappeared from qstat().
         job_info = {'job_id': None, 'job_name': None, 'status': None,
                     'elapsed_time': None}
 
@@ -118,21 +136,14 @@ class Job:
             if stdout.startswith("qstat: Unknown Job Id Error"):
                 break
 
-            # TODO: Use XML parsing package?
-            job_id = search(r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
-            job_name = search(r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
-            status = search(r"<job_state>(.*?)</job_state>", stdout).group(1)
-            start_time = search(r"<ctime>(.*?)</ctime>", stdout).group(1)
-            elapsed_time = search(r"<etime>(.*?)</etime>", stdout).group(1)
-            exit_status = search(r"<exit_status>(.*?)</exit_status>", stdout)
-
             # update job_info
             # even though job_id doesn't change, use this update as evidence
             # job_id was once in the queue.
-            job_info['job_id'] = job_id
-            job_info['job_name'] = job_name
-            job_info['status'] = status
-            job_info['elapsed_time'] = elapsed_time
+            job_info['job_id'] = search(r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
+            job_info['job_name'] = search(r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
+            job_info['status'] = search(r"<job_state>(.*?)</job_state>", stdout).group(1)
+            job_info['elapsed_time'] = search(r"<etime>(.*?)</etime>", stdout).group(1)
+            exit_status = search(r"<exit_status>(.*?)</exit_status>", stdout)
             if exit_status:
                 job_info['exit_status'] = exit_status.group(1)
 
