@@ -10,7 +10,7 @@ class TorqueJob(Job):
         super().__init__()
         logging.debug("TorqueJob Constructor called.")
 
-    def run(self):
+    def run(self, queue_name, node_count, nprocs, wall_time_limit):
         logging.debug("TorqueJob run() method called.")
         self.qsub('myqueue', 'nooptions', '/mypath', 'noparameters')
 

@@ -90,19 +90,13 @@ class Pipeline:
 
             bcl2fastq_job.run("long8gb", 1, 16, 36)
 
-            '''
-            filter_logs_dir = join(self.root_dir, 'filter_logs')
-            os.makedirs(filter_logs_dir)
-
             human_filter_job = HumanFilterJob(self.root_dir,
                                               sample_sheet_params['sample_sheet_path'],
-                                              filter_logs_dir,
                                               self.fpmmp_path,
                                               self.nprocs,
-                                              self.job_script_path,
                                               self.mmi_db_path)
 
-            human_filter_job.run()
+            human_filter_job.run("long8gb", 1, 16, 72)
 
             output_dir = 'foo'
             project = 'foo'
@@ -110,7 +104,7 @@ class Pipeline:
             #fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
 
             #fast_qc_job.run()
-            '''
+
         except PipelineError as e:
             logging.error(e)
 

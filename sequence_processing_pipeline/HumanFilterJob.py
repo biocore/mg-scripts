@@ -7,20 +7,21 @@ import logging
 
 
 class HumanFilterJob(TorqueJob):
-    def __init__(self, root_dir, sample_sheet_path, log_directory, fpmmp_path, nprocs, job_script_path, mmi_db_path):
+    def __init__(self, root_dir, sample_sheet_path, fpmmp_path, nprocs, mmi_db_path):
         super().__init__()
         self.root_dir = root_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
         self.project_data = metadata['projects']
         self.trim_file = 'split_file_'
-        self.log_directory = log_directory
         self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
-        self.job_script_path = job_script_path
+        self.job_script_path = join(self.root_dir, 'human-filtering.sh')
         self.mmi_db_path = mmi_db_path
+        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.out.log')
+        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.err.log')
 
-    def run(self):
+    def run(self, queue_name, node_count, nprocs, wall_time_limit):
         metadata = []
 
         for project in self.project_data:
@@ -32,20 +33,17 @@ class HumanFilterJob(TorqueJob):
             if len(trim_files) != split_count:
                 logging.warning("The number of trim files does not equal the number of files we were supposed to have.")
 
-            # TODO: Replace with appropriate relative paths
-            output_dir = 'MyOutputDirectory'
-            final_output_dir = 'MyFinalOutputDirectory'
-
-            script_path = self._make_job_script(project['project_name'],
-                                                self.chemistry,
-                                                output_dir,
-                                                project['adapter_a'],
-                                                project['adapter_A'],
-                                                project['a_trim'],
-                                                project['h_filter'],
-                                                project['qiita_proj'],
-                                                final_output_dir,
-                                                split_count)
+            script_path = self._generate_job_script(queue_name,
+                                                    node_count,
+                                                    nprocs,
+                                                    wall_time_limit,
+                                                    split_count,
+                                                    project['project_name'],
+                                                    project['adapter_a'],
+                                                    project['adapter_A'],
+                                                    project['a_trim'],
+                                                    project['h_filter'],
+                                                    project['qiita_proj'])
 
             d = {'project_name': project['project_name']}
             # pbs_job_array="--dependency=afterok:$pbs_job_id"
@@ -56,10 +54,12 @@ class HumanFilterJob(TorqueJob):
             pbs_job_array = None
             proj_array = None
 
-            d['job_info'] =  self.qsub(script_path, None, None)
+            d['job_info'] = self.qsub(script_path, None, None)
             d['fastqc_params'] = {}
             d['fastqc_params']['seqdir'] = self.root_dir
-            d['fastqc_params']['output_dir'] = output_dir
+            # for now, define output_dir in two locations until the location
+            # is settled.
+            d['fastqc_params']['output_dir'] = join(self.root_dir, 'human-filtering_output')
             d['fastqc_params']['fastq_output'] = fastq_output
             d['fastqc_params']['pbs_job_id'] = pbs_job_id
             d['fastqc_params']['pbs_job_array'] = pbs_job_array
@@ -86,7 +86,7 @@ class HumanFilterJob(TorqueJob):
             trim_file_path = join(destination_path, trim_file_name)
             with open(trim_file_path, 'w') as f:
                 for line in chunk:
-                    f.write(line)
+                    f.write("%s\n" % line)
             new_files.append(trim_file_path)
             count += 1
 
@@ -167,8 +167,8 @@ class HumanFilterJob(TorqueJob):
 
         return 1
 
-    def _make_job_script(self, project_name, chemistry, output_dir, adapter_a, adapter_A, a_trim, h_filter, qiita_proj,
-                         final_output_dir, split_count):
+    def _generate_job_script(self, queue_name, node_count, nprocs, wall_time_limit, split_count, project_name,
+                             adapter_a, adapter_A, a_trim, h_filter, qiita_proj):
         lines = []
 
         lines.append("#!/bin/bash")
@@ -178,24 +178,25 @@ class HumanFilterJob(TorqueJob):
         # -v <variable[=value][,variable2=value2[,...]]>
 
         # declare a name for this job to be sample_job
-        lines.append("#PBS -N {}_%A_%a".format(project_name))
+        # lines.append("#PBS -N {}".format(project_name))
+        lines.append("#PBS -N %s" % project_name)
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so this
         # will go unused in translation.)
-        lines.append("#PBS -q long8gb")
+        lines.append("#PBS -q %s" % queue_name)
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
-        lines.append("#PBS -l nodes=1:ppn=%d" % self.nprocs)
+        lines.append("#PBS -l nodes=%d:ppn=%d" % (node_count, nprocs))
 
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
 
         # Slurm walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (72 vs ? hours)
-        lines.append("#PBS -l walltime=72:00:00")
+        lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
         # send email to charlie when a job starts and when it terminates or
         # aborts. This is used to confirm the package's own reporting
@@ -211,10 +212,13 @@ class HumanFilterJob(TorqueJob):
         # revisit the mem stuff later.
 
         # --output -> -o
-        lines.append("#PBS -o localhost:{}/filter_jobs/%x_%A_%a.out".format(self.log_directory))
-        lines.append("#PBS -e localhost:{}/filter_jobs/%x_%A_%a.err".format(self.log_directory))
+        lines.append("#PBS -o %s" % self.stdout_log_path)
+        lines.append("#PBS -e %s" % self.stderr_log_path)
 
         # array input files are labeled file0, file1,...filen-1
+        # TODO: watch edge-case where only one split_count file
+        #  is generated. This line will become '-t 0-0'. I believe
+        #  that is valid, but it may be better to state as '-t 0'.
         lines.append("#PBS -t 0-%d" % split_count - 1)
 
         # there is no equivalent for this in Torque, I believe
@@ -227,21 +231,33 @@ class HumanFilterJob(TorqueJob):
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use root_dir instead.
         lines.append("set -x")
-        lines.append("date '+%s'")
         lines.append("cd %s" % self.root_dir)
-        # lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
+        lines.append("date '+%s' > human-filtering.job.log")
+        lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
+
+        # for now, set the output from fpmmp.sh to be in two separate distinct
+        # directories until we can confirm its usual location. We will make
+        # the directories to ensure they are fresh.
+        lines.append("rm -rf human-filtering_output")
+        lines.append("mkdir human-filtering_output")
+        lines.append("rm -rf human-filtering_final_output")
+        lines.append("mkdir human-filtering_final_output")
+        output_dir = join(self.root_dir, 'human-filtering_output')
+        final_output_dir = join(self.root_dir, 'human-filtering_final_output')
 
         cmd = []
         cmd.append(self.fpmmp_path)
         cmd.append('-d %s' % self.root_dir)
-        cmd.append('-D /Data/Fastq')
+        cmd.append('-D %s/Data/Fastq' % self.root_dir)
         # even though we have a list of all of the trim_files0-(n-1),
         # we use this syntax so that we only need to qsub one job file, insteaf
         # of n job files.
         cmd.append('-S %s${PBS_ARRAYID}' % self.trim_file)
-        cmd.append('-x %s' % self.mmi_db_path)
+        # cmd.append('-p %s' % project_name)
         cmd.append('-p %s' % project_name)
-        cmd.append('-C %s' % chemistry)
+        cmd.append('-x %s' % self.mmi_db_path)
+        # cmd.append('-C %s' % chemistry)
+        cmd.append('-C %s' % self.chemistry)
         cmd.append('-c %s' % self.nprocs)
         cmd.append('-o %s' % output_dir)
         cmd.append('-O %s' % basename(self.root_dir))
@@ -251,10 +267,9 @@ class HumanFilterJob(TorqueJob):
         cmd.append('-G %s' % h_filter)
         cmd.append('-q %s' % qiita_proj)
         cmd.append('-f %s' % final_output_dir)
-
         lines.append(' '.join(cmd))
-        lines.append("echo $?")
-        lines.append("date '+%s'")
+        lines.append("echo $? >> human-filtering.job.log")
+        lines.append("date '+%s' >> human-filtering.job.log")
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)
