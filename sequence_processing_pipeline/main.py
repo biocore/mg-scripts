@@ -30,3 +30,4 @@ def main(input_directory, output_directory, final_output_directory,
     pipeline.process(sample_sheet_path)
 
     logging.debug('Sequence Processing Pipeline SingleDirectoryMain() Completed')
+

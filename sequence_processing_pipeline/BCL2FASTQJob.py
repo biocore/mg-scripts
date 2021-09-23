@@ -123,12 +123,15 @@ class BCL2FASTQJob(TorqueJob):
         lines.append("cd %s" % self.root_dir)
         lines.append("date '+%s' > bcl2fastq.job.log")
         lines.append("module load bcl2fastq_2.20.0.422")
-
-        # lines.append("export PATH=$PATH:/usr/local/bin")
-        lines.append('%s --sample-sheet %s --mask-short-adapter-reads \
-                      1 -R . -o %s --loading-threads 8 --processing-threads \
+        lines.append('%s --sample-sheet %s \
+                      --mask-short-adapter-reads 1 \
+                      -R . \
+                      -o %s \
+                      --loading-threads 8 \
+                      --processing-threads 8 \
                       --minimum-trimmed-read-length 1 \
-                      8 --writing-threads 2 --create-fastq-for-index-reads \
+                      --writing-threads 2 \
+                      --create-fastq-for-index-reads \
                       --ignore-missing-bcls' % (self.bcl2fastq_path,
                                                  self.sample_sheet_path,
                                                  self.output_directory))

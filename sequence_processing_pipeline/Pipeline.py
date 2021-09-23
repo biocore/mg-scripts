@@ -14,7 +14,7 @@ class Pipeline:
                  final_output_directory, younger_than=48,
                  older_than=24, nprocs=16):
 
-        self.bcl2fastq_path = "/usr/local/bin/bcl2fastq"
+        self.bcl2fastq_path = "/opt/bcl2fastq/2.20.0.422/bin/bcl2fastq"
         self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
         self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
