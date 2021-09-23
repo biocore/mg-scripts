@@ -7,13 +7,13 @@ from os import makedirs, walk
 from metapool import KLSampleSheet, validate_sample_sheet
 
 
-class BCL2FASTQJob(Job):
+class ConvertBCL2FastqJob(Job):
     '''
     BCL2FASTQJob implements a way to run bcl2fastq on a directory of BCL
     files. It builds on TorqueJob's ability to push a job onto Torque and wait
     for it to finish.
     '''
-    def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path):
+    def __init__(self, root_dir, sample_sheet_path, output_directory, bcl2fastq_path, use_bcl_convert):
         super().__init__()
         self.root_dir = abspath(root_dir)
         self._directory_check(self.root_dir, create=False)
@@ -21,15 +21,35 @@ class BCL2FASTQJob(Job):
 
         tmp = join(self.root_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
-        self.job_script_path = join(self.root_dir, 'BCL2FASTQ.sh')
-        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'BCL2FASTQ.out.log')
-        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'BCL2FASTQ.err.log')
+        self.job_script_path = join(self.root_dir, 'ConvertBCL2Fastq.sh')
+        self.stdout_log_path = 'localhost:' + join(self.root_dir, 'ConvertBCL2Fastq.out.log')
+        self.stderr_log_path = 'localhost:' + join(self.root_dir, 'ConvertBCL2Fastq.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
         self.unique_name = self.root_dir.split('/')[-1]
-        self.job_name = "BCL2FASTQ_%s" % self.unique_name
+        self.job_name = "ConvertBCL2Fastq_%s" % self.unique_name
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
         self.bcl2fastq_path = bcl2fastq_path
+        self.use_bcl_convert = use_bcl_convert
+
+        d = {}
+        d['bcl2fastq'] = {}
+        d['bcl-convert'] = {}
+        d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
+        d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
+        d['bcl2fastq']['executable_path'] = self.bcl2fastq_path
+        d['bcl-convert']['executable_path'] = self.bcl2fastq_path
+        d['bcl2fastq']['queue_name'] = ''
+        d['bcl-convert']['queue_name'] = 'highmem'
+        d['bcl2fastq']['output_log_name'] = 'BCL2FASTQ.out.log'
+        d['bcl2fastq']['error_log_name'] = 'BCL2FASTQ.err.log'
+        d['bcl-convert']['output_log_name'] = 'BCL2FASTQ.out.log'
+        d['bcl-convert']['error_log_name'] = 'BCL2FASTQ.err.log'
+
+        if use_bcl_convert:
+            self.bcl_tool = d['bcl-convert']
+        else:
+            self.bcl_tool = d['bcl2fastq']
 
         if not exists(self.sample_sheet_path):
             raise PipelineError("Sample sheet %s does not exist." % self.sample_sheet_path)
@@ -109,11 +129,11 @@ class BCL2FASTQJob(Job):
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
-        #lines.append("#PBS -l pmem=10gb")
+        lines.append("#PBS -l pmem=10gb")
 
         # --output -> -o
-        lines.append("#PBS -o %s" % self.stdout_log_path)
-        lines.append("#PBS -e %s" % self.stderr_log_path)
+        lines.append("#PBS -o %s" % self.bcl_tool['output_log_name'])
+        lines.append("#PBS -e %s" % self.bcl_tool['error_log_name'])
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
@@ -121,22 +141,33 @@ class BCL2FASTQJob(Job):
         # directory from which they were submitted. Use root_dir instead.
         lines.append("set -x")
         lines.append("cd %s" % self.root_dir)
-        lines.append("date '+%s' > bcl2fastq.job.log")
-        lines.append("module load bcl2fastq_2.20.0.422")
-        lines.append('%s --sample-sheet %s \
-                      --mask-short-adapter-reads 1 \
-                      -R . \
-                      -o %s \
-                      --loading-threads 8 \
-                      --processing-threads 8 \
-                      --minimum-trimmed-read-length 1 \
-                      --writing-threads 2 \
-                      --create-fastq-for-index-reads \
-                      --ignore-missing-bcls' % (self.bcl2fastq_path,
-                                                 self.sample_sheet_path,
-                                                 self.output_directory))
-        lines.append("echo $? >> bcl2fastq.job.log")
-        lines.append("date '+%s' >> bcl2fastq.job.log")
+        lines.append(self.bcl_tool['module_load'])
+
+        if self.use_bcl_convert:
+            lines.append('%s --sample-sheet %s \
+                                  --mask-short-adapter-reads 1 \
+                                  -R . \
+                                  -o %s \
+                                  --loading-threads 8 \
+                                  --processing-threads 8 \
+                                  --minimum-trimmed-read-length 1 \
+                                  --writing-threads 2 \
+                                  --create-fastq-for-index-reads \
+                                  --ignore-missing-bcls' % (self.bcl_tool['executable_path'],
+                                                            self.sample_sheet_path,
+                                                            self.output_directory))
+        else:
+            lines.append('%s \
+                            --sample-sheet %s \
+                            --output-directory %s \
+                            --bcl-input-directory . \
+                            --bcl-num-decompression-threads 8 \
+                            --bcl-num-conversion-threads 8 \
+                            --bcl-num-compression-threads 16 \
+                            --bcl-num-parallel-tiles 8 \
+                            --bcl-sampleproject-subdirectories true --force' % (self.bcl_tool['executable_path'],
+                                                                                self.sample_sheet_path,
+                                                                                self.output_directory))
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)

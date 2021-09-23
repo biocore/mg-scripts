@@ -6,7 +6,7 @@ from os import walk, remove
 import logging
 
 
-class HumanFilterJob(Job):
+class QCJob(Job):
     def __init__(self, root_dir, sample_sheet_path, fpmmp_path, nprocs, mmi_db_path):
         super().__init__()
         self.root_dir = root_dir
@@ -268,8 +268,6 @@ class HumanFilterJob(Job):
         cmd.append('-q %s' % qiita_proj)
         cmd.append('-f %s' % final_output_dir)
         lines.append(' '.join(cmd))
-        lines.append("echo $? >> human-filtering.job.log")
-        lines.append("date '+%s' >> human-filtering.job.log")
 
         # unlike w/BCL2FASTQJob, multiple human-filtering.sh scripts
         # will be generated, one for each project defined in the

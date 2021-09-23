@@ -1,5 +1,5 @@
-from sequence_processing_pipeline.BCL2FASTQJob import BCL2FASTQJob
-from sequence_processing_pipeline.HumanFilterJob import HumanFilterJob
+from sequence_processing_pipeline.ConvertBCL2FastqJob import ConvertBCL2FastqJob
+from sequence_processing_pipeline.QCJob import QCJob
 #from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -14,7 +14,8 @@ class Pipeline:
                  final_output_directory, younger_than=48,
                  older_than=24, nprocs=16):
 
-        self.bcl2fastq_path = "/opt/bcl2fastq/2.20.0.422/bin/bcl2fastq"
+        # self.bcl2fastq_path = "/opt/bcl2fastq/2.20.0.422/bin/bcl2fastq"
+        self.bcl2fastq_path = "bcl-convert"
         self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
         self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
@@ -83,14 +84,14 @@ class Pipeline:
             ss_path = sample_sheet_params['sample_sheet_path']
 
             fastq_output_directory = join(self.root_dir, 'Data', 'Fastq')
-            bcl2fastq_job = BCL2FASTQJob(self.root_dir,
+            bcl2fastq_job = ConvertBCL2FastqJob(self.root_dir,
                                          ss_path,
                                          fastq_output_directory,
-                                         self.bcl2fastq_path)
+                                         self.bcl2fastq_path, True)
 
             bcl2fastq_job.run("long8gb", 1, 16, 36)
 
-            human_filter_job = HumanFilterJob(self.root_dir,
+            human_filter_job = QCJob(self.root_dir,
                                               sample_sheet_params['sample_sheet_path'],
                                               self.fpmmp_path,
                                               self.nprocs,
