@@ -16,7 +16,7 @@ class HumanFilterJob(TorqueJob):
         self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
-        self.job_script_path = join(self.root_dir, 'human-filtering.sh')
+        # self.job_script_path = join(self.root_dir, 'human-filtering.sh')
         self.mmi_db_path = mmi_db_path
         self.stdout_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.out.log')
         self.stderr_log_path = 'localhost:' + join(self.root_dir, 'human-filtering.err.log')
@@ -271,8 +271,12 @@ class HumanFilterJob(TorqueJob):
         lines.append("echo $? >> human-filtering.job.log")
         lines.append("date '+%s' >> human-filtering.job.log")
 
-        with open(self.job_script_path, 'w') as f:
-            logging.debug("Writing job script to %s" % self.job_script_path)
+        # unlike w/BCL2FASTQJob, multiple human-filtering.sh scripts
+        # will be generated, one for each project defined in the
+        # sample sheet.
+        job_script_path = join(self.root_dir, 'human-filtering-%s.sh' % project_name)
+        with open(job_script_path, 'w') as f:
+            logging.debug("Writing job script to %s" % job_script_path)
             for line in lines:
                 # remove long spaces in some lines.
                 f.write("%s\n" % line)
