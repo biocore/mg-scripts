@@ -7,9 +7,9 @@ from os import makedirs, walk
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
-class ConvertConvertConvertBCL2FastqJob(Job):
+class ConvertBCL2FastqJob(Job):
     '''
-    ConvertConvertBCL2FastqJob implements a way to run bcl2fastq on a directory
+    ConvertBCL2FastqJob implements a way to run bcl2fastq on a directory
     of BCL files. It builds on TorqueJob's ability to push a job onto Torque
     and wait for it to finish.
     '''

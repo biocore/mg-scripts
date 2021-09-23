@@ -1,5 +1,5 @@
-from sequence_processing_pipeline.ConvertConvertConvertBCL2FastqJob import (
-    ConvertConvertConvertBCL2FastqJob)
+from sequence_processing_pipeline.ConvertBCL2FastqJob import (
+    ConvertBCL2FastqJob)
 from sequence_processing_pipeline.QCJob import QCJob
 # from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
@@ -89,7 +89,7 @@ class Pipeline:
             ss_path = sample_sheet_params['sample_sheet_path']
 
             fastq_output_directory = join(self.root_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvertConvertConvertBCL2FastqJob(self.root_dir,
+            bcl2fastq_job = ConvertBCL2FastqJob(self.root_dir,
                                          ss_path,
                                          fastq_output_directory,
                                          self.bcl2fastq_path, True)

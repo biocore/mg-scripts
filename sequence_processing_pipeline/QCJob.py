@@ -282,7 +282,7 @@ class QCJob(Job):
         cmd.append('-f %s' % final_output_dir)
         lines.append(' '.join(cmd))
 
-        # unlike w/ConvertConvertBCL2FastqJob, multiple human-filtering.sh
+        # unlike w/ConvertBCL2FastqJob, multiple human-filtering.sh
         # scripts will be generated, one for each project defined in the
         # sample sheet.
         job_script_path = join(
