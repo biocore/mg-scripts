@@ -28,13 +28,16 @@ setup(name='sequence-processing-pipeline',
       version=__version__,
       long_description=long_description,
       license="BSD",
-      description='Sequence processing pipeline packaged for use in Qiita or stand-alone.',
+      description='Sequence processing pipeline',
       author="Qiita development team",
       author_email="qiita.help@gmail.com",
       url='https://github.com/biocore/mg-scripts',
       packages=['sequence_processing_pipeline'],
       scripts=glob('scripts/*'),
       setup_requires=['numpy', 'cython'],
-      install_requires=['click', 'requests', 'pandas', 'flake8'],
+      install_requires=[
+        'click', 'requests', 'pandas', 'flake8',
+        'metapool @ https://github.com/biocore/metagenomics_pooling_notebook/'
+        'archive/master.zip'],
       classifiers=classifiers
       )
