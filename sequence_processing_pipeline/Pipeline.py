@@ -9,15 +9,28 @@ import os
 from os.path import join, exists
 
 
+QUEUE_NAME = 'qiita'
+
+BCL2FASTQ_CONFIG = {
+    'path': 'bcl-convert',
+    'nodes': '1',
+    'ncores': '16',
+    'walltime': '36:00:00',
+}
+
+QC_CONFIG = {
+    'nodes': '1',
+    'ncores': '16',
+    'walltime': '36:00:00',
+    'mmi_db': '/databases/minimap2/human-phix-db.mmi',
+    'fpmmp': 'fpmmp.beautified.sh'
+}
+
+
 class Pipeline:
     def __init__(self, input_directory, output_directory,
                  final_output_directory, younger_than=48,
                  older_than=24, nprocs=16):
-
-        # self.bcl2fastq_path = "/opt/bcl2fastq/2.20.0.422/bin/bcl2fastq"
-        self.bcl2fastq_path = "bcl-convert"
-        self.fpmmp_path = "/path/to/fpmmp.beautified.sh"
-        self.mmi_db_path = "/path/to/human-phix-db.mmi"
 
         if output_directory == final_output_directory:
             raise PipelineError(
@@ -89,39 +102,27 @@ class Pipeline:
                                     external_sample_sheet=sample_sheet_path)
             sample_sheet_params = sdo.process()
             ss_path = sample_sheet_params['sample_sheet_path']
-
-            bcl2fastq_queue_name = 'long8gb'
-            # bclconvert_queue_name = 'highmem'
-            bcl2fastq_node_count = 1
-            bcl2fastq_nprocs = 16
-            bcl2fastq_wall_time_limit = 36
-
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
             bcl2fastq_job = ConvBCL2FastqJob(self.run_dir,
                                              ss_path,
                                              fastq_output_directory,
-                                             self.bcl2fastq_path, True,
-                                             bcl2fastq_queue_name,
-                                             bcl2fastq_node_count,
-                                             bcl2fastq_nprocs,
-                                             bcl2fastq_wall_time_limit)
+                                             BCL2FASTQ_CONFIG['path'], True,
+                                             QUEUE_NAME,
+                                             BCL2FASTQ_CONFIG['nodes'],
+                                             BCL2FASTQ_CONFIG['nprocs'],
+                                             BCL2FASTQ_CONFIG['walltime'])
 
             bcl2fastq_job.run()
 
-            qc_queue_name = 'long8gb'
-            qc_node_count = 1
-            qc_nprocs = 16
-            qc_wall_time_limit = 72
-
             human_filter_job = QCJob(self.run_dir,
                                      sample_sheet_params['sample_sheet_path'],
-                                     self.fpmmp_path,
+                                     QC_CONFIG['fpmmp'],
                                      self.nprocs,
-                                     self.mmi_db_path,
-                                     qc_queue_name,
-                                     qc_node_count,
-                                     qc_nprocs,
-                                     qc_wall_time_limit)
+                                     QC_CONFIG['mmi_db'],
+                                     QUEUE_NAME,
+                                     QC_CONFIG['nodes'],
+                                     QC_CONFIG['nprocs'],
+                                     QC_CONFIG['walltime'])
 
             human_filter_job.run()
 
