@@ -86,7 +86,7 @@ class ConvBCL2FastqJob(Job):
 
         self._directory_check(self.output_directory, create=True)
 
-        self._file_check(self.bcl_executable_path)
+        # self._file_check(self.bcl_executable_path)
 
         # required files for successful operation
         required_files = ['RTAComplete.txt', 'RunInfo.xml']

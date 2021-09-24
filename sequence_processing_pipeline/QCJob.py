@@ -241,7 +241,7 @@ class QCJob(Job):
         # TODO: watch edge-case where only one split_count file
         #  is generated. This line will become '-t 0-0'. I believe
         #  that is valid, but it may be better to state as '-t 0'.
-        lines.append("#PBS -t 0-%d" % split_count - 1)
+        lines.append("#PBS -t 0-%d" % (split_count - 1))
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
