@@ -13,15 +13,15 @@ QUEUE_NAME = 'qiita'
 
 BCL2FASTQ_CONFIG = {
     'path': 'bcl-convert',
-    'nprocs': '1',
-    'ncores': '16',
-    'walltime': '36:00:00',
+    'nodes': 1,
+    'nprocs': 16,
+    'walltime': 36, #hrs
 }
 
 QC_CONFIG = {
-    'nodes': '1',
-    'nprocs': '16',
-    'walltime': '36:00:00',
+    'nodes': 1,
+    'nprocs': 16,
+    'walltime': 36, #hrs
     'mmi_db': '/databases/minimap2/human-phix-db.mmi',
     'fpmmp': 'fpmmp.beautified.sh'
 }
