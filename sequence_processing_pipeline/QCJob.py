@@ -7,8 +7,7 @@ import logging
 
 
 class QCJob(Job):
-    def __init__(self, root_dir, sample_sheet_path, fpmmp_path,
-                 nprocs, mmi_db_path):
+    def __init__(self, root_dir, sample_sheet_path, fpmmp_path, mmi_db_path, queue_name, node_count, nprocs, wall_time_limit):
         super().__init__()
         self.root_dir = root_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -17,14 +16,17 @@ class QCJob(Job):
         self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
-        # self.job_script_path = join(self.root_dir, 'human-filtering.sh')
         self.mmi_db_path = mmi_db_path
         self.stdout_log_path = 'localhost:' + join(
             self.root_dir, 'human-filtering.out.log')
         self.stderr_log_path = 'localhost:' + join(
             self.root_dir, 'human-filtering.err.log')
+        self.queue_name = queue_name
+        self.node_count = node_count
+        self.nprocs = nprocs
+        self.wall_time_limit = wall_time_limit
 
-    def run(self, queue_name, node_count, nprocs, wall_time_limit):
+    def run(self):
         metadata = []
 
         for project in self.project_data:
@@ -39,10 +41,10 @@ class QCJob(Job):
                 logging.warning("The number of trim files does not equal the "
                                 "number of files we were supposed to have.")
 
-            script_path = self._generate_job_script(queue_name,
-                                                    node_count,
-                                                    nprocs,
-                                                    wall_time_limit,
+            script_path = self._generate_job_script(self.queue_name,
+                                                    self.node_count,
+                                                    self.nprocs,
+                                                    self.wall_time_limit,
                                                     split_count,
                                                     project['project_name'],
                                                     project['adapter_a'],
@@ -211,13 +213,14 @@ class QCJob(Job):
         # using the larger value found in the two scripts (72 vs ? hours)
         lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
-        # send email to charlie when a job starts and when it terminates or
-        # aborts. This is used to confirm the package's own reporting
-        # mechanism is reporting correctly.
+        # send an email to the list of users defined below when a job starts,
+        # terminates, or aborts. This is used to confirm that the package's
+        # own reporting mechanism is reporting correctly.
         lines.append("#PBS -m bea")
 
-        # specify your email address
-        lines.append("#PBS -M ccowart@ucsd.edu")
+        # list of users to be contacted independently of this package's
+        # notification system, when a job starts, terminates, or gets aborted.
+        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)

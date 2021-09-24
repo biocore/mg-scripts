@@ -14,7 +14,7 @@ class ConvertBCL2FastqJob(Job):
     and wait for it to finish.
     '''
     def __init__(self, root_dir, sample_sheet_path, output_directory,
-                 bcl2fastq_path, use_bcl_convert):
+                 bcl_executable_path, use_bcl_convert, queue_name, node_count, nprocs, wall_time_limit):
         super().__init__()
         self.root_dir = abspath(root_dir)
         self._directory_check(self.root_dir, create=False)
@@ -32,16 +32,18 @@ class ConvertBCL2FastqJob(Job):
         self.job_name = "ConvertBCL2Fastq_%s" % self.unique_name
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
-        self.bcl2fastq_path = bcl2fastq_path
+        self.bcl_executable_path = bcl_executable_path
         self.use_bcl_convert = use_bcl_convert
+        self.queue_name = queue_name
+        self.node_count = node_count
+        self.nprocs = nprocs
+        self.wall_time_limit = wall_time_limit
 
-        d = {}
-        d['bcl2fastq'] = {}
-        d['bcl-convert'] = {}
+        d = {'bcl2fastq' : {}, 'bcl-convert' : {}}
         d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
         d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
-        d['bcl2fastq']['executable_path'] = self.bcl2fastq_path
-        d['bcl-convert']['executable_path'] = self.bcl2fastq_path
+        d['bcl2fastq']['executable_path'] = self.bcl_executable_path
+        d['bcl-convert']['executable_path'] = self.bcl_executable_path
         d['bcl2fastq']['queue_name'] = ''
         d['bcl-convert']['queue_name'] = 'highmem'
         d['bcl2fastq']['output_log_name'] = 'BCL2FASTQ.out.log'
@@ -73,10 +75,10 @@ class ConvertBCL2FastqJob(Job):
                 raise PipelineError("Cannot create output directory %s. %s" % (
                     self.output_directory, str(e)))
 
-        if not exists(self.bcl2fastq_path):
+        if not exists(self.bcl_executable_path):
 
             raise PipelineError("Path to bcl2fastq binary "
-                                "'%s' is not valid." % self.bcl2fastq_path)
+                                "'%s' is not valid." % self.bcl_executable_path)
 
     def _validate_bcl_directory(self):
         bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')
@@ -98,8 +100,7 @@ class ConvertBCL2FastqJob(Job):
             raise PipelineError("input_directory '%s' does not contain enough "
                                 "bcl files (%d)." % (bcl_directory, bcl_count))
 
-    def _generate_job_script(self, queue_name, node_count,
-                             nprocs, wall_time_limit):
+    def _generate_job_script(self):
         # TODO: Use Jinja template instead
         lines = []
 
@@ -116,11 +117,11 @@ class ConvertBCL2FastqJob(Job):
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so
         # this will go unused in translation.)
-        lines.append("#PBS -q %s" % queue_name)
+        lines.append("#PBS -q %s" % self.queue_name)
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
-        lines.append("#PBS -l nodes=%d:ppn=%d" % (node_count, nprocs))
+        lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count, self.nprocs))
 
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
@@ -128,16 +129,16 @@ class ConvertBCL2FastqJob(Job):
         # Slurm
         # walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (36 vs 24 hours)
-        lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
+        lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
 
-        # send email to charlie when a job starts and when it terminates or
-        # aborts. This is used to confirm the package's own reporting
-        # mechanism is reporting correctly.
+        # send an email to the list of users defined below when a job starts,
+        # terminates, or aborts. This is used to confirm that the package's
+        # own reporting mechanism is reporting correctly.
         lines.append("#PBS -m bea")
 
-        # specify your email address
-        # TODO: Send an email to jeff, and qiita.help as well.
-        lines.append("#PBS -M ccowart@ucsd.edu")
+        # list of users to be contacted independently of this package's
+        # notification system, when a job starts, terminates, or gets aborted.
+        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
@@ -188,7 +189,7 @@ class ConvertBCL2FastqJob(Job):
                 line = re.sub('\s+', ' ', line)
                 f.write("%s\n" % line)
 
-    def run(self, queue_name, node_count, nprocs, wall_time_limit):
+    def run(self):
         '''
         Run BCL2Fastq conversion on data in root directory.
         Job-related parameters are specified here for easy adjustment and
@@ -199,7 +200,7 @@ class ConvertBCL2FastqJob(Job):
         :param wall_time_limit:
         :return:
         '''
-        self._generate_job_script(queue_name, node_count, nprocs, wall_time_limit)
+        self._generate_job_script()
 
         job_info = self.qsub(self.job_script_path, None, None)
         logging.info("Successful job: %s" % job_info)

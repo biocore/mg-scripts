@@ -31,7 +31,7 @@ class TestConvertBCL2FastqJob(unittest.TestCase):
 
         # Create fake BCL files in the directory structure seen in real-world examples.
         makedirs('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003', exist_ok=True)
-        with open('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003/fake.bcl', 'w')  as f:
+        with open('tests/data/sample-sequence-directory/Data/Intensities/BaseCalls/L003/fake.bcl', 'w') as f:
             f.write('this is a text file.')
 
         # ConvertBCL2FastqJob should not assert an error now.
@@ -45,6 +45,3 @@ class TestConvertBCL2FastqJob(unittest.TestCase):
         self.assertEqual(msg, None)
 
         rmtree('tests/data/sample-sequence-directory/Data/Intensities')
-
-
-

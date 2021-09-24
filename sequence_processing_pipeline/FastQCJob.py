@@ -52,14 +52,14 @@ class FastQCJOb(Job):
         # using the larger value found in the two scripts (36 vs 24 hours)
         lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
 
-        # send email to charlie when a job starts and when it terminates or
-        # aborts. This is used to confirm the package's own reporting
-        # mechanism is reporting correctly.
+        # send an email to the list of users defined below when a job starts,
+        # terminates, or aborts. This is used to confirm that the package's
+        # own reporting mechanism is reporting correctly.
         lines.append("#PBS -m bea")
 
-        # specify your email address
-        # TODO: Send an email to jeff, and qiita.help as well.
-        lines.append("#PBS -M ccowart@ucsd.edu")
+        # list of users to be contacted independently of this package's
+        # notification system, when a job starts, terminates, or gets aborted.
+        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)

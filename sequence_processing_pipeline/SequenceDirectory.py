@@ -34,7 +34,7 @@ class SequenceDirectory:
             os.makedirs(self.fastq_results_directory, exist_ok=True)
         except OSError as e:
             # this is a known potential error. Re-raise it as a
-            # PinelineError, so it gets handled in the same location as the
+            # PipelineError, so it gets handled in the same location as the
             # others.
             raise PipelineError(str(e))
 

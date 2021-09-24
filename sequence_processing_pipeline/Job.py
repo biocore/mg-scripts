@@ -11,7 +11,7 @@ class Job:
     def __init__(self):
         pass
 
-    def run(self, queue_name, node_count, nprocs, wall_time_limit):
+    def run(self):
         raise PipelineError("Base class run() method not implemented.")
 
     def _directory_check(self, directory_path, create=False):
@@ -23,7 +23,7 @@ class Job:
                     makedirs(directory_path, exist_ok=True)
                 except OSError as e:
                     # this is a known potential error. Re-raise it as a
-                    # PinelineError, so it gets handled in the same location as
+                    # PipelineError, so it gets handled in the same location as
                     # the others.
                     raise PipelineError(str(e))
             else:
@@ -55,24 +55,12 @@ class Job:
         """
         logging.debug("Job _system_call() method called.")
 
-        for i in range(1, 4):
-            proc = Popen(cmd, universal_newlines=True, shell=True,
-                         stdout=PIPE, stderr=PIPE)
-            # Communicate pulls all stdout/stderr from the PIPEs
-            # This call blocks until the command is done
-            stdout, stderr = proc.communicate()
-            return_code = proc.returncode
-
-            # qstat becomes unavailable at random times w/out explanation.
-            # standard remedy for this situation is to repeat qstat exec()
-            # up to three times before accepting defeat.
-            if 'command not found' in stderr or return_code == 127:
-                logging.debug("'%s' not found. Retrying (%d out of 3 tries)..." % (cmd, i))
-                if i < 3:
-                    sleep(3)
-                    continue
-                else:
-                    raise PipelineError("Command '%s' not found." % (cmd))
+        proc = Popen(cmd, universal_newlines=True, shell=True,
+                     stdout=PIPE, stderr=PIPE)
+        # Communicate pulls all stdout/stderr from the PIPEs
+        # This call blocks until the command is done
+        stdout, stderr = proc.communicate()
+        return_code = proc.returncode
 
         logging.debug("stdout: %s" % stdout)
         logging.debug("stderr: %s" % stderr)
