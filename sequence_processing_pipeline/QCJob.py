@@ -165,7 +165,6 @@ class QCJob(Job):
         lst = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
-                some_file = some_file.decode('UTF-8')
                 if some_file.endswith('fastq.gz'):
                     if '_R1_' in some_file:
                         some_path = join(self.run_dir, some_file)
