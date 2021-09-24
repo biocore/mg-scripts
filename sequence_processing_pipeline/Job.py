@@ -108,7 +108,8 @@ class Job:
         # if system_call does not raise a PipelineError(), then the qsub
         # successfully submitted the job. In this case, qsub should return
         # the id of the job in stdout.
-        stdout, stderr = self._system_call(cmd)
+        results = self._system_call(cmd)
+        stdout = results['stdout']
 
         # extract the first line only. This will be the fully-qualified Torque
         # job id.
@@ -131,8 +132,10 @@ class Job:
             # job finishing, rather than an error. qstat returns code 153 when
             # this occurs, so we'll allow it in this instance.
 
-            stdout, stderr = self._system_call("qstat -x %s" % job_id,
-                                               allow_return_codes=[153])
+            results = self._system_call("qstat -x %s" % job_id,
+                                        allow_return_codes=[153])
+            stdout = results['stdout']
+            stderr = results['stderr']
 
             logging.debug("QSTAT STDOUT: %s\n" % stdout)
             logging.debug("QSTAT STDERR: %s\n" % stderr)
