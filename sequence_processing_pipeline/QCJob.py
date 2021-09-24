@@ -60,12 +60,12 @@ class QCJob(Job):
                                                     self.nprocs,
                                                     self.wall_time_limit,
                                                     split_count,
-                                                    project['project_name'],
-                                                    project['adapter_a'],
-                                                    project['adapter_A'],
+                                                    project['Sample_Project'],
+                                                    project['ForwardAdapter'],
+                                                    project['ReverseAdapter'],
                                                     project['a_trim'],
-                                                    project['h_filter'],
-                                                    project['qiita_proj'])
+                                                    project['HumanFiltering'],
+                                                    project['QiitaID'])
 
             d = {'project_name': project['project_name']}
             # pbs_job_array="--dependency=afterok:$pbs_job_id"

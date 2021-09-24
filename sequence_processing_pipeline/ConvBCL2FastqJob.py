@@ -8,14 +8,26 @@ from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
 class ConvBCL2FastqJob(Job):
-    '''
-    ConvertBCL2FastqJob implements a way to run bcl2fastq on a directory
-    of BCL files. It builds on TorqueJob's ability to push a job onto Torque
-    and wait for it to finish.
-    '''
     def __init__(self, run_dir, sample_sheet_path, output_directory,
                  bcl_executable_path, use_bcl_convert, queue_name, node_count,
                  nprocs, wall_time_limit, complete_runs_path=None):
+        '''
+        ConvBCL2FastqJob implements a way to run bcl2fastq on a directory of
+        BCL files.
+        Submit a Torque job where the contents of run_dir are processed using
+        fastp, minimap, and samtools. Human-genome sequences will be filtered
+        out if needed.
+        :param run_dir:
+        :param sample_sheet_path:
+        :param output_directory:
+        :param bcl_executable_path:
+        :param use_bcl_convert:
+        :param queue_name:
+        :param node_count:
+        :param nprocs:
+        :param wall_time_limit:
+        :param complete_runs_path:
+        '''
         super().__init__()
         self.run_dir = abspath(run_dir)
         self._directory_check(self.run_dir, create=False)
@@ -79,6 +91,10 @@ class ConvBCL2FastqJob(Job):
             self._file_check(s)
 
     def _validate_bcl_directory(self):
+        '''
+
+        :return:
+        '''
         bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         bcl_count = 0
         if exists(bcl_directory):
@@ -98,6 +114,10 @@ class ConvBCL2FastqJob(Job):
                                 "bcl files (%d)." % (bcl_directory, bcl_count))
 
     def _generate_job_script(self):
+        '''
+
+        :return:
+        '''
         lines = []
 
         lines.append("#!/bin/bash")
