@@ -81,6 +81,14 @@ class ConvBCL2FastqJob(Job):
                                 "'%s' is not valid." %
                                 self.bcl_executable_path)
 
+        # required files for successful operation
+        required_files = ['RTAComplete.txt', 'RunInfo.xml']
+        for some_file in required_files:
+            s = join(self.run_dir, some_file)
+            if not exists(s):
+                raise PipelineError("Run directory '%s' does not contain %s" %
+                                    (self.run_dir, some_file))
+
     def _validate_bcl_directory(self):
         bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         bcl_count = 0

@@ -80,9 +80,16 @@ class Job:
 
     def qsub(self, script_path, qsub_parameters=None,
              script_parameters=None, wait=True):
-        # -w e: verify options and abort if there's an error.
-        # we now define queue (-q long) in the job script.
-        # cmd = 'qsub -w e %s %s %s' % (qsub_parameters,
+        '''
+        Submit a Torque job script and optionally wait for it to finish.
+        :param script_path: The path to a Torque job (bash) script.
+        :param qsub_parameters: Optional parameters for qsub.
+        :param script_parameters: Optional parameters for your job script.
+        :param wait: Set to False to submit job and not wait.
+        :return: Dictionary containing the job's id, name, status, and
+        elapsed time. Raises PipelineError if job could not be submitted or
+        if job was unsuccessful.
+        '''
         if qsub_parameters:
             cmd = 'qsub %s %s' % (qsub_parameters, script_path)
         else:
