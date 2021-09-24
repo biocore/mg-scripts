@@ -60,10 +60,14 @@ class ConvBCL2FastqJob(Job):
         d['bcl-convert']['executable_path'] = self.bcl_executable_path
         d['bcl2fastq']['queue_name'] = ''
         d['bcl-convert']['queue_name'] = 'highmem'
-        d['bcl2fastq']['output_log_name'] = 'BCL2FASTQ.out.log'
-        d['bcl2fastq']['error_log_name'] = 'BCL2FASTQ.err.log'
-        d['bcl-convert']['output_log_name'] = 'BCL2FASTQ.out.log'
-        d['bcl-convert']['error_log_name'] = 'BCL2FASTQ.err.log'
+        d['bcl2fastq']['output_log_name'] = ('localhost: %s/BCL2FASTQ.out.log'
+                                             % self.run_dir)
+        d['bcl2fastq']['error_log_name'] = ('localhost: %s/BCL2FASTQ.err.log'
+                                            % self.run_dir)
+        tmp = 'localhost: %s/BCLCONVERT.out.log' % self.run_dir
+        d['bcl-convert']['output_log_name'] = tmp
+        tmp = 'localhost: %s/BCLCONVERT.err.log' % self.run_dir
+        d['bcl-convert']['error_log_name'] = tmp
 
         if use_bcl_convert:
             self.bcl_tool = d['bcl-convert']
