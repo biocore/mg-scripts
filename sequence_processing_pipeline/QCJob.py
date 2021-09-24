@@ -47,8 +47,8 @@ class QCJob(Job):
             fastq_files = self._find_fastq_files(project['Sample_Project'])
             split_count = self._generate_split_count(len(fastq_files))
             self._clear_trim_files()
-            lines_per_split = (
-                len(fastq_files) + split_count - 1) / split_count
+            lines_per_split = int((
+                len(fastq_files) + split_count - 1) / split_count)
             trim_files = self._generate_trim_files(
                 fastq_files, lines_per_split)
             if len(trim_files) != split_count:
