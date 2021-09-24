@@ -14,6 +14,12 @@ class Job:
     def run(self):
         raise PipelineError("Base class run() method not implemented.")
 
+    def _file_check(self, file_path):
+        if exists(file_path):
+            logging.debug("file '%s' exists." % file_path)
+        else:
+            raise PipelineError("file '%s' does not exist." % file_path)
+
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
             logging.debug("directory '%s' exists." % directory_path)

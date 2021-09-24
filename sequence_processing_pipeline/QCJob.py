@@ -9,6 +9,19 @@ import logging
 class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path,
                  queue_name, node_count, nprocs, wall_time_limit):
+        '''
+        Submit a Torque job where the contents of run_dir are processed using
+        fastp, minimap, and samtools. Human-genome sequences will be filtered
+        out if needed.
+        :param run_dir: Path to a run directory.
+        :param sample_sheet_path: Path to a sample sheet file.
+        :param fpmmp_path: Path to fpmmp.sh script in running environment.
+        :param mmi_db_path: Path to human genome database in running env.
+        :param queue_name: Torque queue name to use in running env.
+        :param node_count: Number of nodes to use in running env.
+        :param nprocs: Number of processes to use in runing env.
+        :param wall_time_limit: Hard wall-clock-time limit for processes.
+        '''
         super().__init__()
         self.run_dir = run_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -113,16 +126,6 @@ class QCJob(Job):
                     remove(some_path)
 
     def _process_sample_sheet(self, sample_sheet_path):
-        # Some column headers in some sample sheets appear to use
-        # different names for the same metadata. This dict maps the names
-        # commonly found to the internal name used by the code.
-        # TODO: Not certain BarcodesAreRC == PolyGTrimming == a_trim. Confirm
-        name_map = {
-            'Sample_Project': 'project_name', 'Project': 'project_name',
-            'QiitaID': 'qiita_proj', 'BarcodesAreRC': 'a_trim',
-            'PolyGTrimming': 'a_trim', 'ForwardAdapter': 'adapter_a',
-            'ReverseAdapter': 'adapter_A', 'HumanFiltering': 'h_filter'}
-
         sheet = KLSampleSheet(sample_sheet_path)
         valid_sheet = validate_and_scrub_sample_sheet(sheet)
 
@@ -142,15 +145,15 @@ class QCJob(Job):
         for i in range(0, len(bioinformatics)):
             lst.append({})
 
-        for item in bioinformatics:
-            my_series = bioinformatics[item]
+        for key in bioinformatics:
+            my_series = bioinformatics[key]
             for index, value in my_series.items():
-                key = name_map[item]
                 # convert all manner of positive/negative implying strings
                 # into a true boolean value.
-                if key in ['a_trim', 'h_filter']:
-                    value = value.strip().lower()
-                    value = True if value in ['true', 'yes'] else False
+                if value.strip().lower() in ['true', 'yes']:
+                    value = True
+                elif value.strip().lower() in ['false', 'no']:
+                    value = False
                 lst[index][key] = value
 
         # human-filtering jobs are scoped by project. Each job requires

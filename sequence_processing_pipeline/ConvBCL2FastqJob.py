@@ -15,7 +15,7 @@ class ConvBCL2FastqJob(Job):
     '''
     def __init__(self, run_dir, sample_sheet_path, output_directory,
                  bcl_executable_path, use_bcl_convert, queue_name, node_count,
-                 nprocs, wall_time_limit):
+                 nprocs, wall_time_limit, complete_runs_path=None):
         super().__init__()
         self.run_dir = abspath(run_dir)
         self._directory_check(self.run_dir, create=False)
@@ -39,6 +39,7 @@ class ConvBCL2FastqJob(Job):
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
+        self.complete_runs_path = complete_runs_path
 
         d = {'bcl2fastq': {}, 'bcl-convert': {}}
         d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
@@ -57,9 +58,7 @@ class ConvBCL2FastqJob(Job):
         else:
             self.bcl_tool = d['bcl2fastq']
 
-        if not exists(self.sample_sheet_path):
-            raise PipelineError(
-                "Sample sheet %s does not exist." % self.sample_sheet_path)
+        self._file_check(self.sample_sheet_path)
 
         klss = KLSampleSheet(self.sample_sheet_path)
 
@@ -69,25 +68,15 @@ class ConvBCL2FastqJob(Job):
             raise PipelineError(
                 "Sample sheet %s is not valid." % self.sample_sheet_path)
 
-        if not exists(self.output_directory):
-            try:
-                makedirs(self.output_directory, exist_ok=True)
-            except OSError as e:
-                raise PipelineError("Cannot create output directory %s. %s" % (
-                    self.output_directory, str(e)))
+        self._directory_check(self.output_directory, create=True)
 
-        if not exists(self.bcl_executable_path):
-            raise PipelineError("Path to bcl2fastq binary "
-                                "'%s' is not valid." %
-                                self.bcl_executable_path)
+        self._file_check(self.bcl_executable_path)
 
         # required files for successful operation
         required_files = ['RTAComplete.txt', 'RunInfo.xml']
         for some_file in required_files:
             s = join(self.run_dir, some_file)
-            if not exists(s):
-                raise PipelineError("Run directory '%s' does not contain %s" %
-                                    (self.run_dir, some_file))
+            self._file_check(s)
 
     def _validate_bcl_directory(self):
         bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
@@ -104,13 +93,11 @@ class ConvBCL2FastqJob(Job):
                                 "contain subdirectory "
                                 "Data/Intensities/BaseCalls.")
 
-        if bcl_count < 1:
-            # we can increase to whatever threshold is acceptable.
-            raise PipelineError("input_directory '%s' does not contain enough "
+        if bcl_count == 0:
+            raise PipelineError("input_directory '%s' does not contain "
                                 "bcl files (%d)." % (bcl_directory, bcl_count))
 
     def _generate_job_script(self):
-        # TODO: Use Jinja template instead
         lines = []
 
         lines.append("#!/bin/bash")
@@ -194,6 +181,10 @@ class ConvBCL2FastqJob(Job):
                           --bcl-sampleproject-subdirectories true --force' % (
                 self.bcl_tool['executable_path'], self.sample_sheet_path,
                 self.output_directory))
+
+        if self.complete_runs_path:
+            stats_path = join(self.output_directory, 'Stats', 'Stats.json')
+            lines.append('cp %s %s' % (stats_path, self.complete_runs_path))
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)
