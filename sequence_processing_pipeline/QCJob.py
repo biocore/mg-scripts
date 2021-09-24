@@ -44,7 +44,7 @@ class QCJob(Job):
         metadata = []
 
         for project in self.project_data:
-            fastq_files = self._find_fastq_files(project['project_name'])
+            fastq_files = self._find_fastq_files(project['Sample_Project'])
             split_count = self._generate_split_count(len(fastq_files))
             self._clear_trim_files()
             lines_per_split = (
@@ -67,7 +67,7 @@ class QCJob(Job):
                                                     project['HumanFiltering'],
                                                     project['QiitaID'])
 
-            d = {'project_name': project['project_name']}
+            d = {'project_name': project['Sample_Project']}
             # pbs_job_array="--dependency=afterok:$pbs_job_id"
 
             # TODO: replace w/job_info information, etc.
