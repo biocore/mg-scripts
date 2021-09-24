@@ -1,26 +1,64 @@
 # Sequencing Process Pipeline
-Python packaged implementation of our internal pipeline for generating fastqc output from sequence bcl.
 
-run unittests:
-cd sequence_processing_pipeline
+A Jupyter notebook to assist wet lab shotgun pipeline.
+A packaged Python-based implementation of Knight Lab's sequencing process pipeline.
+
+## Installation
+
+To install this package, first clone these repositories from GitHub:
+
+```bash
+git clone https://github.com/biocore/mg-scripts.git
+git clone https://github.com/biocore/metagenomics_pooling_notebook.git
+```
+
+Create a Python3 Conda environment in which to run the notebook:
+
+```bash
+conda create -n sp_pipeline 'python>=3.6' numpy pandas click scipy matplotlib 
+```
+
+Activate the Conda environment:
+
+```bash
+source activate sp_pipeline
+```
+
+Change directory to the downloaded repository folder and install:
+
+```bash
+cd metagenomics_pooling_notebook
+pip install -e '.[all]'
+```
+
+Change directory to the parent folder:
+
+```bash
+cd ..
+```
+
+Change directory to the downloaded repository folder and install:
+
+```bash
+cd mg-scripts
+pip install -e .
+```
+
+## Running Unittests
+
+Change directory to the downloaded repository folder:
+
+```bash
+cd mg-scripts/sequence_processing_pipeline
 python -m unittest discover tests
+```
 
-[ToDo: add explanation, installation instructions]
+## Getting Started
 
-These need to be available to the job-script for human-filtering.
-without them, the job won't work. the location of the .mmi file
-needs to be hardcoded in fpmmp.beautified.sh. or change the .sh file to
-accept a parameter to the mmi file. Also, the .sh file itself
-needs to be known to the job object.
-scripts/fpmmp.beautified.sh
-scripts/human-phix-db.mmi
+Review Pipeline.py and main.py to learn how to import and access package functionality:
 
-# Legacy Shell Scripts
-Earlier Knight Lab internal Metagenomic processing scripts for demultiplexing, QC and host removal.
-
-The default processing steps are:
-1. seq_proc_share.sh: [ToDo: add explanation]
-  1.1. bcl_template.sh: [ToDo: add explanation]
-  1.2. bowtie_trim_qsub.sh: [ToDo: add explanation]
-    1.2.1. filter_job_parallel.sh: [ToDo: add explanation]
-  1.3. atropos_filter_parallel.sh: [ToDo: add explanation]
+```bash
+cd mg-scripts/sequence_processing_pipeline
+more Pipeline.py
+more main.py
+```
