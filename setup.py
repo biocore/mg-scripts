@@ -36,7 +36,7 @@ setup(name='sequence-processing-pipeline',
       scripts=glob('scripts/*'),
       setup_requires=['numpy', 'cython'],
       install_requires=[
-        'click', 'requests', 'pandas', 'flake8',
+        'click', 'requests', 'pandas', 'nose', 'flake8',
         'metapool @ https://github.com/biocore/metagenomics_pooling_notebook/'
         'archive/master.zip'],
       classifiers=classifiers
