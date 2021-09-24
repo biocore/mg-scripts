@@ -7,9 +7,9 @@ import logging
 
 
 class QCJob(Job):
-    def __init__(self, root_dir, sample_sheet_path, fpmmp_path, mmi_db_path, queue_name, node_count, nprocs, wall_time_limit):
+    def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path, queue_name, node_count, nprocs, wall_time_limit):
         super().__init__()
-        self.root_dir = root_dir
+        self.run_dir = run_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
         self.project_data = metadata['projects']
         self.trim_file = 'split_file_'
@@ -18,9 +18,9 @@ class QCJob(Job):
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
         self.stdout_log_path = 'localhost:' + join(
-            self.root_dir, 'human-filtering.out.log')
+            self.run_dir, 'human-filtering.out.log')
         self.stderr_log_path = 'localhost:' + join(
-            self.root_dir, 'human-filtering.err.log')
+            self.run_dir, 'human-filtering.err.log')
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
@@ -64,11 +64,11 @@ class QCJob(Job):
 
             d['job_info'] = self.qsub(script_path, None, None)
             d['fastqc_params'] = {}
-            d['fastqc_params']['seqdir'] = self.root_dir
+            d['fastqc_params']['seqdir'] = self.run_dir
             # for now, define output_dir in two locations until the location
             # is settled.
             d['fastqc_params']['output_dir'] = join(
-                self.root_dir, 'human-filtering_output')
+                self.run_dir, 'human-filtering_output')
             d['fastqc_params']['fastq_output'] = fastq_output
             d['fastqc_params']['pbs_job_id'] = pbs_job_id
             d['fastqc_params']['pbs_job_array'] = pbs_job_array
@@ -103,9 +103,9 @@ class QCJob(Job):
 
     def _clear_trim_files(self):
         # remove all files with a name beginning in self.trim_file.
-        # assume cleaning the entire root_dir is overkill, but won't
+        # assume cleaning the entire run_dir is overkill, but won't
         # hurt anything.
-        for root, dirs, files in walk(self.root_dir):
+        for root, dirs, files in walk(self.run_dir):
             for some_file in files:
                 if self.trim_file in some_file:
                     some_path = join(root, some_file)
@@ -157,14 +157,14 @@ class QCJob(Job):
         return {'chemistry': chemistry, 'projects': l}
 
     def _find_fastq_files(self, project_name):
-        search_path = join(self.root_dir, 'Data', 'Fastq', project_name)
+        search_path = join(self.run_dir, 'Data', 'Fastq', project_name)
         l = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
                 some_file = some_file.decode('UTF-8')
                 if some_file.endswith('fastq.gz'):
                     if '_R1_' in some_file:
-                        some_path = join(self.root_dir, some_file)
+                        some_path = join(self.run_dir, some_file)
                         l.append(some_path)
         return l
 
@@ -245,9 +245,9 @@ class QCJob(Job):
         # source ~/miniconda3/bin/activate test_env_2
 
         # By default, PBS scripts execute in your home directory, not the
-        # directory from which they were submitted. Use root_dir instead.
+        # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
-        lines.append("cd %s" % self.root_dir)
+        lines.append("cd %s" % self.run_dir)
         lines.append("date '+%s' > human-filtering.job.log")
         lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
 
@@ -258,13 +258,13 @@ class QCJob(Job):
         lines.append("mkdir human-filtering_output")
         lines.append("rm -rf human-filtering_final_output")
         lines.append("mkdir human-filtering_final_output")
-        output_dir = join(self.root_dir, 'human-filtering_output')
-        final_output_dir = join(self.root_dir, 'human-filtering_final_output')
+        output_dir = join(self.run_dir, 'human-filtering_output')
+        final_output_dir = join(self.run_dir, 'human-filtering_final_output')
 
         cmd = []
         cmd.append(self.fpmmp_path)
-        cmd.append('-d %s' % self.root_dir)
-        cmd.append('-D %s/Data/Fastq' % self.root_dir)
+        cmd.append('-d %s' % self.run_dir)
+        cmd.append('-D %s/Data/Fastq' % self.run_dir)
         # even though we have a list of all of the trim_files0-(n-1),
         # we use this syntax so that we only need to qsub one job file, insteaf
         # of n job files.
@@ -276,7 +276,7 @@ class QCJob(Job):
         cmd.append('-C %s' % self.chemistry)
         cmd.append('-c %s' % self.nprocs)
         cmd.append('-o %s' % output_dir)
-        cmd.append('-O %s' % basename(self.root_dir))
+        cmd.append('-O %s' % basename(self.run_dir))
         cmd.append('-a %s' % adapter_a)
         cmd.append('-A %s' % adapter_A)
         cmd.append('-g %s' % a_trim)
@@ -289,7 +289,7 @@ class QCJob(Job):
         # scripts will be generated, one for each project defined in the
         # sample sheet.
         job_script_path = join(
-            self.root_dir, 'human-filtering-%s.sh' % project_name)
+            self.run_dir, 'human-filtering-%s.sh' % project_name)
         with open(job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % job_script_path)
             for line in lines:

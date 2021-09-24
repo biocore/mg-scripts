@@ -6,15 +6,15 @@ import re
 
 
 class FastQCJOb(Job):
-    def __init__(self, root_dir, output_dir, nprocs, project, fastqc_path):
+    def __init__(self, run_dir, output_dir, nprocs, project, fastqc_path):
         super().__init__()
-        self.root_dir = root_dir
+        self.run_dir = run_dir
         self.output_dir = output_dir
-        self.job_script_path = join(self.root_dir, 'FASTQC.sh')
+        self.job_script_path = join(self.run_dir, 'FASTQC.sh')
         self.project = project
         self.nprocs = nprocs
-        self.stdout_log_path = join(self.root_dir, 'FASTQC_{}-{}.out.log')
-        self.stderr_log_path = join(self.root_dir, 'FASTQC_{}-{}.err.log')
+        self.stdout_log_path = join(self.run_dir, 'FASTQC_{}-{}.out.log')
+        self.stderr_log_path = join(self.run_dir, 'FASTQC_{}-{}.err.log')
         self.fastqc_path = fastqc_path
 
     def _generate_job_script(self, queue_name, node_count, nprocs,
@@ -31,7 +31,7 @@ class FastQCJOb(Job):
 
         # declare a name for this job to be sample_job
         job_name = "fastqc_%s_%s" % (
-            self.project, os.path.basename(self.root_dir))
+            self.project, os.path.basename(self.run_dir))
         lines.append("#PBS -N %s" % job_name)
 
         # what torque calls a queue, slurm calls a partition
@@ -73,20 +73,20 @@ class FastQCJOb(Job):
         # --cpus-per-task 1
 
         # By default, PBS scripts execute in your home directory, not the
-        # directory from which they were submitted. Use root_dir instead.
+        # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
-        lines.append("date '+%s' > /{}/{}.log".format(self.root_dir, job_name))
+        lines.append("date '+%s' > /{}/{}.log".format(self.run_dir, job_name))
         lines.append("source ~/miniconda3/bin/activate test_env_2")
         lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
-        lines.append("cd %s" % self.root_dir)
+        lines.append("cd %s" % self.run_dir)
         # lines.append("export PATH=$PATH:/usr/local/bin")
         lines.append("#file=${trim_file}\${SLURM_ARRAY_TASK_ID}")
         lines.append('%s %s %s %s %s %s' % (
-            self.fastqc_path, self.root_dir, self.output_dir, self.nprocs,
+            self.fastqc_path, self.run_dir, self.output_dir, self.nprocs,
             self.project, chemistry))
-        lines.append("echo $? >> /%s/%s.log" % (self.root_dir, job_name))
+        lines.append("echo $? >> /%s/%s.log" % (self.run_dir, job_name))
         lines.append("date '+%s' >> /{}/{}.log".format(
-            self.root_dir, job_name))
+            self.run_dir, job_name))
 
         with open(self.job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % self.job_script_path)

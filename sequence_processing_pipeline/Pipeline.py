@@ -38,9 +38,9 @@ class Pipeline:
             raise PipelineError(
                 'older_than cannot be equal to or less than younger_than.')
 
-        self.root_dir = input_directory
+        self.run_dir = input_directory
 
-        logging.debug("Root directory: %s" % self.root_dir)
+        logging.debug("Root directory: %s" % self.run_dir)
 
         self.sentinel_file = "RTAComplete.txt"
         logging.debug("Sentinel File Name: %s" % self.sentinel_file)
@@ -83,7 +83,7 @@ class Pipeline:
         '''
         try:
             # TODO: Add configuration file to populate these hard-coded values - possibly provide a broker
-            sdo = SequenceDirectory(self.root_dir,
+            sdo = SequenceDirectory(self.run_dir,
                                     external_sample_sheet=sample_sheet_path)
             sample_sheet_params = sdo.process()
             ss_path = sample_sheet_params['sample_sheet_path']
@@ -94,8 +94,8 @@ class Pipeline:
             bcl2fastq_nprocs = 16
             bcl2fastq_wall_time_limit = 36
 
-            fastq_output_directory = join(self.root_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvertBCL2FastqJob(self.root_dir,
+            fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
+            bcl2fastq_job = ConvertBCL2FastqJob(self.run_dir,
                                          ss_path,
                                          fastq_output_directory,
                                          self.bcl2fastq_path, True, bcl2fastq_queue_name, bcl2fastq_node_count, bcl2fastq_nprocs, bcl2fastq_wall_time_limit)
@@ -107,7 +107,7 @@ class Pipeline:
             qc_nprocs = 16
             qc_wall_time_limit = 72
 
-            human_filter_job = QCJob(self.root_dir,
+            human_filter_job = QCJob(self.run_dir,
                                               sample_sheet_params['sample_sheet_path'],
                                               self.fpmmp_path,
                                               self.nprocs,
@@ -118,7 +118,7 @@ class Pipeline:
             output_dir = 'foo'
             project = 'foo'
 
-            #fast_qc_job = FastQCJOb(self.root_dir, output_dir, self.nprocs, project)
+            #fast_qc_job = FastQCJOb(self.run_dir, output_dir, self.nprocs, project)
 
             #fast_qc_job.run()
 
@@ -143,7 +143,7 @@ class Pipeline:
         """
         new_dirs = []
 
-        for root, dirs, files in os.walk(self.root_dir):
+        for root, dirs, files in os.walk(self.run_dir):
             for some_directory in dirs:
                 some_path = join(root, some_directory)
                 if '/Data/Intensities/BaseCalls/' in some_path:

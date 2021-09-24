@@ -13,22 +13,22 @@ class ConvertBCL2FastqJob(Job):
     of BCL files. It builds on TorqueJob's ability to push a job onto Torque
     and wait for it to finish.
     '''
-    def __init__(self, root_dir, sample_sheet_path, output_directory,
+    def __init__(self, run_dir, sample_sheet_path, output_directory,
                  bcl_executable_path, use_bcl_convert, queue_name, node_count, nprocs, wall_time_limit):
         super().__init__()
-        self.root_dir = abspath(root_dir)
-        self._directory_check(self.root_dir, create=False)
+        self.run_dir = abspath(run_dir)
+        self._directory_check(self.run_dir, create=False)
         self._validate_bcl_directory()
 
-        tmp = join(self.root_dir, 'Data', 'Fastq')
+        tmp = join(self.run_dir, 'Data', 'Fastq')
         makedirs(tmp, exist_ok=True)
-        self.job_script_path = join(self.root_dir, 'ConvertBCL2Fastq.sh')
+        self.job_script_path = join(self.run_dir, 'ConvertBCL2Fastq.sh')
         self.stdout_log_path = 'localhost:' + join(
-            self.root_dir, 'ConvertBCL2Fastq.out.log')
+            self.run_dir, 'ConvertBCL2Fastq.out.log')
         self.stderr_log_path = 'localhost:' + join(
-            self.root_dir, 'ConvertBCL2Fastq.err.log')
+            self.run_dir, 'ConvertBCL2Fastq.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
-        self.unique_name = self.root_dir.split('/')[-1]
+        self.unique_name = self.run_dir.split('/')[-1]
         self.job_name = "ConvertBCL2Fastq_%s" % self.unique_name
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
@@ -81,7 +81,7 @@ class ConvertBCL2FastqJob(Job):
                                 "'%s' is not valid." % self.bcl_executable_path)
 
     def _validate_bcl_directory(self):
-        bcl_directory = join(self.root_dir, 'Data', 'Intensities', 'BaseCalls')
+        bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         bcl_count = 0
         if exists(bcl_directory):
             for root, dirs, files in walk(bcl_directory):
@@ -91,7 +91,7 @@ class ConvertBCL2FastqJob(Job):
                     if some_file.endswith(('.bcl', '.cbcl')):
                         bcl_count += 1
         else:
-            raise PipelineError(f"input_directory '{self.root_dir}' does not "
+            raise PipelineError(f"input_directory '{self.run_dir}' does not "
                                 "contain subdirectory "
                                 "Data/Intensities/BaseCalls.")
 
@@ -151,9 +151,9 @@ class ConvertBCL2FastqJob(Job):
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
         # By default, PBS scripts execute in your home directory, not the
-        # directory from which they were submitted. Use root_dir instead.
+        # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
-        lines.append("cd %s" % self.root_dir)
+        lines.append("cd %s" % self.run_dir)
         lines.append(self.bcl_tool['module_load'])
 
         if self.use_bcl_convert:
