@@ -23,7 +23,8 @@ class TestJob(unittest.TestCase):
                       'good-bcl-directory', 'TorqueJob.py', 'notes.txt',
                       'SequenceDirectory.py', 'QCJob.py',
                       'metagenomics_pooling_notebook',
-                      'BCLConvertJob.py', 'ConvertBCL2FastqJob.py', 'Pipeline.py'}
+                      'BCLConvertJob.py', 'ConvertBCL2FastqJob.py',
+                      'Pipeline.py'}
         exp_stderr = ""
         exp_return_code = 0
         obs_std_out = results['stdout'].split('\n')
@@ -32,5 +33,9 @@ class TestJob(unittest.TestCase):
         self.assertEqual(results['stderr'], exp_stderr)
         self.assertEqual(results['return_code'], exp_return_code)
 
-    def test_qsub(self, script_path, qsub_parameters=None, script_parameters=None, wait=True):
+    def test_qsub(self,
+                  script_path,
+                  qsub_parameters=None,
+                  script_parameters=None,
+                  wait=True):
         pass

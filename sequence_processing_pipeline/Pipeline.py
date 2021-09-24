@@ -1,4 +1,4 @@
-from sequence_processing_pipeline.ConvertBCL2FastqJob import ConvertBCL2FastqJob
+from sequence_processing_pipeline.ConvBCL2FastqJob import ConvBCL2FastqJob
 from sequence_processing_pipeline.QCJob import QCJob
 # from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
@@ -71,7 +71,8 @@ class Pipeline:
                     # as the others.
                     raise PipelineError(str(e))
             else:
-                raise PipelineError("directory_path '%s' does not exist." % directory_path)
+                raise PipelineError("directory_path '%s' does not exist." %
+                                    directory_path)
 
     def process(self, sample_sheet_path):
         '''
@@ -82,23 +83,28 @@ class Pipeline:
         :return:
         '''
         try:
-            # TODO: Add configuration file to populate these hard-coded values - possibly provide a broker
+            # TODO: Add configuration file to populate these hard-coded values
+            #  - possibly provide a broker
             sdo = SequenceDirectory(self.run_dir,
                                     external_sample_sheet=sample_sheet_path)
             sample_sheet_params = sdo.process()
             ss_path = sample_sheet_params['sample_sheet_path']
 
             bcl2fastq_queue_name = 'long8gb'
-            bclconvert_queue_name = 'highmem'
+            # bclconvert_queue_name = 'highmem'
             bcl2fastq_node_count = 1
             bcl2fastq_nprocs = 16
             bcl2fastq_wall_time_limit = 36
 
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvertBCL2FastqJob(self.run_dir,
-                                         ss_path,
-                                         fastq_output_directory,
-                                         self.bcl2fastq_path, True, bcl2fastq_queue_name, bcl2fastq_node_count, bcl2fastq_nprocs, bcl2fastq_wall_time_limit)
+            bcl2fastq_job = ConvBCL2FastqJob(self.run_dir,
+                                             ss_path,
+                                             fastq_output_directory,
+                                             self.bcl2fastq_path, True,
+                                             bcl2fastq_queue_name,
+                                             bcl2fastq_node_count,
+                                             bcl2fastq_nprocs,
+                                             bcl2fastq_wall_time_limit)
 
             bcl2fastq_job.run()
 
@@ -108,19 +114,24 @@ class Pipeline:
             qc_wall_time_limit = 72
 
             human_filter_job = QCJob(self.run_dir,
-                                              sample_sheet_params['sample_sheet_path'],
-                                              self.fpmmp_path,
-                                              self.nprocs,
-                                              self.mmi_db_path, qc_queue_name, qc_node_count, qc_nprocs, qc_wall_time_limit)
+                                     sample_sheet_params['sample_sheet_path'],
+                                     self.fpmmp_path,
+                                     self.nprocs,
+                                     self.mmi_db_path,
+                                     qc_queue_name,
+                                     qc_node_count,
+                                     qc_nprocs,
+                                     qc_wall_time_limit)
 
             human_filter_job.run()
 
-            output_dir = 'foo'
-            project = 'foo'
+            # output_dir = 'foo'
+            # project = 'foo'
 
-            #fast_qc_job = FastQCJOb(self.run_dir, output_dir, self.nprocs, project)
+            # fast_qc_job = FastQCJOb(self.run_dir, output_dir, self.nprocs,
+            # project)
 
-            #fast_qc_job.run()
+            # fast_qc_job.run()
 
         except PipelineError as e:
             logging.error(e)

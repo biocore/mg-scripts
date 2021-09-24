@@ -7,7 +7,8 @@ import logging
 
 
 class QCJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path, queue_name, node_count, nprocs, wall_time_limit):
+    def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path,
+                 queue_name, node_count, nprocs, wall_time_limit):
         super().__init__()
         self.run_dir = run_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
@@ -137,9 +138,9 @@ class QCJob(Job):
         # reorganize the data into a list of dictionaries, one for each row.
         # the ordering of the rows will be preserved in the order of the list.
 
-        l = []
+        lst = []
         for i in range(0, len(bioinformatics)):
-            l.append({})
+            lst.append({})
 
         for item in bioinformatics:
             my_series = bioinformatics[item]
@@ -150,23 +151,23 @@ class QCJob(Job):
                 if key in ['a_trim', 'h_filter']:
                     value = value.strip().lower()
                     value = True if value in ['true', 'yes'] else False
-                l[index][key] = value
+                lst[index][key] = value
 
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
-        return {'chemistry': chemistry, 'projects': l}
+        return {'chemistry': chemistry, 'projects': lst}
 
     def _find_fastq_files(self, project_name):
         search_path = join(self.run_dir, 'Data', 'Fastq', project_name)
-        l = []
+        lst = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
                 some_file = some_file.decode('UTF-8')
                 if some_file.endswith('fastq.gz'):
                     if '_R1_' in some_file:
                         some_path = join(self.run_dir, some_file)
-                        l.append(some_path)
-        return l
+                        lst.append(some_path)
+        return lst
 
     def _generate_split_count(self, count):
         if count > 2000:
@@ -220,7 +221,10 @@ class QCJob(Job):
 
         # list of users to be contacted independently of this package's
         # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
+        lines.append("#PBS -M "
+                     "ccowart@ucsd.edu,"
+                     "jdereus@ucsd.edu,"
+                     "qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)

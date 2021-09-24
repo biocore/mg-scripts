@@ -59,7 +59,10 @@ class FastQCJOb(Job):
 
         # list of users to be contacted independently of this package's
         # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
+        lines.append("#PBS -M "
+                     "ccowart@ucsd.edu,"
+                     "jdereus@ucsd.edu,"
+                     "qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
@@ -80,7 +83,7 @@ class FastQCJOb(Job):
         lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
         lines.append("cd %s" % self.run_dir)
         # lines.append("export PATH=$PATH:/usr/local/bin")
-        lines.append("#file=${trim_file}\${SLURM_ARRAY_TASK_ID}")
+        lines.append("#file=${trim_file}\\${SLURM_ARRAY_TASK_ID}")
         lines.append('%s %s %s %s %s %s' % (
             self.fastqc_path, self.run_dir, self.output_dir, self.nprocs,
             self.project, chemistry))
@@ -92,7 +95,7 @@ class FastQCJOb(Job):
             logging.debug("Writing job script to %s" % self.job_script_path)
             for line in lines:
                 # remove long spaces in some lines.
-                line = re.sub('\s+', ' ', line)
+                line = re.sub(r'\s+', ' ', line)
                 f.write("%s\n" % line)
 
     def run(self):

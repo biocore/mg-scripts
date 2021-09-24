@@ -10,7 +10,7 @@ def main(input_directory, output_directory, final_output_directory,
     :param input_directory: A directory containing BCL files, or a directory
      of directories containing BCL files.
     :param output_directory: A directory to store the Pipeline's products.
-    :param final_output_directory: A second directory to store the Pipeline's products.
+    :param final_output_directory: A second directory to store products.
     :param younger_than: A threshold. Pipeline will not process directories
      younger than param hours.
     :param older_than: A threshold. Pipeline will not process directories
@@ -18,7 +18,7 @@ def main(input_directory, output_directory, final_output_directory,
     :param nprocs: The number of parallel processes to run. Maximum value is
      currently 16.
     '''
-    logging.debug('Sequence Processing Pipeline SingleDirectoryMain() Started')
+    logging.debug('Sequence Processing Pipeline main() Started')
 
     pipeline = Pipeline(input_directory,
                         output_directory,
@@ -29,5 +29,4 @@ def main(input_directory, output_directory, final_output_directory,
 
     pipeline.process(sample_sheet_path)
 
-    logging.debug('Sequence Processing Pipeline SingleDirectoryMain() Completed')
-
+    logging.debug('Sequence Processing Pipeline main() Completed')

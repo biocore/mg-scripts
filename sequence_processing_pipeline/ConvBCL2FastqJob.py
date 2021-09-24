@@ -7,14 +7,15 @@ from os import makedirs, walk
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
-class ConvertBCL2FastqJob(Job):
+class ConvBCL2FastqJob(Job):
     '''
     ConvertBCL2FastqJob implements a way to run bcl2fastq on a directory
     of BCL files. It builds on TorqueJob's ability to push a job onto Torque
     and wait for it to finish.
     '''
     def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 bcl_executable_path, use_bcl_convert, queue_name, node_count, nprocs, wall_time_limit):
+                 bcl_executable_path, use_bcl_convert, queue_name, node_count,
+                 nprocs, wall_time_limit):
         super().__init__()
         self.run_dir = abspath(run_dir)
         self._directory_check(self.run_dir, create=False)
@@ -39,7 +40,7 @@ class ConvertBCL2FastqJob(Job):
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
 
-        d = {'bcl2fastq' : {}, 'bcl-convert' : {}}
+        d = {'bcl2fastq': {}, 'bcl-convert': {}}
         d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
         d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
         d['bcl2fastq']['executable_path'] = self.bcl_executable_path
@@ -76,9 +77,9 @@ class ConvertBCL2FastqJob(Job):
                     self.output_directory, str(e)))
 
         if not exists(self.bcl_executable_path):
-
             raise PipelineError("Path to bcl2fastq binary "
-                                "'%s' is not valid." % self.bcl_executable_path)
+                                "'%s' is not valid." %
+                                self.bcl_executable_path)
 
     def _validate_bcl_directory(self):
         bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
@@ -121,7 +122,8 @@ class ConvertBCL2FastqJob(Job):
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
-        lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count, self.nprocs))
+        lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,
+                                                  self.nprocs))
 
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
@@ -138,7 +140,10 @@ class ConvertBCL2FastqJob(Job):
 
         # list of users to be contacted independently of this package's
         # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#PBS -M ccowart@ucsd.edu,jdereus@ucsd.edu,qiita.help@gmail.com")
+        lines.append("#PBS -M "
+                     "ccowart@ucsd.edu,"
+                     "jdereus@ucsd.edu,"
+                     "qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
@@ -186,7 +191,7 @@ class ConvertBCL2FastqJob(Job):
             logging.debug("Writing job script to %s" % self.job_script_path)
             for line in lines:
                 # remove long spaces in some lines.
-                line = re.sub('\s+', ' ', line)
+                line = re.sub(r'\s+', ' ', line)
                 f.write("%s\n" % line)
 
     def run(self):

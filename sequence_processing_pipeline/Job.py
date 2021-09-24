@@ -159,7 +159,9 @@ class Job:
                 return job_info
             else:
                 # job exited unsuccessfully
-                raise PipelineError("job %s exited with status %s" % (job_id, job_info['exit_status']))
+                status = job_info['exit_status']
+                raise PipelineError("job %s exited with status %s" % (job_id,
+                                                                      status))
         else:
             # job was never in the queue - return an error.
             raise PipelineError("job %s never appeared in the queue." % job_id)
