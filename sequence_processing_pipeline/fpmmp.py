@@ -1,7 +1,7 @@
 import logging
 from os.path import exists, split, join, basename
 from os import makedirs, stat
-from CmdGenerator import CmdGenerator
+from sequence_processing_pipeline.CmdGenerator import CmdGenerator
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -93,9 +93,10 @@ class fpmmp():
 
     def generate_command(self):
         '''
-        Generate the command-line needed to QC the data, based on the
-        parameters supplied to the object.
-        :return: A string that can be run using Popen() and the like.
+        Generate the command-lines needed to QC the data, based on the
+        parameters supplied to the object. The result will be the list of
+        strings needed to process the fastq files referenced in the trim file.
+        :return: A list of strings that can be run using Popen() and the like.
         '''
         logging.debug('QC.generate_command() called.')
 
@@ -160,7 +161,7 @@ class fpmmp():
         :param project_name: Name of the project
         :param final_output: Internal Value
         :param current_dir: Internal Value
-        :return: A list containing the contents of empty_file_list.txt.
+        :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug('QC.block2a() called.')
         tmp = join(final_output, project_name, 'trimmed_sequences')
@@ -169,6 +170,7 @@ class fpmmp():
             logging.debug(f'creating {tmp}')
             makedirs(tmp, exist_ok=True)
 
+        cmd_list = []
         empty_file_list = []
 
         for fastq_file_path in self.trim_data:
@@ -181,8 +183,10 @@ class fpmmp():
                                    project_name, self.nprocs, adapter_a,
                                    adapter_A)
             cmd = cmd_gen.generate_fastp_cmd()
-            logging.debug(f'EXECUTE THIS COMMAND: {cmd}')
+            logging.debug(f'Execute this command: {cmd}')
+            cmd_list.append(cmd)
 
+            '''
             partial = join(final_output, project_name, 'trimmed_sequences')
 
             filename1_short, filename2_short = cmd.get_short_names()
@@ -217,8 +221,10 @@ class fpmmp():
                 empty_file_list.append(size1)
                 empty_file_list.append(trimmed_sequence2)
                 empty_file_list.append(size2)
+            '''
 
-        self.empty_file_list = empty_file_list
+        # self.empty_file_list = empty_file_list
+        return cmd_list
 
     def _block2b(self, adapter_a, adapter_A, final_output, project_name,
                  current_dir, some_dir):
@@ -231,7 +237,7 @@ class fpmmp():
         :param project_name: Name of the project
         :param current_dir: Internal Value
         :param some_dir: Internal Value
-        :return: A list containing the contents of empty_file_list.txt.
+        :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug('QC.block2b() called.')
         logging.debug("here i am inside true/true")
@@ -240,6 +246,7 @@ class fpmmp():
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 
+        cmd_list = []
         empty_file_list = []
 
         for fastq_file_path in self.trim_data:
@@ -251,14 +258,16 @@ class fpmmp():
                                                       self.human_phix_db_path)
 
             filename1 = basename(fastq_file_path)
-            filename1_short = basename(filename1) + '.fastq.gz'
+            # filename1_short = basename(filename1) + '.fastq.gz'
             filename2 = filename1.replace('_R1_00', '_R2_00')
-            filename2_short = basename(filename2) + '.fastq.gz'
+            # filename2_short = basename(filename2) + '.fastq.gz'
 
             # cd parent_dir
 
-            logging.debug(f'EXECUTE THIS COMMAND: {cmd}')
+            logging.debug(f'Execute this command: {cmd}')
+            cmd_list.append(cmd)
 
+            '''
             partial = join(final_output, project_name, 'filtered_sequences')
             tmp1 = join(partial, filename1_short + '.trimmed.fastq.gz')
             size1 = stat(tmp1).st_size
@@ -270,9 +279,12 @@ class fpmmp():
                 empty_file_list.append(tmp1)
                 empty_file_list.append(size1)
                 empty_file_list.append(tmp2)
-                empty_file_list.append(size2)
+                empty_file_list.append(size2)    
+            '''
 
         self.empty_file_list = empty_file_list
+
+        return cmd_list
 
 
 if __name__ == '__main__':
@@ -294,5 +306,7 @@ if __name__ == '__main__':
                   human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                   chemistry)
 
-    fpmmp.generate_command()
+    cmds = fpmmp.generate_command()
+    for cmd in cmds:
+        logging.debug(cmd)
     logging.debug('test run completed')
