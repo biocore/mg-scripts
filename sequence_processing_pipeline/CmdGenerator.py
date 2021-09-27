@@ -1,5 +1,6 @@
 from os.path import basename, join, split
 
+
 class CmdGenerator:
     def __init__(self, fastq_path, current_dir, final_output, project_name,
                  nprocs, adapter_a, adapter_A):
@@ -26,12 +27,12 @@ class CmdGenerator:
         self.filename1_short = basename(self.filename1) + '.fastq.gz'
         self.filename2_short = basename(self.filename2) + '.fastq.gz'
 
-        if self.adapter_a == None:
-            if self.adapter_A != None:
+        if self.adapter_a is None:
+            if self.adapter_A is not None:
                 raise ValueError("adapter_a is declared but not adapter_A.")
 
-        if self.adapter_A == None:
-            if self.adapter_a != None:
+        if self.adapter_A is None:
+            if self.adapter_a is not None:
                 raise ValueError("adapter_A is declared but not adapter_a.")
 
     def get_short_names(self):
@@ -112,7 +113,7 @@ class CmdGenerator:
                                 self.filename1_short + '.html')
 
         partial = join(self.final_output, self.project_name,
-                     'filtered_sequences')
+                       'filtered_sequences')
 
         # TODO: this string might be different. confirm it needs
         #  trimmed.fastq.gz
@@ -166,4 +167,3 @@ class CmdGenerator:
         # create the final command piping all other commands together.
         return ' '.join(self.fastp_cmd_list) + ' | ' + ' '.join(
             self.minimap_cmd_list) + ' | ' + ' '.join(self.samtools_cmd_list)
-

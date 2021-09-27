@@ -1,5 +1,5 @@
 import logging
-from os.path import exists, split, join, basename, dirname
+from os.path import exists, split, join, basename
 from os import makedirs, stat
 from CmdGenerator import CmdGenerator
 
@@ -103,8 +103,8 @@ class fpmmp():
         some_dir = 'YET_SOME_OTHER_DIR'
 
         # possible amplicon
-        if self.a_trim == True:
-            if self.h_filter == False:
+        if self.a_trim is True:
+            if self.h_filter is False:
                 cmd = self._block2a(self.adapter_a,
                                     self.adapter_A,
                                     self.chemistry,
@@ -150,7 +150,7 @@ class fpmmp():
         return some_path
 
     def _block2a(self, adapter_a, adapter_A, chemistry, project_name,
-                final_output, current_dir):
+                 final_output, current_dir):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = False.
@@ -221,7 +221,7 @@ class fpmmp():
         self.empty_file_list = empty_file_list
 
     def _block2b(self, adapter_a, adapter_A, final_output, project_name,
-                current_dir, some_dir):
+                 current_dir, some_dir):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = True.
@@ -290,16 +290,9 @@ if __name__ == '__main__':
     h_filter = True
     chemistry = 'Default'
 
-    fpmmp = fpmmp(nprocs, trim_file,
-               project_name, final_output, human_phix_db_path, adapter_a,
-               adapter_A, a_trim, h_filter, chemistry)
+    fpmmp = fpmmp(nprocs, trim_file, project_name, final_output,
+                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
+                  chemistry)
 
     fpmmp.generate_command()
     logging.debug('test run completed')
-
-
-
-
-
-
-
