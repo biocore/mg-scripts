@@ -1,13 +1,13 @@
-from os.path import basename, join, split
+from os.path import join, split
 
 
 class CmdGenerator:
-    def __init__(self, fastq_path, final_output, project_name,
+    def __init__(self, fastq_path, products_dir, project_name,
                  nprocs, adapter_a, adapter_A):
         '''
 
         :param fastq_path: The path to a Fastq file.
-        :param final_output: Internal Value
+        :param products_dir: The root directory to place products.
         :param project_name: The name of the project.
         :param nprocs: The maximum number of processes/threads to use.
         :param adapter_a: Forward-read
@@ -18,7 +18,7 @@ class CmdGenerator:
         self.current_dir = split(self.fastq_path)[0]
         self.parent_dir, self.filename1 = split(self.fastq_path)
         self.filename2 = self.filename1.replace('_R1_00', '_R2_00')
-        self.final_output = final_output
+        self.products_dir = products_dir
         self.project_name = project_name
         self.nprocs = nprocs
         self.adapter_a = adapter_a
@@ -51,7 +51,7 @@ class CmdGenerator:
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
-        partial_path = join(self.current_dir, self.final_output,
+        partial_path = join(self.current_dir, self.products_dir,
                             self.project_name)
         json_output_path = join(partial_path, 'json',
                                 self.filename1_short + '.json')
@@ -93,7 +93,8 @@ class CmdGenerator:
 
         return ' '.join(self.fastp_cmd_list)
 
-    def generate_full_toolchain_cmd(self, fastp_reports_dir, human_phix_db_path):
+    def generate_full_toolchain_cmd(self, fastp_reports_dir,
+                                    human_phix_db_path):
         '''
         Generates a command-line string for running fastp piping directly
          into minimap2 piping directly into samtools. The string is based
@@ -111,13 +112,13 @@ class CmdGenerator:
         html_output_path = join(fastp_reports_dir, self.project_name, 'html',
                                 self.filename1_short + '.html')
 
-        partial = join(self.final_output, self.project_name,
+        partial = join(self.products_dir, self.project_name,
                        'filtered_sequences')
 
         # TODO: this string might be different. confirm it needs
         #  trimmed.fastq.gz
-        path1 = join(partial, self.filename1_short + 'trimmed.fastq.gz')
-        path2 = join(partial, self.filename2_short + 'trimmed.fastq.gz')
+        path1 = join(partial, self.filename1_short + '.trimmed.fastq.gz')
+        path2 = join(partial, self.filename2_short + '.trimmed.fastq.gz')
 
         self.fastp_cmd_list = ['fastp']
         if self.adapter_a:

@@ -54,6 +54,6 @@ class TestConvertJob(unittest.TestCase):
             msg = str(e)
 
         logging.debug(msg)
-        #self.assertEqual(msg, None)
+        # self.assertEqual(msg, None)
 
         rmtree('tests/data/sample-sequence-directory/Data/Intensities')

@@ -103,13 +103,13 @@ class Pipeline:
             ss_path = sample_sheet_params['sample_sheet_path']
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
             bcl2fastq_job = ConvertJob(self.run_dir,
-                                             ss_path,
-                                             fastq_output_directory,
-                                             True,
-                                             QUEUE_NAME,
-                                             BCL2FASTQ_CONFIG['nodes'],
-                                             BCL2FASTQ_CONFIG['nprocs'],
-                                             BCL2FASTQ_CONFIG['walltime'])
+                                       ss_path,
+                                       fastq_output_directory,
+                                       True,
+                                       QUEUE_NAME,
+                                       BCL2FASTQ_CONFIG['nodes'],
+                                       BCL2FASTQ_CONFIG['nprocs'],
+                                       BCL2FASTQ_CONFIG['walltime'])
 
             bcl2fastq_job.run()
 

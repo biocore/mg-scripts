@@ -4,7 +4,6 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import logging
 import unittest
-from os.path import exists
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -16,8 +15,9 @@ class TestPipeline(unittest.TestCase):
         output_directory = 'tests/data/output_directory'
         final_output_directory = 'tests/data/final_output_directory'
         inv_input_directory = 'tests/data/invalid_input_directory'
-        inv_output_directory = 'tests/data/invalid_output_directory'
-        inv_final_output_directory = 'tests/data/invalid_output_directory_two'
+        # inv_output_directory = 'tests/data/invalid_output_directory'
+        # inv_final_output_directory =
+        #  'tests/data/invalid_output_directory_two'
 
         # all parameters defined
         # pipeline = Pipeline(input_directory,
@@ -34,9 +34,10 @@ class TestPipeline(unittest.TestCase):
                           output_directory,
                           output_directory)
 
-        # shutil.rmtree('sequence_processing_pipeline/tests/data/invalid_output_directory')
-        shutil.rmtree(
-            'sequence_processing_pipeline/tests/data/invalid_output_directory_two')
+        # shutil.rmtree(
+        # 'sequence_processing_pipeline/tests/data/invalid_output_directory')
+        shutil.rmtree(('sequence_processing_pipeline/tests'
+                       '/data/invalid_output_directory_two'))
         exit(0)
         # test invalid input_directory
         self.assertRaises(PipelineError,

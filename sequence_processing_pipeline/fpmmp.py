@@ -1,6 +1,6 @@
 import logging
-from os.path import exists, split, join, basename
-from os import makedirs, stat
+from os.path import exists, split, join  # , basename
+from os import makedirs
 from sequence_processing_pipeline.CmdGenerator import CmdGenerator
 
 
@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class fpmmp():
-    def __init__(self, nprocs, trim_file, project_name, final_output,
+    def __init__(self, nprocs, trim_file, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                  chemistry):
         '''
@@ -24,7 +24,7 @@ class fpmmp():
         :param nprocs: Maximum number of processes/threads to use.
         :param trim_file: A file containing all of the R1 fastq.gz files.
         :param project_name: The name of the project. From sample-sheet.
-        :param final_output: Internal Value
+        :param products_dir: The root directory to place products.
         :param human_phix_db_path: The path to human_phix_db_path.mmi
         :param adapter_a: Forward-read
         :param adapter_A: Reverse-read
@@ -38,7 +38,7 @@ class fpmmp():
         # give the full path to the commands in the result.
 
         self.project_name = project_name
-        self.final_output = final_output
+        self.products_dir = products_dir
         self.adapter_a = adapter_a
         self.adapter_A = adapter_A
         self.a_trim = a_trim
@@ -83,12 +83,12 @@ class fpmmp():
 
         # there are two locations for empty_file_list. block2b() has 2 of its
         # four entries going to empty_file_list.txt in a different path:
-        #
+        # CC: final_output renamed to products_dir
         # $final_output/filtered_sequences/${project}/empty_file_list.txt
         #
         # I think this is a mistake, and all four should go to below for
         # both block2a() and block2b().
-        tmp = join(self.final_output, self.project_name, 'empty_file_list.txt')
+        tmp = join(self.products_dir, self.project_name, 'empty_file_list.txt')
         self.empty_file_list_path = tmp
 
     def generate_commands(self):
@@ -100,7 +100,7 @@ class fpmmp():
         '''
         logging.debug('QC.generate_command() called.')
 
-        some_dir = 'YET_SOME_OTHER_DIR'
+        fastp_reports_dir = join(self.products_dir, 'fastp_reports_dir')
 
         # possible amplicon
         if self.a_trim is True:
@@ -109,13 +109,13 @@ class fpmmp():
                                     self.adapter_A,
                                     self.chemistry,
                                     self.project_name,
-                                    self.final_output)
+                                    self.products_dir)
             else:
                 cmd = self._block2b(self.adapter_a,
                                     self.adapter_A,
-                                    self.final_output,
+                                    self.products_dir,
                                     self.project_name,
-                                    some_dir)
+                                    fastp_reports_dir)
             return cmd
 
         logging.warning("QC.block2() called with a_trim == False.")
@@ -148,7 +148,7 @@ class fpmmp():
         return some_path
 
     def _block2a(self, adapter_a, adapter_A, chemistry, project_name,
-                 final_output):
+                 products_dir):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = False.
@@ -156,18 +156,18 @@ class fpmmp():
         :param adapter_A: Reverse-read
         :param chemistry: Chemistry of project. Usually 'Default' or 'Amplicon'
         :param project_name: Name of the project
-        :param final_output: Internal Value
+        :param products_dir: The root directory to place products.
         :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug('QC.block2a() called.')
-        tmp = join(final_output, project_name, 'trimmed_sequences')
+        tmp = join(products_dir, project_name, 'trimmed_sequences')
 
         if not exists(tmp):
             logging.debug(f'creating {tmp}')
             makedirs(tmp, exist_ok=True)
 
         cmd_list = []
-        empty_file_list = []
+        # empty_file_list = []
 
         for fastq_file_path in self.trim_data:
             # technically, legacy will run fastp without adapter_a and
@@ -175,7 +175,7 @@ class fpmmp():
             # However, let's assume that both should be None and if
             # only one is None, then that's an Error. CmdGenerator will
             # test for that. Just pass the parameters.
-            cmd_gen = CmdGenerator(fastq_file_path, final_output,
+            cmd_gen = CmdGenerator(fastq_file_path, products_dir,
                                    project_name, self.nprocs, adapter_a,
                                    adapter_A)
             cmd = cmd_gen.generate_fastp_cmd()
@@ -183,7 +183,7 @@ class fpmmp():
             cmd_list.append(cmd)
 
             '''
-            partial = join(final_output, project_name, 'trimmed_sequences')
+            partial = join(products_dir, project_name, 'trimmed_sequences')
 
             filename1_short, filename2_short = cmd.get_short_names()
 
@@ -198,9 +198,9 @@ class fpmmp():
 
             # amplicon/16s data. include index files
             if chemistry == 'Amplicon':
-                # cp ${filename_index1}* $final_output/${project}/
+                # cp ${filename_index1}* $products_dir/${project}/
                 #  trimmed_sequences
-                # cp ${filename_index2}* $final_output/${project}/
+                # cp ${filename_index2}* $products_dir/${project}/
                 #  trimmed_sequences
                 pass
             else:
@@ -209,10 +209,10 @@ class fpmmp():
 
             if size1 <= 500 or size2 <= 500:
                 logging.warning(f'{filename1_short} is very small.')
-                # mv $final_output/${project}/trimmed_sequences/
-                #  ${filename1_short}* $final_output/${project}/
+                # mv $products_dir/${project}/trimmed_sequences/
+                #  ${filename1_short}* $products_dir/${project}/
                 #  trimmed_sequences/${filename2_short}*
-                #   ${final_output}/${project}/zero_files
+                #   ${products_dir}/${project}/zero_files
                 empty_file_list.append(trimmed_sequence1)
                 empty_file_list.append(size1)
                 empty_file_list.append(trimmed_sequence2)
@@ -222,22 +222,22 @@ class fpmmp():
         # self.empty_file_list = empty_file_list
         return cmd_list
 
-    def _block2b(self, adapter_a, adapter_A, final_output, project_name,
-                 some_dir):
+    def _block2b(self, adapter_a, adapter_A, products_dir, project_name,
+                 fastp_reports_dir):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = True.
         :param adapter_a: Forward-read
         :param adapter_A: Reverse-read
-        :param final_output: Internal Value
+        :param products_dir: The root directory to place products.
         :param project_name: Name of the project
-        :param some_dir: Internal Value
+        :param fastp_reports_dir: The root directory to place fastp reports.
         :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug('QC.block2b() called.')
         logging.debug("here i am inside true/true")
 
-        tmp = join(final_output, project_name, 'filtered_sequences')
+        tmp = join(products_dir, project_name, 'filtered_sequences')
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 
@@ -245,16 +245,16 @@ class fpmmp():
         empty_file_list = []
 
         for fastq_file_path in self.trim_data:
-            cmd_gen = CmdGenerator(fastq_file_path, final_output,
+            cmd_gen = CmdGenerator(fastq_file_path, products_dir,
                                    project_name, self.nprocs, adapter_a,
                                    adapter_A)
 
-            cmd = cmd_gen.generate_full_toolchain_cmd(some_dir,
+            cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
                                                       self.human_phix_db_path)
 
-            filename1 = basename(fastq_file_path)
+            # filename1 = basename(fastq_file_path)
             # filename1_short = basename(filename1) + '.fastq.gz'
-            filename2 = filename1.replace('_R1_00', '_R2_00')
+            # filename2 = filename1.replace('_R1_00', '_R2_00')
             # filename2_short = basename(filename2) + '.fastq.gz'
 
             # cd parent_dir
@@ -263,7 +263,7 @@ class fpmmp():
             cmd_list.append(cmd)
 
             '''
-            partial = join(final_output, project_name, 'filtered_sequences')
+            partial = join(products_dir, project_name, 'filtered_sequences')
             tmp1 = join(partial, filename1_short + '.trimmed.fastq.gz')
             size1 = stat(tmp1).st_size
             tmp2 = join(partial, filename2_short + '.trimmed.fastq.gz')
@@ -274,7 +274,7 @@ class fpmmp():
                 empty_file_list.append(tmp1)
                 empty_file_list.append(size1)
                 empty_file_list.append(tmp2)
-                empty_file_list.append(size2)    
+                empty_file_list.append(size2)
             '''
 
         self.empty_file_list = empty_file_list
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     # assume current working directory is mg-scripts.
     trim_file = './sequence_processing_pipeline/tests/data/split_file_0'
     project_name = 'MyProject'
-    final_output = 'MyFinalOutputDir'
+    products_dir = 'MyFinalOutputDir'
     human_phix_db_path = '/path/to/human-phix-db.mmi'
     adapter_a = 'GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
     adapter_A = 'GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT'
@@ -297,7 +297,7 @@ if __name__ == '__main__':
     h_filter = True
     chemistry = 'Default'
 
-    fpmmp = fpmmp(nprocs, trim_file, project_name, final_output,
+    fpmmp = fpmmp(nprocs, trim_file, project_name, products_dir,
                   human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                   chemistry)
 
