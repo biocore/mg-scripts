@@ -1,4 +1,4 @@
-from sequence_processing_pipeline.ConvBCL2FastqJob import ConvBCL2FastqJob
+from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.QCJob import QCJob
 # from sequence_processing_pipeline.FastQC import FastQCJOb
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
@@ -12,7 +12,6 @@ from os.path import join, exists
 QUEUE_NAME = 'qiita'
 
 BCL2FASTQ_CONFIG = {
-    'path': 'bcl-convert',
     'nodes': 1,
     'nprocs': 16,
     'walltime': 36,  # hrs
@@ -103,10 +102,10 @@ class Pipeline:
             sample_sheet_params = sdo.process()
             ss_path = sample_sheet_params['sample_sheet_path']
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvBCL2FastqJob(self.run_dir,
+            bcl2fastq_job = ConvertJob(self.run_dir,
                                              ss_path,
                                              fastq_output_directory,
-                                             BCL2FASTQ_CONFIG['path'], True,
+                                             True,
                                              QUEUE_NAME,
                                              BCL2FASTQ_CONFIG['nodes'],
                                              BCL2FASTQ_CONFIG['nprocs'],
@@ -117,7 +116,6 @@ class Pipeline:
             human_filter_job = QCJob(self.run_dir,
                                      sample_sheet_params['sample_sheet_path'],
                                      QC_CONFIG['fpmmp'],
-                                     self.nprocs,
                                      QC_CONFIG['mmi_db'],
                                      QUEUE_NAME,
                                      QC_CONFIG['nodes'],

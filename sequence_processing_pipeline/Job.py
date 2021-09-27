@@ -1,5 +1,5 @@
 from os import makedirs
-from os.path import exists
+from os.path import exists, split
 from re import search
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
@@ -14,9 +14,30 @@ class Job:
     def run(self):
         raise PipelineError("Base class run() method not implemented.")
 
+    def _which(self, file_name):
+        tmp = split(file_name)
+        # remove any elements that are empty string.
+        tmp = [x for x in tmp if x]
+
+        if len(tmp) > 1:
+            # this is not a filename, but a path
+            raise PipelineError("file_name must not contain a path")
+
+        results = self._system_call('which ' + file_name)
+        stdout = results['stdout']
+        file_path = stdout.strip()
+
+        if file_path:
+            logging.debug(f'file-path found for {file_name}'
+                          f': {stdout}')
+            return file_path
+
+        raise PipelineError("file '%s' does not exist." % file_name)
+
     def _file_check(self, file_path):
         if exists(file_path):
             logging.debug("file '%s' exists." % file_path)
+            return True
         else:
             raise PipelineError("file '%s' does not exist." % file_path)
 
@@ -29,8 +50,8 @@ class Job:
                     makedirs(directory_path, exist_ok=True)
                 except OSError as e:
                     # this is a known potential error. Re-raise it as a
-                    # PipelineError, so it gets handled in the same location as
-                    # the others.
+                    # PipelineError, so it gets handled in the same location
+                    # as the others.
                     raise PipelineError(str(e))
             else:
                 raise PipelineError(

@@ -1,32 +1,27 @@
-import logging
+from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+from os import walk
+from os.path import join, abspath, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, abspath, exists
+import logging
 import re
-from os import makedirs, walk
-from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 
 
-class ConvBCL2FastqJob(Job):
+class ConvertJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 bcl_executable_path, use_bcl_convert, queue_name, node_count,
-                 nprocs, wall_time_limit, complete_runs_path=None):
+                 use_bcl_convert, queue_name, node_count,
+                 nprocs, wall_time_limit):
         '''
-        ConvBCL2FastqJob implements a way to run bcl2fastq on a directory of
-        BCL files.
-        Submit a Torque job where the contents of run_dir are processed using
-        fastp, minimap, and samtools. Human-genome sequences will be filtered
-        out if needed.
-        :param run_dir:
-        :param sample_sheet_path:
-        :param output_directory:
-        :param bcl_executable_path:
-        :param use_bcl_convert:
-        :param queue_name:
-        :param node_count:
-        :param nprocs:
-        :param wall_time_limit:
-        :param complete_runs_path:
+        ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
+        on a directory BCL files to generate Fastq files.
+        :param run_dir: The 'run' directory that contains BCL files.
+        :param sample_sheet_path: The path to a sample-sheet.
+        :param output_directory: The path to store Fastq output.
+        :param use_bcl_convert: Choose bcl-convert or bcl2fastq
+        :param queue_name: The name of the Torque queue to use for processing.
+        :param node_count: The number of nodes to request.
+        :param nprocs: The maximum number of parallel processes to use.
+        :param wall_time_limit: A hard time limit to bound processing.
         '''
         super().__init__()
         self.run_dir = abspath(run_dir)
@@ -34,7 +29,8 @@ class ConvBCL2FastqJob(Job):
         self._validate_bcl_directory()
 
         tmp = join(self.run_dir, 'Data', 'Fastq')
-        makedirs(tmp, exist_ok=True)
+        # create the directory to store fastq files
+        self._directory_check(tmp, create=True)
         self.job_script_path = join(self.run_dir, 'ConvertBCL2Fastq.sh')
         self.stdout_log_path = 'localhost:' + join(
             self.run_dir, 'ConvertBCL2Fastq.out.log')
@@ -42,37 +38,39 @@ class ConvBCL2FastqJob(Job):
             self.run_dir, 'ConvertBCL2Fastq.err.log')
         # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
         self.unique_name = self.run_dir.split('/')[-1]
-        self.job_name = "ConvertBCL2Fastq_%s" % self.unique_name
+        self.job_name = f"ConvertBCL2Fastq_{self.unique_name}"
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
-        self.bcl_executable_path = bcl_executable_path
         self.use_bcl_convert = use_bcl_convert
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
-        self.complete_runs_path = complete_runs_path
 
         d = {'bcl2fastq': {}, 'bcl-convert': {}}
-        d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
-        d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
-        d['bcl2fastq']['executable_path'] = self.bcl_executable_path
-        d['bcl-convert']['executable_path'] = self.bcl_executable_path
-        d['bcl2fastq']['queue_name'] = ''
-        d['bcl-convert']['queue_name'] = 'highmem'
-        d['bcl2fastq']['output_log_name'] = ('localhost: %s/BCL2FASTQ.out.log'
-                                             % self.run_dir)
-        d['bcl2fastq']['error_log_name'] = ('localhost: %s/BCL2FASTQ.err.log'
-                                            % self.run_dir)
-        tmp = 'localhost: %s/BCLCONVERT.out.log' % self.run_dir
-        d['bcl-convert']['output_log_name'] = tmp
-        tmp = 'localhost: %s/BCLCONVERT.err.log' % self.run_dir
-        d['bcl-convert']['error_log_name'] = tmp
 
-        if use_bcl_convert:
-            self.bcl_tool = d['bcl-convert']
-        else:
-            self.bcl_tool = d['bcl2fastq']
+        d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
+        d['bcl2fastq']['queue_name'] = 'qiita'
+        tmp = f'localhost: {self.run_dir}/BCL2FASTQ.out.log'
+        d['bcl2fastq']['output_log_name'] = tmp
+        tmp = f'localhost: {self.run_dir}/BCL2FASTQ.err.log'
+        d['bcl2fastq']['error_log_name'] = tmp
+        d['bcl2fastq']['binary_name'] = 'bcl2fastq'
+
+        d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
+        d['bcl-convert']['queue_name'] = 'qiita'
+        tmp = f'localhost: {self.run_dir}/BCLCONVERT.out.log'
+        d['bcl-convert']['output_log_name'] = tmp
+        tmp = f'localhost: {self.run_dir}/BCLCONVERT.err.log'
+        d['bcl-convert']['error_log_name'] = tmp
+        d['bcl-convert']['binary_name'] = 'bcl-convert'
+
+        self.bcl_tool = d['bcl-convert'] if use_bcl_convert else d['bcl2fastq']
+
+        # if the binary can't be found on the platform running this
+        # package, _which() will raise a PipelineError.
+        self.bcl_tool['executable_path'] = self._which(
+            self.bcl_tool['binary_name'])
 
         self._file_check(self.sample_sheet_path)
 
@@ -82,11 +80,9 @@ class ConvBCL2FastqJob(Job):
             # if sample sheet is valid, we can assume it has the parameters
             # that we will need. No need to check for individual params.
             raise PipelineError(
-                "Sample sheet %s is not valid." % self.sample_sheet_path)
+                f"Sample sheet {self.sample_sheet_path} is not valid.")
 
         self._directory_check(self.output_directory, create=True)
-
-        # self._file_check(self.bcl_executable_path)
 
         # required files for successful operation
         required_files = ['RTAComplete.txt', 'RunInfo.xml']
@@ -114,13 +110,13 @@ class ConvBCL2FastqJob(Job):
                                 "Data/Intensities/BaseCalls.")
 
         if bcl_count == 0:
-            raise PipelineError("input_directory '%s' does not contain "
-                                "bcl files (%d)." % (bcl_directory, bcl_count))
+            raise PipelineError(f"input_directory '{bcl_directory}' does not "
+                                f"contain bcl files ({bcl_count}).")
 
     def _generate_job_script(self):
         '''
-
-        :return:
+        Generate a Torque job script for processing the supplied run_directory.
+        :return: The path to the newly-created job-script.
         '''
         lines = []
 
@@ -131,13 +127,13 @@ class ConvBCL2FastqJob(Job):
         # -v <variable[=value][,variable2=value2[,...]]>
 
         # declare a name for this job to be sample_job
-        lines.append("#PBS -N %s" % self.job_name)
+        lines.append(f"#PBS -N {self.job_name}")
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so
         # this will go unused in translation.)
-        lines.append("#PBS -q %s" % self.queue_name)
+        lines.append(f"#PBS -q {self.queue_name}")
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
@@ -169,15 +165,15 @@ class ConvBCL2FastqJob(Job):
         lines.append("#PBS -l pmem=10gb")
 
         # --output -> -o
-        lines.append("#PBS -o %s" % self.bcl_tool['output_log_name'])
-        lines.append("#PBS -e %s" % self.bcl_tool['error_log_name'])
+        lines.append(f"#PBS -o {self.bcl_tool['output_log_name']}")
+        lines.append(f"#PBS -e {self.bcl_tool['error_log_name']}")
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
         # By default, PBS scripts execute in your home directory, not the
         # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
-        lines.append("cd %s" % self.run_dir)
+        lines.append(f'cd {self.run_dir}')
         lines.append(self.bcl_tool['module_load'])
 
         if self.use_bcl_convert:
@@ -194,45 +190,40 @@ class ConvBCL2FastqJob(Job):
                                         self.sample_sheet_path,
                                         self.output_directory))
         else:
-            lines.append('%s \
-                          --sample-sheet %s \
-                          --output-directory %s \
-                          --bcl-input-directory . \
-                          --bcl-num-decompression-threads 8 \
-                          --bcl-num-conversion-threads 8 \
-                          --bcl-num-compression-threads 16 \
-                          --bcl-num-parallel-tiles 8 \
-                          --bcl-sampleproject-subdirectories true --force' % (
-                self.bcl_tool['executable_path'], self.sample_sheet_path,
-                self.output_directory))
+            lines.append(('%s '
+                          '--sample-sheet %s '
+                          '--output-directory %s '
+                          '--bcl-input-directory . '
+                          '--bcl-num-decompression-threads 8 '
+                          '--bcl-num-conversion-threads 8 '
+                          '--bcl-num-compression-threads 16 '
+                          '--bcl-num-parallel-tiles 8 '
+                          '--bcl-sampleproject-subdirectories true --force') %
+                         (self.bcl_tool['executable_path'],
+                          self.sample_sheet_path,
+                          self.output_directory))
 
-        if self.complete_runs_path:
-            stats_path = join(self.output_directory, 'Stats', 'Stats.json')
-            lines.append('cp %s %s' % (stats_path, self.complete_runs_path))
+        # CC: Insert COPY (scratch.py) Here
 
         with open(self.job_script_path, 'w') as f:
-            logging.debug("Writing job script to %s" % self.job_script_path)
+            logging.debug(f"Writing job script to {self.job_script_path}")
             for line in lines:
                 # remove long spaces in some lines.
                 line = re.sub(r'\s+', ' ', line)
-                f.write("%s\n" % line)
+                f.write(f"{line}\n")
+
+        # for convenience
+        return self.job_script_path
 
     def run(self):
         '''
         Run BCL2Fastq conversion on data in root directory.
         Job-related parameters are specified here for easy adjustment and
         job restart.
-        :param queue_name:
-        :param node_count:
-        :param nprocs:
-        :param wall_time_limit:
         :return:
         '''
-        self._generate_job_script()
+        script_path = self._generate_job_script()
+        logging.debug(f'ConvertJob script is located at: {script_path}')
 
         job_info = self.qsub(self.job_script_path, None, None)
-        logging.info("Successful job: %s" % job_info)
-
-        # TODO: if job returns successfully, notify user(s).
-        #  Users will be notified through PipelineErrors for
-        #  unsuccessful jobs.
+        logging.info(f'Successful job: {job_info}')

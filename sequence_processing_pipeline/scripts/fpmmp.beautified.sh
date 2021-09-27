@@ -1,11 +1,10 @@
 #!/bin/bash
 set -x
-
-source ~/.seqvars
+set -e
 
 module load fastp_0.20.1 samtools_1.12 minimap2_2.18
 
-while getopts ":d:D:S:s:p:c:B:o:O:a:A:q:g:G:C:m:f:" opt; do
+while getopts ":d:D:S:s:p:x:c:B:o:O:a:A:q:g:G:C:m:f:" opt; do
     case ${opt} in
         x ) #path to human-phix-db.mmi database file
             db=$OPTARG
@@ -137,43 +136,50 @@ if [[ -e ${rundir}/run_config.sh ]]; then
     ### parse runconfig file
 fi
 
-dir=${dir}/${file_dir}
-pushd $dir/$project
+# CC set dir to just file_dir because now it's a full path.
+# CC also don't include the project as a sub-folder since
+# CC the full path to the fastq files is already given.
+# dir=${dir}/${file_dir}
+dir=${file_dir}
+# pushd $dir/$project
+pushd $dir
+
 
 final_output=$output_dir/${base_seq_dir}
 
 if [[ ! -d ${final_output} ]]; then
-    mkdir ${final_output}
+    mkdir -p ${final_output}
 
 fi
 
 if [[ ! -d ${final_output}/${project} ]]; then
-    mkdir ${final_output}/${project}
+    mkdir -p ${final_output}/${project}
 fi
 
 ### move sample sheets into place
 ### pull everything from original location to top level output
-cp ${dir}/*.csv $output_dir
+# CC we don't need to do this anymore
+# cp ${dir}/*.csv $output_dir
 
 dir_arr=("html" "json")
 for stat_dir in "${dir_arr[@]}"; do
     if [[ ! -d ${final_output}/${project}/$stat_dir ]]; then
-        mkdir ${final_output}/${project}/$stat_dir
-        mkdir ${dir}/${project}/${stat_dir}
+        mkdir -p ${final_output}/${project}/$stat_dir
+        mkdir -p ${dir}/${project}/${stat_dir}
     fi
 done
 
 dir_arr=("trim_logs" "zero_files")
 for location in "${dir_arr[@]}"; do
     if [[ ! -d ${final_output}/${project}/${location} ]]; then
-        mkdir ${final_output}/${project}/${location}
+        mkdir -p ${final_output}/${project}/${location}
     fi
 done
 
 if [[ ! -d ${seqdir} ]]; then
-    mkdir -p $fastp_qc_output
-    mkdir ${fastp_qc_output}/fastp_logs
-    mkdir ${fastp_qc_output}/fastp_fastqc
+    mkdir -p -p $fastp_qc_output
+    mkdir -p ${fastp_qc_output}/fastp_logs
+    mkdir -p ${fastp_qc_output}/fastp_fastqc
 fi
 
 if [[ ! -e $trim_file ]]; then
@@ -188,7 +194,7 @@ h_filter=$(echo ${h_filter^^})
 if [[ ($a_trim =~ ^(FALSE|NO)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then ### && ( ! -z $qiita_proj) ]]; then
     ### just copy data to qiita study.  16s data.
     if [[ $chemistry == "Amplicon" ]]; then
-        mkdir ${final_output_dir}/${project}/amplicon
+        mkdir -p ${final_output_dir}/${project}/amplicon
         ### copy all files to final location
         cp ${dir}/${project}/*.fastq.gz ${final_output_dir}/${project}/amplicon
     fi
@@ -213,7 +219,8 @@ fi
 ###possible amplicon
 if [[ ($a_trim =~ ^(TRUE|YES)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then
     if [[ ! -d ${final_output}/${project}/trimmed_sequences ]]; then
-        mkdir -p ${final_output}/${project}/trimmed_sequences
+        # CC mkdir -p -p ${final_output}/${project}/trimmed_sequences
+        mkdir  -p ${final_output}/${project}/trimmed_sequences
     fi
     for file in `cat ${dir}/${project}/${trim_file} | grep "_R1_"`;
     do
@@ -301,7 +308,7 @@ if [[ ($a_trim =~ ^(TRUE|YES)$ ) && ($h_filter =~ ^(FALSE|NO)$ ) ]]; then
 elif [[ ($a_trim =~ ^(TRUE|YES)$) && ($h_filter =~ ^(TRUE|YES)$) ]]; then
     echo "here i am inside true/true"
     if [[ ! -d ${final_output}/${project}/filtered_sequences ]]; then
-        mkdir ${final_output}/${project}/filtered_sequences
+        mkdir -p ${final_output}/${project}/filtered_sequences
     fi
 
     for file in `cat ${dir}/${project}/${trim_file} | grep "_R1_"`;
@@ -316,6 +323,7 @@ elif [[ ($a_trim =~ ^(TRUE|YES)$) && ($h_filter =~ ^(TRUE|YES)$) ]]; then
         filename2=$(echo "$filename1" | sed -e 's/_R1_00/_R2_00/g')
         filename2_short=$(basename "$filename2" .fastq.gz)
 
+        pushd $parent_dir
         if [[ $adapter_a == "NA" || $adapter_A == "NA" ]]; then
             $fastp -l 100 -i $filename1 -I $filename2 -w $NPROCS --stdout -j ${dir}/${project}/json/${filename1_short}.json -h ${dir}/${project}/html/${filename1_short}.html | $minimap2 -ax sr -t $NPROCS $db - -a | $samtools fastq -@ $NPROCS -f 12 -F 256 -1 $final_output/${project}/filtered_sequences/${filename1_short}.trimmed.fastq.gz -2 $final_output/${project}/filtered_sequences/${filename2_short}.trimmed.fastq.gz
         else
@@ -335,6 +343,7 @@ elif [[ ($a_trim =~ ^(TRUE|YES)$) && ($h_filter =~ ^(TRUE|YES)$) ]]; then
             ### transfer each file upon completion?
             #rsync -ap -e "ssh -i ${HOME}/.ssh/qiita_rsa" ${final_output}/${project}/${filename1_short}.fastp.fastq.gz ${final_output}/${project}/${filename2_short}.fastp.fastq.gz qiita@10.210.38.7:/projects/qiita_data/uploads/${qiita_proj}/
         fi
+        popd $parent_dir
 
     done
 
@@ -396,18 +405,19 @@ elif [[ $h_filter == TRUE-ISH ]]; then
     do
         final_output=${dir}/${project}/filtered_sequences
         if [[ ! -d ${final_output} ]]; then
-            mkdir ${final_output}
-            mkdir ${final_output}/trim_logs
-            mkdir ${final_output}/zero_files
+            mkdir -p ${final_output}
+            mkdir -p ${final_output}/trim_logs
+            mkdir -p ${final_output}/zero_files
         fi
 
         if [[ ! -d ${fastp_qc_output}/processed_qc ]]; then
-            mkdir ${fastp_qc_output}/processed_qc
+            mkdir -p ${fastp_qc_output}/processed_qc
         fi
 
 
         parent_dir=$(dirname $file)
         project_dir=$(echo $parent_dir | cut -f 2 -d"/")
+
         ### actual filename minus the preceding path
         filename1=$(basename "$file") ### .gz) ### .fastq.gz)
         ### strip fastq.gz for better file naming regarding output

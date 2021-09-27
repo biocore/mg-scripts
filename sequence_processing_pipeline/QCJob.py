@@ -26,6 +26,7 @@ class QCJob(Job):
         self.run_dir = run_dir
         metadata = self._process_sample_sheet(sample_sheet_path)
         self.project_data = metadata['projects']
+        self.needs_adapter_trimming = metadata['needs_adapter_trimming']
         self.trim_file = 'split_file_'
         self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
@@ -63,7 +64,7 @@ class QCJob(Job):
                                                     project['Sample_Project'],
                                                     project['ForwardAdapter'],
                                                     project['ReverseAdapter'],
-                                                    project['a_trim'],
+                                                    self.needs_adapter_trimming,
                                                     project['HumanFiltering'],
                                                     project['QiitaID'])
 
@@ -135,6 +136,9 @@ class QCJob(Job):
 
         header = valid_sheet.Header
         chemistry = header['chemistry']
+        needs_adapter_trimming = ('TRUE' if
+                                  header['Assay'] == 'Metagenomics'
+                                  else 'FALSE')
 
         bioinformatics = valid_sheet.Bioinformatics
 
@@ -158,7 +162,8 @@ class QCJob(Job):
 
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
-        return {'chemistry': chemistry, 'projects': lst}
+        return {'chemistry': chemistry, 'projects': lst,
+                'needs_adapter_trimming': needs_adapter_trimming}
 
     def _find_fastq_files(self, project_name):
         search_path = join(self.run_dir, 'Data', 'Fastq', project_name)
@@ -167,7 +172,7 @@ class QCJob(Job):
             for some_file in files:
                 if some_file.endswith('fastq.gz'):
                     if '_R1_' in some_file:
-                        some_path = join(self.run_dir, some_file)
+                        some_path = join(search_path, some_file)
                         lst.append(some_path)
         return lst
 
@@ -238,9 +243,6 @@ class QCJob(Job):
         lines.append("#PBS -e %s" % self.stderr_log_path)
 
         # array input files are labeled file0, file1,...filen-1
-        # TODO: watch edge-case where only one split_count file
-        #  is generated. This line will become '-t 0-0'. I believe
-        #  that is valid, but it may be better to state as '-t 0'.
         lines.append("#PBS -t 0-%d" % (split_count - 1))
 
         # there is no equivalent for this in Torque, I believe
@@ -272,7 +274,7 @@ class QCJob(Job):
         cmd.append('-d %s' % self.run_dir)
         cmd.append('-D %s/Data/Fastq' % self.run_dir)
         # even though we have a list of all of the trim_files0-(n-1),
-        # we use this syntax so that we only need to qsub one job file, insteaf
+        # we use this syntax so that we only need to qsub one job file, instead
         # of n job files.
         cmd.append('-S %s${PBS_ARRAYID}' % self.trim_file)
         # cmd.append('-p %s' % project_name)
@@ -301,6 +303,7 @@ class QCJob(Job):
             for line in lines:
                 # remove long spaces in some lines.
                 f.write("%s\n" % line)
+        return job_script_path
 
 
 if __name__ == '__main__':
