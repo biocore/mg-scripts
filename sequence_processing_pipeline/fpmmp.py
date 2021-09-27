@@ -91,7 +91,7 @@ class fpmmp():
         tmp = join(self.final_output, self.project_name, 'empty_file_list.txt')
         self.empty_file_list_path = tmp
 
-    def generate_command(self):
+    def generate_commands(self):
         '''
         Generate the command-lines needed to QC the data, based on the
         parameters supplied to the object. The result will be the list of
@@ -100,7 +100,6 @@ class fpmmp():
         '''
         logging.debug('QC.generate_command() called.')
 
-        current_dir = 'SOME_DIRECTORY'
         some_dir = 'YET_SOME_OTHER_DIR'
 
         # possible amplicon
@@ -110,14 +109,12 @@ class fpmmp():
                                     self.adapter_A,
                                     self.chemistry,
                                     self.project_name,
-                                    self.final_output,
-                                    current_dir)
+                                    self.final_output)
             else:
                 cmd = self._block2b(self.adapter_a,
                                     self.adapter_A,
                                     self.final_output,
                                     self.project_name,
-                                    current_dir,
                                     some_dir)
             return cmd
 
@@ -151,7 +148,7 @@ class fpmmp():
         return some_path
 
     def _block2a(self, adapter_a, adapter_A, chemistry, project_name,
-                 final_output, current_dir):
+                 final_output):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = False.
@@ -160,7 +157,6 @@ class fpmmp():
         :param chemistry: Chemistry of project. Usually 'Default' or 'Amplicon'
         :param project_name: Name of the project
         :param final_output: Internal Value
-        :param current_dir: Internal Value
         :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug('QC.block2a() called.')
@@ -179,7 +175,7 @@ class fpmmp():
             # However, let's assume that both should be None and if
             # only one is None, then that's an Error. CmdGenerator will
             # test for that. Just pass the parameters.
-            cmd_gen = CmdGenerator(fastq_file_path, current_dir, final_output,
+            cmd_gen = CmdGenerator(fastq_file_path, final_output,
                                    project_name, self.nprocs, adapter_a,
                                    adapter_A)
             cmd = cmd_gen.generate_fastp_cmd()
@@ -227,7 +223,7 @@ class fpmmp():
         return cmd_list
 
     def _block2b(self, adapter_a, adapter_A, final_output, project_name,
-                 current_dir, some_dir):
+                 some_dir):
         '''
         An internal method recreating the block of code in fpmmp.sh responsible
         for handling a_trim = True and h_filter = True.
@@ -235,7 +231,6 @@ class fpmmp():
         :param adapter_A: Reverse-read
         :param final_output: Internal Value
         :param project_name: Name of the project
-        :param current_dir: Internal Value
         :param some_dir: Internal Value
         :return: A list of strings to process the fastq files in trim_file.
         '''
@@ -250,7 +245,7 @@ class fpmmp():
         empty_file_list = []
 
         for fastq_file_path in self.trim_data:
-            cmd_gen = CmdGenerator(fastq_file_path, current_dir, final_output,
+            cmd_gen = CmdGenerator(fastq_file_path, final_output,
                                    project_name, self.nprocs, adapter_a,
                                    adapter_A)
 
@@ -306,7 +301,7 @@ if __name__ == '__main__':
                   human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                   chemistry)
 
-    cmds = fpmmp.generate_command()
+    cmds = fpmmp.generate_commands()
     for cmd in cmds:
         logging.debug(cmd)
     logging.debug('test run completed')

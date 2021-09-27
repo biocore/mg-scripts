@@ -2,12 +2,11 @@ from os.path import basename, join, split
 
 
 class CmdGenerator:
-    def __init__(self, fastq_path, current_dir, final_output, project_name,
+    def __init__(self, fastq_path, final_output, project_name,
                  nprocs, adapter_a, adapter_A):
         '''
 
         :param fastq_path: The path to a Fastq file.
-        :param current_dir: Internal Value
         :param final_output: Internal Value
         :param project_name: The name of the project.
         :param nprocs: The maximum number of processes/threads to use.
@@ -16,16 +15,16 @@ class CmdGenerator:
         '''
 
         self.fastq_path = fastq_path
+        self.current_dir = split(self.fastq_path)[0]
         self.parent_dir, self.filename1 = split(self.fastq_path)
         self.filename2 = self.filename1.replace('_R1_00', '_R2_00')
-        self.current_dir = current_dir
         self.final_output = final_output
         self.project_name = project_name
         self.nprocs = nprocs
         self.adapter_a = adapter_a
         self.adapter_A = adapter_A
-        self.filename1_short = basename(self.filename1) + '.fastq.gz'
-        self.filename2_short = basename(self.filename2) + '.fastq.gz'
+        self.filename1_short = self.filename1.replace('.fastq.gz', '')
+        self.filename2_short = self.filename2.replace('.fastq.gz', '')
 
         if self.adapter_a is None:
             if self.adapter_A is not None:
@@ -94,12 +93,12 @@ class CmdGenerator:
 
         return ' '.join(self.fastp_cmd_list)
 
-    def generate_full_toolchain_cmd(self, some_dir, human_phix_db_path):
+    def generate_full_toolchain_cmd(self, fastp_reports_dir, human_phix_db_path):
         '''
         Generates a command-line string for running fastp piping directly
          into minimap2 piping directly into samtools. The string is based
          on the parameters supplied to the object.
-        :param some_dir: Internal Value
+        :param fastp_reports_dir: Path to dir for storing json and html files
         :param human_phix_db_path: Path to the human_phix_db_path.mmi
         :return: A string suitable for executing in Popen() and the like.
         '''
@@ -107,9 +106,9 @@ class CmdGenerator:
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
-        json_output_path = join(some_dir, self.project_name, 'json',
+        json_output_path = join(fastp_reports_dir, self.project_name, 'json',
                                 self.filename1_short + '.json')
-        html_output_path = join(some_dir, self.project_name, 'html',
+        html_output_path = join(fastp_reports_dir, self.project_name, 'html',
                                 self.filename1_short + '.html')
 
         partial = join(self.final_output, self.project_name,
