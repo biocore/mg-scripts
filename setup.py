@@ -34,7 +34,7 @@ setup(name='sequence-processing-pipeline',
       url='https://github.com/biocore/mg-scripts',
       packages=['sequence_processing_pipeline'],
       scripts=glob('scripts/*'),
-      setup_requires=['nose', 'numpy', 'cython'],
+      setup_requires=['nose3', 'numpy', 'cython'],
       install_requires=[
         'click', 'requests', 'pandas', 'flake8',
         'metapool @ https://github.com/biocore/metagenomics_pooling_notebook/'
