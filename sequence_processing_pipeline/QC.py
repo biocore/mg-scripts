@@ -1,19 +1,13 @@
 import logging
-from os.path import exists, split, join  # , basename
+from os.path import exists, split, join
 from os import makedirs
-from sequence_processing_pipeline.CmdGenerator import CmdGenerator
+from sequence_processing_pipeline.CmdGenerator import QCCmdGenerator
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-#
-# Be sure to have environment load modules before running the cmd string.
-# module load fastp_0.20.1 samtools_1.12 minimap2_2.18' will be needed.
-#
-
-
-class fpmmp():
+class QC():
     def __init__(self, nprocs, trim_file, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                  chemistry):
@@ -175,9 +169,9 @@ class fpmmp():
             # However, let's assume that both should be None and if
             # only one is None, then that's an Error. CmdGenerator will
             # test for that. Just pass the parameters.
-            cmd_gen = CmdGenerator(fastq_file_path, products_dir,
-                                   project_name, self.nprocs, adapter_a,
-                                   adapter_A)
+            cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
+                                     project_name, self.nprocs, adapter_a,
+                                     adapter_A)
             cmd = cmd_gen.generate_fastp_cmd()
             logging.debug(f'Execute this command: {cmd}')
             cmd_list.append(cmd)
@@ -245,9 +239,9 @@ class fpmmp():
         empty_file_list = []
 
         for fastq_file_path in self.trim_data:
-            cmd_gen = CmdGenerator(fastq_file_path, products_dir,
-                                   project_name, self.nprocs, adapter_a,
-                                   adapter_A)
+            cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
+                                     project_name, self.nprocs, adapter_a,
+                                     adapter_A)
 
             cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
                                                       self.human_phix_db_path)
@@ -297,9 +291,9 @@ if __name__ == '__main__':
     h_filter = True
     chemistry = 'Default'
 
-    fpmmp = fpmmp(nprocs, trim_file, project_name, products_dir,
-                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
-                  chemistry)
+    fpmmp = QC(nprocs, trim_file, project_name, products_dir,
+               human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
+               chemistry)
 
     cmds = fpmmp.generate_commands()
     for cmd in cmds:

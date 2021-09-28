@@ -1,11 +1,12 @@
 from os.path import join, split
 
 
-class CmdGenerator:
+class QCCmdGenerator:
     def __init__(self, fastq_path, products_dir, project_name,
                  nprocs, adapter_a, adapter_A):
         '''
-
+        An object that generates the appropriate chain of commands, based on
+        the parameters given to it.
         :param fastq_path: The path to a Fastq file.
         :param products_dir: The root directory to place products.
         :param project_name: The name of the project.
