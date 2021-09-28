@@ -1,5 +1,4 @@
 import shutil
-
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import logging

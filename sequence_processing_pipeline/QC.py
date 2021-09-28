@@ -1,7 +1,7 @@
 import logging
 from os.path import exists, split, join
 from os import makedirs
-from sequence_processing_pipeline.CmdGenerator import QCCmdGenerator
+from sequence_processing_pipeline.QCCmdGenerator import QCCmdGenerator
 
 
 logging.basicConfig(level=logging.DEBUG)

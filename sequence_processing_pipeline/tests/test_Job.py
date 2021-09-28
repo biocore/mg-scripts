@@ -9,7 +9,8 @@ logging.basicConfig(level=logging.DEBUG)
 class TestJob(unittest.TestCase):
     def test_system_call(self):
         job = Job()
-        results = job._system_call('ls tests/bin')
+        results = job._system_call('ls sequence_processing_pipeline/'
+                                   'tests/bin')
 
         exp_stdout = {'bcl-convert', 'bcl2fastq'}
         exp_stderr = ""

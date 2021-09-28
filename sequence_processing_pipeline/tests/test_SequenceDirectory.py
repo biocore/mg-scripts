@@ -13,6 +13,8 @@ class TestSequenceDirectory(unittest.TestCase):
         # Job is a minimal base-class. Use lsJob to test basic Job
         # functionality.
 
+        # base_path = join('sequence_processing_pipeline', 'tests', 'data')
+
         # raise PipelineError if directory path does not exist.
         self.assertRaises(PipelineError, SequenceDirectory,
                           'tests/data/some_other_directory',
