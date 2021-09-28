@@ -36,7 +36,8 @@ class TestPipeline(unittest.TestCase):
         # shutil.rmtree(
         # 'sequence_processing_pipeline/tests/data/invalid_output_directory')
         shutil.rmtree(('sequence_processing_pipeline/tests'
-                       '/data/invalid_output_directory_two'))
+                       '/data/invalid_output_directory_two'),
+                      ignore_errors=False)
         exit(0)
         # test invalid input_directory
         self.assertRaises(PipelineError,
