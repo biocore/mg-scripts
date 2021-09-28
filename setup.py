@@ -36,7 +36,7 @@ setup(name='sequence-processing-pipeline',
       scripts=glob('scripts/*'),
       setup_requires=['numpy', 'cython'],
       install_requires=[
-        'click', 'requests', 'pandas', 'flake8', 'nose'
+        'click', 'requests', 'pandas', 'flake8', 'nose',
         'metapool @ https://github.com/charles-cowart/'
         'metagenomics_pooling_notebook-1/archive/master.zip'],
       classifiers=classifiers
