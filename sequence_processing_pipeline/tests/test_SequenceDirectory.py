@@ -3,6 +3,7 @@ from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
 from os.path import join
+from os import getcwd
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -10,6 +11,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestSequenceDirectory(unittest.TestCase):
     def test_job(self):
+        current_dir = getcwd()
+        logging.info("CURRENT_DIR: %s" % current_dir)
         # Job is a minimal base-class. Use lsJob to test basic Job
         # functionality.
 
