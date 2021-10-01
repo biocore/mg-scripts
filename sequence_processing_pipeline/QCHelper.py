@@ -1,13 +1,13 @@
 import logging
 from os.path import exists, split, join
-from os import makedirs
 from sequence_processing_pipeline.QCCmdGenerator import QCCmdGenerator
+from os import makedirs
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class QC():
+class QCHelper():
     def __init__(self, nprocs, trim_file, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                  chemistry):
@@ -43,8 +43,6 @@ class QC():
 
         self.nprocs = str(nprocs)
 
-        self.empty_file_list = None
-
         if adapter_a == 'NA':
             self.adapter_a = None
 
@@ -74,16 +72,6 @@ class QC():
         # simpler to validate state.
         # possibly add checks to ensure file is valid
         self.human_phix_db_path = human_phix_db_path
-
-        # there are two locations for empty_file_list. block2b() has 2 of its
-        # four entries going to empty_file_list.txt in a different path:
-        # CC: final_output renamed to products_dir
-        # $final_output/filtered_sequences/${project}/empty_file_list.txt
-        #
-        # I think this is a mistake, and all four should go to below for
-        # both block2a() and block2b().
-        tmp = join(self.products_dir, self.project_name, 'empty_file_list.txt')
-        self.empty_file_list_path = tmp
 
     def generate_commands(self):
         '''
@@ -115,32 +103,6 @@ class QC():
         logging.warning("QC.block2() called with a_trim == False.")
         return None
 
-    def get_empty_file_list(self):
-        '''
-        Return the contents of the empty_file_list.txt file. Useful as an
-        alternative to write_empty_file_list_to_path().
-        :return: A list of empty files.
-        '''
-        return self.get_empty_file_list()
-
-    def write_empty_file_list_to_path(self, path=None):
-        '''
-        Writes empty_file_list.txt to the supplied path.
-        :param path: If path is None, the default path will be used.
-        :return: the path to the written file
-        '''
-        some_path = path if path else self.empty_file_list_path
-
-        if not self.empty_file_list:
-            raise ValueError((f'There is nothing to write to {some_path}. '
-                              'Run generate_command() first.'))
-
-        with open(some_path, 'r') as f:
-            for line in self.empty_file_list:
-                f.write(f'{line}\n')
-
-        return some_path
-
     def _block2a(self, adapter_a, adapter_A, chemistry, project_name,
                  products_dir):
         '''
@@ -153,67 +115,31 @@ class QC():
         :param products_dir: The root directory to place products.
         :return: A list of strings to process the fastq files in trim_file.
         '''
-        logging.debug('QC.block2a() called.')
-        tmp = join(products_dir, project_name, 'trimmed_sequences')
+        logging.debug("Pathway: True/False")
+        logging.debug("Possible extra copying for "
+                      f"chemistry = '{chemistry}' disabled.")
 
+        tmp = join(products_dir, project_name, 'filtered_sequences')
         if not exists(tmp):
-            logging.debug(f'creating {tmp}')
             makedirs(tmp, exist_ok=True)
 
         cmd_list = []
-        # empty_file_list = []
 
         for fastq_file_path in self.trim_data:
-            # technically, legacy will run fastp without adapter_a and
-            # adapter_A if even one of then is None.
+            # technically, legacy behavior is to run fastp even if only
+            # one of the two variables (adapter_a, adapter_A) is None.
             # However, let's assume that both should be None and if
-            # only one is None, then that's an Error. CmdGenerator will
-            # test for that. Just pass the parameters.
+            # only one is None, then that's an Error.
+            # CmdGenerator will test for that.
             cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
                                      project_name, self.nprocs, adapter_a,
                                      adapter_A)
+
             cmd = cmd_gen.generate_fastp_cmd()
-            logging.debug(f'Execute this command: {cmd}')
+
+            logging.debug(f'New cmd generated: {cmd}')
             cmd_list.append(cmd)
 
-            '''
-            partial = join(products_dir, project_name, 'trimmed_sequences')
-
-            filename1_short, filename2_short = cmd.get_short_names()
-
-            trimmed_file_path1 = filename1_short + '.fastp.fastq.gz'
-            trimmed_file_path2 = filename2_short + '.fastp.fastq.gz'
-
-            trimmed_sequence1 = join(partial, trimmed_file_path1)
-            trimmed_sequence2 = join(partial, trimmed_file_path2)
-
-            size1 = stat(trimmed_sequence1).st_size
-            size2 = stat(trimmed_sequence2).st_size
-
-            # amplicon/16s data. include index files
-            if chemistry == 'Amplicon':
-                # cp ${filename_index1}* $products_dir/${project}/
-                #  trimmed_sequences
-                # cp ${filename_index2}* $products_dir/${project}/
-                #  trimmed_sequences
-                pass
-            else:
-                logging.warning(
-                    'QC.block2a() called w/chemistry != Amplicon')
-
-            if size1 <= 500 or size2 <= 500:
-                logging.warning(f'{filename1_short} is very small.')
-                # mv $products_dir/${project}/trimmed_sequences/
-                #  ${filename1_short}* $products_dir/${project}/
-                #  trimmed_sequences/${filename2_short}*
-                #   ${products_dir}/${project}/zero_files
-                empty_file_list.append(trimmed_sequence1)
-                empty_file_list.append(size1)
-                empty_file_list.append(trimmed_sequence2)
-                empty_file_list.append(size2)
-            '''
-
-        # self.empty_file_list = empty_file_list
         return cmd_list
 
     def _block2b(self, adapter_a, adapter_A, products_dir, project_name,
@@ -228,15 +154,13 @@ class QC():
         :param fastp_reports_dir: The root directory to place fastp reports.
         :return: A list of strings to process the fastq files in trim_file.
         '''
-        logging.debug('QC.block2b() called.')
-        logging.debug("here i am inside true/true")
+        logging.debug("Pathway: True/True")
 
         tmp = join(products_dir, project_name, 'filtered_sequences')
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 
         cmd_list = []
-        empty_file_list = []
 
         for fastq_file_path in self.trim_data:
             cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
@@ -245,57 +169,7 @@ class QC():
 
             cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
                                                       self.human_phix_db_path)
-
-            # filename1 = basename(fastq_file_path)
-            # filename1_short = basename(filename1) + '.fastq.gz'
-            # filename2 = filename1.replace('_R1_00', '_R2_00')
-            # filename2_short = basename(filename2) + '.fastq.gz'
-
-            # cd parent_dir
-
-            logging.debug(f'Execute this command: {cmd}')
+            logging.debug(f'New cmd generated: {cmd}')
             cmd_list.append(cmd)
 
-            '''
-            partial = join(products_dir, project_name, 'filtered_sequences')
-            tmp1 = join(partial, filename1_short + '.trimmed.fastq.gz')
-            size1 = stat(tmp1).st_size
-            tmp2 = join(partial, filename2_short + '.trimmed.fastq.gz')
-            size2 = stat(tmp2).st_size
-
-            if size1 <= 500 or size2 <= 500:
-                # mv something
-                empty_file_list.append(tmp1)
-                empty_file_list.append(size1)
-                empty_file_list.append(tmp2)
-                empty_file_list.append(size2)
-            '''
-
-        self.empty_file_list = empty_file_list
-
         return cmd_list
-
-
-if __name__ == '__main__':
-    logging.debug('test run started')
-
-    nprocs = 16
-    # assume current working directory is mg-scripts.
-    trim_file = './sequence_processing_pipeline/tests/data/split_file_0'
-    project_name = 'MyProject'
-    products_dir = 'MyFinalOutputDir'
-    human_phix_db_path = '/path/to/human-phix-db.mmi'
-    adapter_a = 'GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
-    adapter_A = 'GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT'
-    a_trim = True
-    h_filter = True
-    chemistry = 'Default'
-
-    fpmmp = QC(nprocs, trim_file, project_name, products_dir,
-               human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
-               chemistry)
-
-    cmds = fpmmp.generate_commands()
-    for cmd in cmds:
-        logging.debug(cmd)
-    logging.debug('test run completed')

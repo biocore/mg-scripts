@@ -2,14 +2,16 @@ from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import join, dirname
-from os import walk, remove
+from os import walk, remove, stat, listdir, makedirs, rmdir
 import logging
-from sequence_processing_pipeline.QC import QC
+from sequence_processing_pipeline.QCHelper import QCHelper
+from shutil import move
 
 
 class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path,
-                 queue_name, node_count, nprocs, wall_time_limit):
+                 output_directory, queue_name, node_count, nprocs,
+                 wall_time_limit):
         '''
         Submit a Torque job where the contents of run_dir are processed using
         fastp, minimap, and samtools. Human-genome sequences will be filtered
@@ -18,6 +20,8 @@ class QCJob(Job):
         :param sample_sheet_path: Path to a sample sheet file.
         :param fpmmp_path: Path to fpmmp.sh script in running environment.
         :param mmi_db_path: Path to human genome database in running env.
+        :param output_directory: Completed runs root path. E.g.:
+         /sequencing/ucsd_2/complete_runs
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
         :param nprocs: Number of processes to use in runing env.
@@ -34,17 +38,82 @@ class QCJob(Job):
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
         self.stdout_log_path = 'localhost:' + join(
-            self.run_dir, 'human-filtering.out.log')
+            self.run_dir, 'qc.out.log')
         self.stderr_log_path = 'localhost:' + join(
-            self.run_dir, 'human-filtering.err.log')
+            self.run_dir, 'qc.err.log')
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
+        self.products_dir = join(self.run_dir, 'products')
+
+        # POST-PROCESSING RELATED
+        # self.destination_directory = '/pscratch/seq_test/test_copy'
+        self.destination_directory = output_directory
+
+        # set to 500 bytes to avoid empty and small files that Qiita
+        # has trouble with.
+        self.minimum_bytes = 500
+
+    def _copy(self, reports_directory, source_directory,
+              destination_directory):
+        # move the fastp html and json directories up-front.
+        logging.debug('moving html directory')
+        move(join(reports_directory, 'html'), source_directory)
+        logging.debug('moving json directory')
+        move(join(reports_directory, 'json'), source_directory)
+
+        # delete the reports_directory
+        # this is because the directory should be empty, but often it is
+        # also a subdirectory of the directory we will be later copying
+        # to the final location.
+        try:
+            logging.debug('removing fastp_report_dir directory')
+            rmdir(reports_directory)
+        except OSError as e:
+            # This will usually be because there are still directories
+            # in the directory.
+            raise PipelineError(str(e))
+
+        # Now that the disk layout of the results is in the form
+        # expected by users in /sequencing... Move the entire results over
+        # to /sequencing or another final location w/one rsync call.
+        # For performance and reliability reasons, use rsync for copying.
+        self._system_call('rsync -avp %s %s' % (
+            source_directory, destination_directory))
+
+    def _filter(self, filtered_directory, empty_files_directory,
+                minimum_bytes):
+        empty_list = []
+
+        for entry in listdir(filtered_directory):
+            logging.debug(f'{entry} found.')
+            if '_R1_' in entry:
+                logging.debug(f'checking size of {entry}.')
+                reverse_entry = entry.replace('_R1_', '_R2_')
+                full_path = join(filtered_directory, entry)
+                full_path_reverse = join(filtered_directory, reverse_entry)
+                size1 = stat(full_path).st_size
+                logging.debug(f'checking size of {reverse_entry}.')
+                size2 = stat(full_path_reverse).st_size
+                if size1 <= minimum_bytes or size2 <= minimum_bytes:
+                    logging.debug(f'moving {entry} and {reverse_entry}'
+                                  f' to empty list.')
+                    empty_list.append(full_path)
+                    empty_list.append(full_path_reverse)
+
+        if empty_list:
+            # for now, we won't mind if the empty_files_directory exists
+            # already. We'll assume nothing is in it or if there are files
+            # they can be overwritten and don't hurt anything.
+            logging.debug(f'making directory {empty_files_directory}')
+            makedirs(empty_files_directory, exist_ok=True)
+
+        for item in empty_list:
+            logging.debug(f'moving {item}')
+            move(item, empty_files_directory)
 
     def run(self):
-        metadata = []
-
         for project in self.project_data:
             fastq_files = self._find_fastq_files(project['Sample_Project'])
             split_count = self._generate_split_count(len(fastq_files))
@@ -66,32 +135,29 @@ class QCJob(Job):
                                                     project['ForwardAdapter'],
                                                     project['ReverseAdapter'],
                                                     self.needs_a_trimming,
-                                                    project['HumanFiltering'],
-                                                    project['QiitaID'])
+                                                    project['HumanFiltering'])
 
-            d = {'project_name': project['Sample_Project']}
-            # pbs_job_array="--dependency=afterok:$pbs_job_id"
+            pbs_job_id = self.qsub(script_path, None, None)
+            logging.debug(f'QCJob {pbs_job_id} completed')
 
-            # TODO: replace w/job_info information, etc.
-            fastq_output = None
-            pbs_job_id = None
-            pbs_job_array = None
-            proj_array = None
+            source_dir = join(self.products_dir, project['Sample_Project'])
 
-            d['job_info'] = self.qsub(script_path, None, None)
-            d['fastqc_params'] = {}
-            d['fastqc_params']['seqdir'] = self.run_dir
-            # for now, define output_dir in two locations until the location
-            # is settled.
-            d['fastqc_params']['output_dir'] = join(
-                self.run_dir, 'human-filtering_output')
-            d['fastqc_params']['fastq_output'] = fastq_output
-            d['fastqc_params']['pbs_job_id'] = pbs_job_id
-            d['fastqc_params']['pbs_job_array'] = pbs_job_array
-            d['fastqc_params']['proj_array'] = proj_array
-            metadata.append(d)
+            # convention is for this directory to be under source_directory
+            filtered_directory = join(source_dir, 'filtered_sequences')
+            reports_directory = join(source_dir, 'fastp_reports_dir')
 
-        return metadata
+            # typically named 'zero_files'
+            empty_files_directory = join(source_dir, 'zero_files')
+
+            # perform needed filtering and copying of data once
+            # fastp/minimap2/samtools have completed.
+            logging.debug('possible copy to '
+                          '/qmounts/qiita_data/uploads/${qiita_proj}/ '
+                          "under qiita's ownership disabled.")
+            self._filter(filtered_directory, empty_files_directory,
+                         self.minimum_bytes)
+            self._copy(reports_directory, source_dir,
+                       self.destination_directory)
 
     def _generate_trim_files(self, fastq_files, split_count):
         def _chunk_list(some_list, n):
@@ -189,8 +255,7 @@ class QCJob(Job):
 
     def _generate_job_script(self, queue_name, node_count, nprocs,
                              wall_time_limit, split_count, project_name,
-                             adapter_a, adapter_A, a_trim, h_filter,
-                             qiita_proj):
+                             adapter_a, adapter_A, a_trim, h_filter):
         lines = []
 
         lines.append("#!/bin/bash")
@@ -259,11 +324,11 @@ class QCJob(Job):
         lines.append("cd %s" % self.run_dir)
         lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
 
-        products_dir = join(self.run_dir, 'products', project_name)
+        project_products_dir = join(self.products_dir, project_name)
 
-        qc = QC(self.nprocs, self.trim_file, project_name, products_dir,
-                self.mmi_db_path, adapter_a, adapter_A, a_trim, h_filter,
-                self.chemistry)
+        qc = QCHelper(self.nprocs, self.trim_file, project_name,
+                      project_products_dir, self.mmi_db_path, adapter_a,
+                      adapter_A, a_trim, h_filter, self.chemistry)
 
         # append the commands generated by fpmmp to the job script.
         lines += qc.generate_commands()
@@ -278,13 +343,3 @@ class QCJob(Job):
                 f.write("%s\n" % line)
 
         return job_script_path
-
-
-if __name__ == '__main__':
-    import json
-
-    hf2job = QCJob('.', './good-sample-sheet.csv', '.', './fpmmp.sh', 16)
-    results = hf2job._process_sample_sheet('./good-sample-sheet.csv')
-    for key in results:
-        print(key)
-        print(json.dumps(results[key], indent=2))

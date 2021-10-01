@@ -108,16 +108,14 @@ class QCCmdGenerator:
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
-        json_output_path = join(fastp_reports_dir, self.project_name, 'json',
+        json_output_path = join(self.project_name, fastp_reports_dir, 'json',
                                 self.filename1_short + '.json')
-        html_output_path = join(fastp_reports_dir, self.project_name, 'html',
+        html_output_path = join(self.project_name, fastp_reports_dir, 'html',
                                 self.filename1_short + '.html')
 
         partial = join(self.products_dir, self.project_name,
                        'filtered_sequences')
 
-        # TODO: this string might be different. confirm it needs
-        #  trimmed.fastq.gz
         path1 = join(partial, self.filename1_short + '.trimmed.fastq.gz')
         path2 = join(partial, self.filename2_short + '.trimmed.fastq.gz')
 

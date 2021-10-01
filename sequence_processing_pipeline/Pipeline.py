@@ -67,6 +67,9 @@ class Pipeline:
         logging.debug("nprocs: %d" % nprocs)
         self.output_dir = output_directory
         logging.debug("Output Directory: %s" % self.output_dir)
+        # location in /sequencing directory or other directory
+        # must end in name of the form 200nnn_xnnnnn_nnnn_xxxxxxxxxx or
+        # similar.
         self.final_output_dir = final_output_directory
         logging.debug("Final Output Directory: %s" % self.final_output_dir)
 
@@ -95,11 +98,10 @@ class Pipeline:
         :return:
         '''
         try:
-            # TODO: Add configuration file to populate these hard-coded values
-            #  - possibly provide a broker
             sdo = SequenceDirectory(self.run_dir,
                                     external_sample_sheet=sample_sheet_path)
             sample_sheet_params = sdo.process()
+
             ss_path = sample_sheet_params['sample_sheet_path']
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
             bcl2fastq_job = ConvertJob(self.run_dir,
@@ -113,24 +115,17 @@ class Pipeline:
 
             bcl2fastq_job.run()
 
-            human_filter_job = QCJob(self.run_dir,
-                                     sample_sheet_params['sample_sheet_path'],
-                                     QC_CONFIG['fpmmp'],
-                                     QC_CONFIG['mmi_db'],
-                                     QUEUE_NAME,
-                                     QC_CONFIG['nodes'],
-                                     QC_CONFIG['nprocs'],
-                                     QC_CONFIG['walltime'])
+            qc_job = QCJob(self.run_dir,
+                           sample_sheet_params['sample_sheet_path'],
+                           QC_CONFIG['fpmmp'],
+                           QC_CONFIG['mmi_db'],
+                           self.final_output_dir,
+                           QUEUE_NAME,
+                           QC_CONFIG['nodes'],
+                           QC_CONFIG['nprocs'],
+                           QC_CONFIG['walltime'])
 
-            human_filter_job.run()
-
-            # output_dir = 'foo'
-            # project = 'foo'
-
-            # fast_qc_job = FastQCJOb(self.run_dir, output_dir, self.nprocs,
-            # project)
-
-            # fast_qc_job.run()
+            qc_job.run()
 
         except PipelineError as e:
             logging.error(e)
