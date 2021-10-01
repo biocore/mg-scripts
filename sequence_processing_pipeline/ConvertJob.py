@@ -192,13 +192,15 @@ class ConvertJob(Job):
         else:
             lines.append(('%s '
                           '--sample-sheet %s '
-                          '--output-directory %s '
-                          '--bcl-input-directory . '
-                          '--bcl-num-decompression-threads 8 '
-                          '--bcl-num-conversion-threads 8 '
-                          '--bcl-num-compression-threads 16 '
-                          '--bcl-num-parallel-tiles 8 '
-                          '--bcl-sampleproject-subdirectories true --force') %
+                          '--minimum-trimmed-read-length 1 '
+                          '--mask-short-adapter-reads 1 '
+                          '-R . '
+                          '-o %s '
+                          '--loading-threads 8 '
+                          '--processing-threads 8 '
+                          '--writing-threads 2 '
+                          '--create-fastq-for-index-reads '
+                          '--ignore-missing-positions ') %
                          (self.bcl_tool['executable_path'],
                           self.sample_sheet_path,
                           self.output_directory))
