@@ -1,0 +1,36 @@
+{
+  "configuration": {
+    "pipeline": {
+      "younger_than": 90,
+      "older_than": 24,
+      "archive_path": "/sequencing/lab_name/completed_runs"
+    },
+    "bcl2fastq": {
+      "nodes": 1,
+      "nprocs": 16,
+      "queue": "qiita",
+      "wallclock_time_in_hours": 36,
+      "executable_path": "/path/to/bcl2fastq",
+      "per_process_memory_limit": "10gb"
+    },
+    "bcl-convert": {
+      "nodes": 1,
+      "nprocs": 16,
+      "queue": "qiita",
+      "wallclock_time_in_hours": 36,
+      "executable_path": "/path/to/bcl-convert",
+      "per_process_memory_limit": "10gb"
+    },
+    "qc": {
+      "nodes": 1,
+      "nprocs": 16,
+      "queue": "qiita",
+      "wallclock_time_in_hours": 36,
+      "mmi_db": "/path/to/human-mmi.db",
+      "fastp_executable_path": "/path/to/fastp",
+      "minimap2_executable_path": "/path/to/minimap2",
+      "samtools_executable_path": "/path/to/samtools",
+      "per_process_memory_limit": "10gb"
+    }
+  }
+}

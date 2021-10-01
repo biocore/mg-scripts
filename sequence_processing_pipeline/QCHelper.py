@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 class QCHelper():
     def __init__(self, nprocs, trim_file, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
-                 chemistry):
+                 chemistry, fastp_path, minimap2_path, samtools_path):
         '''
         Re-implements the non-copying functionality of fpmmp.py in Python.
         Generates an appropriate command-line string to run fastp and
@@ -25,6 +25,9 @@ class QCHelper():
         :param a_trim: A boolean. (Needs Adapter Trimming?)
         :param h_filter: A boolean. (Needs Human Filtering?)
         :param chemistry: Usually 'Default' or 'Amplicon'. From sample-sheet.
+        :param fastp_path: The path to the fastp executable
+        :param minimap2_path: The path to the minimap2 executable
+        :param samtools_path: The path to the samtools executable
         '''
 
         # For now we'll assume that after using module, fastp, minimap2, and
@@ -38,6 +41,10 @@ class QCHelper():
         self.a_trim = a_trim
         self.h_filter = h_filter
         self.chemistry = chemistry
+        self.fastp_path = fastp_path
+        self.minimap2_path = minimap2_path
+        self.samtools_path = samtools_path
+
         if nprocs > 16:
             nprocs = 16
 
@@ -133,7 +140,8 @@ class QCHelper():
             # CmdGenerator will test for that.
             cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
                                      project_name, self.nprocs, adapter_a,
-                                     adapter_A)
+                                     adapter_A, self.fastp_path,
+                                     self.minimap2_path, self.samtools_path)
 
             cmd = cmd_gen.generate_fastp_cmd()
 
@@ -165,7 +173,8 @@ class QCHelper():
         for fastq_file_path in self.trim_data:
             cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
                                      project_name, self.nprocs, adapter_a,
-                                     adapter_A)
+                                     adapter_A, self.fastp_path,
+                                     self.minimap2_path, self.samtools_path)
 
             cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
                                                       self.human_phix_db_path)

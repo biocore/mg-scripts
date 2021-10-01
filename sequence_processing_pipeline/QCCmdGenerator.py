@@ -3,7 +3,8 @@ from os.path import join, split
 
 class QCCmdGenerator:
     def __init__(self, fastq_path, products_dir, project_name,
-                 nprocs, adapter_a, adapter_A):
+                 nprocs, adapter_a, adapter_A, fastp_path, minimap2_path,
+                 samtools_path):
         '''
         An object that generates the appropriate chain of commands, based on
         the parameters given to it.
@@ -26,6 +27,9 @@ class QCCmdGenerator:
         self.adapter_A = adapter_A
         self.filename1_short = self.filename1.replace('.fastq.gz', '')
         self.filename2_short = self.filename2.replace('.fastq.gz', '')
+        self.fastp_path = fastp_path
+        self.minimap2_path = minimap2_path
+        self.samtools_path = samtools_path
 
         if self.adapter_a is None:
             if self.adapter_A is not None:
@@ -119,7 +123,7 @@ class QCCmdGenerator:
         path1 = join(partial, self.filename1_short + '.trimmed.fastq.gz')
         path2 = join(partial, self.filename2_short + '.trimmed.fastq.gz')
 
-        self.fastp_cmd_list = ['fastp']
+        self.fastp_cmd_list = [self.fastp_path]
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
@@ -141,7 +145,7 @@ class QCCmdGenerator:
         self.fastp_cmd_list.append(html_output_path)
         self.fastp_cmd_list.append('--stdout')
 
-        self.minimap_cmd_list = ['minimap2']
+        self.minimap_cmd_list = [self.minimap2_path]
         self.minimap_cmd_list.append('-ax')
         self.minimap_cmd_list.append('sr')
         self.minimap_cmd_list.append('-t')
@@ -150,7 +154,7 @@ class QCCmdGenerator:
         self.minimap_cmd_list.append('-')
         self.minimap_cmd_list.append('-a')
 
-        self.samtools_cmd_list = ['samtools']
+        self.samtools_cmd_list = [self.samtools_path]
         self.samtools_cmd_list.append('fastq')
         self.samtools_cmd_list.append('-@')
         self.samtools_cmd_list.append(self.nprocs)

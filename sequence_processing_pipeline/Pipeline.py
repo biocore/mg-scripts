@@ -7,44 +7,44 @@ from time import time as epoch_time
 import logging
 import os
 from os.path import join, exists
-
-
-QUEUE_NAME = 'qiita'
-
-BCL2FASTQ_CONFIG = {
-    'nodes': 1,
-    'nprocs': 16,
-    'walltime': 36,  # hrs
-}
-
-QC_CONFIG = {
-    'nodes': 1,
-    'nprocs': 16,
-    'walltime': 36,  # hrs
-    'mmi_db': '/databases/minimap2/human-phix-db.mmi',
-    'fpmmp': 'fpmmp.beautified.sh'
-}
+import json
+from json.decoder import JSONDecodeError
 
 
 class Pipeline:
-    def __init__(self, input_directory, output_directory,
-                 final_output_directory, younger_than=48,
-                 older_than=24, nprocs=16):
+    def __init__(self, configuration_file_path, input_directory,
+                 output_directory):
 
-        if output_directory == final_output_directory:
+        try:
+            f = open(configuration_file_path)
+            self.configuration = json.load(f)
+        except FileNotFoundError:
+            raise PipelineError(f'{configuration_file_path} does not exist.')
+        except JSONDecodeError:
+            raise PipelineError(f'{configuration_file_path} is not a valid ',
+                                'json file')
+
+        config = self.configuration['pipeline']
+        younger_than = config['younger_than']
+        older_than = config['older_than']
+        archive_path = config['archive_path']
+
+        if output_directory == archive_path:
             raise PipelineError(
                 "output_directory '%s' is the same as "
-                "final_output_directory '%s'." % (
-                    output_directory, final_output_directory))
+                "archive_path '%s'." % (
+                    output_directory, archive_path))
 
         self._directory_check(input_directory, create=False)
         self._directory_check(output_directory, create=True)
-        self._directory_check(final_output_directory, create=True)
+        self._directory_check(archive_path, create=True)
 
+        '''
         if nprocs > 16:
             raise PipelineError('nprocs cannot exceed 16.')
         elif nprocs < 1:
             raise PipelineError('nprocs cannot be less than 1.')
+        '''
 
         if older_than >= younger_than:
             raise PipelineError(
@@ -63,14 +63,14 @@ class Pipeline:
         logging.debug(s)
         s = "Filter directories older than %d hours old" % older_than
         logging.debug(s)
-        self.nprocs = nprocs
-        logging.debug("nprocs: %d" % nprocs)
+        # self.nprocs = nprocs
+        # logging.debug("nprocs: %d" % nprocs)
         self.output_dir = output_directory
         logging.debug("Output Directory: %s" % self.output_dir)
         # location in /sequencing directory or other directory
         # must end in name of the form 200nnn_xnnnnn_nnnn_xxxxxxxxxx or
         # similar.
-        self.final_output_dir = final_output_directory
+        self.final_output_dir = archive_path
         logging.debug("Final Output Directory: %s" % self.final_output_dir)
 
     def _directory_check(self, directory_path, create=False):
@@ -104,26 +104,34 @@ class Pipeline:
 
             ss_path = sample_sheet_params['sample_sheet_path']
             fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
-            bcl2fastq_job = ConvertJob(self.run_dir,
-                                       ss_path,
-                                       fastq_output_directory,
-                                       True,
-                                       QUEUE_NAME,
-                                       BCL2FASTQ_CONFIG['nodes'],
-                                       BCL2FASTQ_CONFIG['nprocs'],
-                                       BCL2FASTQ_CONFIG['walltime'])
 
-            bcl2fastq_job.run()
+            # TODO: Add checks to ensure fields are defined.
+            config = self.configuration['bcl-convert']
+            convert_job = ConvertJob(self.run_dir,
+                                     ss_path,
+                                     fastq_output_directory,
+                                     True,
+                                     config['queue'],
+                                     config['nodes'],
+                                     config['nprocs'],
+                                     config['wallclock_time_in_hours'] * 3600,
+                                     config['per_process_memory_limit'])
 
+            convert_job.run()
+
+            config = self.configuration['qc']
             qc_job = QCJob(self.run_dir,
                            sample_sheet_params['sample_sheet_path'],
-                           QC_CONFIG['fpmmp'],
-                           QC_CONFIG['mmi_db'],
+                           config['mmi_db'],
                            self.final_output_dir,
-                           QUEUE_NAME,
-                           QC_CONFIG['nodes'],
-                           QC_CONFIG['nprocs'],
-                           QC_CONFIG['walltime'])
+                           config['queue'],
+                           config['nodes'],
+                           config['nprocs'],
+                           config['wallclock_time_in_hours'] * 3600,
+                           config['per_process_memory_limit'],
+                           config['fastp_executable_path'],
+                           config['minimap2_executable_path'],
+                           config['samtools_executable_path'])
 
             qc_job.run()
 

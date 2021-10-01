@@ -1,5 +1,5 @@
 from os import makedirs
-from os.path import exists, split
+from os.path import exists, split, join
 from re import search
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
@@ -8,10 +8,46 @@ import logging
 
 
 class Job:
-    def __init__(self):
-        pass
+    def __init__(self, run_dir, job_name):
+        self.run_dir = run_dir
+        self.stdout_log_path = 'localhost:' + join(self.run_dir,
+                                                   f'{self.job_name}.out.log')
+        self.stderr_log_path = 'localhost:' + join(self.run_dir,
+                                                   f'{self.job_name}.err.log')
+
+        self.script_count = 0
+
+    def generate_job_script_path(self):
+        '''
+        Generate unique paths and filenames to create a Torque job-script with.
+        :return: A triplet of strings for job_script_path, out, and err logs.
+        '''
+        # Note: Not all Job sub-classes will submit jobs to Torque, and not
+        # all sub-classes will submit just one job to Torque. This method can
+        # be used to generate as many unique paths as is needed for your Job,
+        # following a standard convention.
+        self.script_count += 1
+
+        job_script_path = join(self.run_dir,
+                               f'{self.__name__}_{self.script_count}.sh')
+
+        output_log_path = join('localhost:',
+                               self.run_dir,
+                               f'{self.__name__}_{self.script_count}.out.log')
+
+        error_log_path = join('localhost:',
+                              self.run_dir,
+                              f'{self.__name__}_{self.script_count}.err.log')
+
+        return (job_script_path, output_log_path, error_log_path)
 
     def run(self):
+        '''
+        Since a Job object can encapsulate one or more qsub() or system()
+        calls, the base run() method remains unimplemented. It is the job of
+        each sub-class to define what needs to be run in order to generate the
+        expected output.
+        '''
         raise PipelineError("Base class run() method not implemented.")
 
     def _which(self, file_name):

@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import walk
-from os.path import join, abspath, exists
+from os.path import join, abspath, exists, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -10,7 +10,7 @@ import re
 class ConvertJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory,
                  use_bcl_convert, queue_name, node_count,
-                 nprocs, wall_time_limit):
+                 nprocs, wall_time_limit, pmem):
         '''
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -23,22 +23,20 @@ class ConvertJob(Job):
         :param nprocs: The maximum number of parallel processes to use.
         :param wall_time_limit: A hard time limit to bound processing.
         '''
-        super().__init__()
-        self.run_dir = abspath(run_dir)
+        super().__init__(abspath(run_dir), self.__name__)
         self._directory_check(self.run_dir, create=False)
         self._validate_bcl_directory()
 
         tmp = join(self.run_dir, 'Data', 'Fastq')
         # create the directory to store fastq files
         self._directory_check(tmp, create=True)
-        self.job_script_path = join(self.run_dir, 'ConvertBCL2Fastq.sh')
-        self.stdout_log_path = 'localhost:' + join(
-            self.run_dir, 'ConvertBCL2Fastq.out.log')
-        self.stderr_log_path = 'localhost:' + join(
-            self.run_dir, 'ConvertBCL2Fastq.err.log')
-        # self.unique_name is of the form 210518_A00953_0305_AHCJT7DSX2
-        self.unique_name = self.run_dir.split('/')[-1]
-        self.job_name = f"ConvertBCL2Fastq_{self.unique_name}"
+        # generate_job_script_path() also generates numbered logs for stdout
+        # and stderr, but we won't need these. ConvertJob() just needs one
+        # pair of logs.
+        self.job_script_path, tmp1, tmp2 = self.generate_job_script_path()
+        # self.run_id is of the form 210518_A00953_0305_AHCJT7DSX2
+        self.run_id = basename(self.run_dir)
+        self.job_name = f"ConvertBCL2Fastq_{self.run_id}"
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
         self.use_bcl_convert = use_bcl_convert
@@ -46,23 +44,15 @@ class ConvertJob(Job):
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
+        self.pmem = pmem
 
         d = {'bcl2fastq': {}, 'bcl-convert': {}}
 
         d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
         d['bcl2fastq']['queue_name'] = 'qiita'
-        tmp = f'localhost: {self.run_dir}/BCL2FASTQ.out.log'
-        d['bcl2fastq']['output_log_name'] = tmp
-        tmp = f'localhost: {self.run_dir}/BCL2FASTQ.err.log'
-        d['bcl2fastq']['error_log_name'] = tmp
         d['bcl2fastq']['binary_name'] = 'bcl2fastq'
-
         d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
         d['bcl-convert']['queue_name'] = 'qiita'
-        tmp = f'localhost: {self.run_dir}/BCLCONVERT.out.log'
-        d['bcl-convert']['output_log_name'] = tmp
-        tmp = f'localhost: {self.run_dir}/BCLCONVERT.err.log'
-        d['bcl-convert']['error_log_name'] = tmp
         d['bcl-convert']['binary_name'] = 'bcl-convert'
 
         self.bcl_tool = d['bcl-convert'] if use_bcl_convert else d['bcl2fastq']
@@ -162,11 +152,11 @@ class ConvertJob(Job):
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
-        lines.append("#PBS -l pmem=10gb")
+        lines.append(f"#PBS -l pmem={self.pmem}")
 
         # --output -> -o
-        lines.append(f"#PBS -o {self.bcl_tool['output_log_name']}")
-        lines.append(f"#PBS -e {self.bcl_tool['error_log_name']}")
+        lines.append(f"#PBS -o {self.stdout_log_path}")
+        lines.append(f"#PBS -e {self.stderr_log_path}")
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1

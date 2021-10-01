@@ -9,9 +9,10 @@ from shutil import move
 
 
 class QCJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, fpmmp_path, mmi_db_path,
+    def __init__(self, run_dir, sample_sheet_path, mmi_db_path,
                  output_directory, queue_name, node_count, nprocs,
-                 wall_time_limit):
+                 wall_time_limit, pmem, fastp_path, minimap2_path,
+                 samtools_path):
         '''
         Submit a Torque job where the contents of run_dir are processed using
         fastp, minimap, and samtools. Human-genome sequences will be filtered
@@ -26,26 +27,29 @@ class QCJob(Job):
         :param node_count: Number of nodes to use in running env.
         :param nprocs: Number of processes to use in runing env.
         :param wall_time_limit: Hard wall-clock-time limit for processes.
+        :param pmem: String representing memory limit per process E.g.: '10gb'
+        :param fastp_path: The path to the fastp executable
+        :param minimap2_path: The path to the minimap2 executable
+        :param samtools_path: The path to the samtools executable
         '''
-        super().__init__()
-        self.run_dir = run_dir
+        # for now, keep this run_dir instead of abspath(run_dir)
+        super().__init__(run_dir, self.__name__)
         metadata = self._process_sample_sheet(sample_sheet_path)
         self.project_data = metadata['projects']
         self.needs_a_trimming = metadata['needs_adapter_trimming']
         self.trim_file = 'split_file_'
-        self.fpmmp_path = fpmmp_path
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
-        self.stdout_log_path = 'localhost:' + join(
-            self.run_dir, 'qc.out.log')
-        self.stderr_log_path = 'localhost:' + join(
-            self.run_dir, 'qc.err.log')
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
         self.products_dir = join(self.run_dir, 'products')
+        self.pmem = pmem
+        self.fastp_path = fastp_path
+        self.minimap2_path = minimap2_path
+        self.samtools_path = samtools_path
 
         # POST-PROCESSING RELATED
         # self.destination_directory = '/pscratch/seq_test/test_copy'
@@ -135,7 +139,8 @@ class QCJob(Job):
                                                     project['ForwardAdapter'],
                                                     project['ReverseAdapter'],
                                                     self.needs_a_trimming,
-                                                    project['HumanFiltering'])
+                                                    project['HumanFiltering'],
+                                                    self.pmem)
 
             pbs_job_id = self.qsub(script_path, None, None)
             logging.debug(f'QCJob {pbs_job_id} completed')
@@ -255,8 +260,18 @@ class QCJob(Job):
 
     def _generate_job_script(self, queue_name, node_count, nprocs,
                              wall_time_limit, split_count, project_name,
-                             adapter_a, adapter_A, a_trim, h_filter):
+                             adapter_a, adapter_A, a_trim, h_filter, pmem):
         lines = []
+
+        # unlike w/ConvertBCL2FastqJob, multiple qc.sh scripts will be
+        # generated, one for each project defined in the sample sheet.
+        # since we will generate a job-script for each project, we won't use
+        # Job.stdout_log_path and stderr_log_path. Instead we'll use the
+        # numbered ones provided by generate_job_script_path().
+        tmp1, tmp2, tmp3 = self.generate_job_script_path()
+        job_script_path = tmp1
+        output_log_path = tmp2
+        error_log_path = tmp3
 
         lines.append("#!/bin/bash")
         # The Torque equiv for calling SBATCH on this script and supplying
@@ -301,12 +316,11 @@ class QCJob(Job):
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
-        # lines.append("#PBS -l pmem=10gb")
-        # revisit the mem stuff later.
+        lines.append(f"#PBS -l pmem={pmem}")
 
         # --output -> -o
-        lines.append("#PBS -o %s" % self.stdout_log_path)
-        lines.append("#PBS -e %s" % self.stderr_log_path)
+        lines.append("#PBS -o %s" % output_log_path)
+        lines.append("#PBS -e %s" % error_log_path)
 
         # array input files are labeled file0, file1,...filen-1
         lines.append("#PBS -t 0-%d" % (split_count - 1))
@@ -328,14 +342,12 @@ class QCJob(Job):
 
         qc = QCHelper(self.nprocs, self.trim_file, project_name,
                       project_products_dir, self.mmi_db_path, adapter_a,
-                      adapter_A, a_trim, h_filter, self.chemistry)
+                      adapter_A, a_trim, h_filter, self.chemistry,
+                      self.fastp_path, self.minimap2_path, self.samtools_path)
 
         # append the commands generated by fpmmp to the job script.
         lines += qc.generate_commands()
 
-        # unlike w/ConvertBCL2FastqJob, multiple qc.sh scripts will be
-        # generated, one for each project defined in the sample sheet.
-        job_script_path = join(self.run_dir, 'qc-%s.sh' % project_name)
         with open(job_script_path, 'w') as f:
             logging.debug("Writing job script to %s" % job_script_path)
             for line in lines:
