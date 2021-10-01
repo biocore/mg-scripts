@@ -1,4 +1,3 @@
-# import shutil
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import logging
@@ -58,18 +57,18 @@ class TestPipeline(unittest.TestCase):
         # self.assertTrue(exists(inv_final_output_directory))
 
         # nprocs exceeds 16 nproc limit
-        self.assertRaises(PipelineError, Pipeline, input_directory,
-                          output_directory, final_output_directory, nprocs=18)
+        # self.assertRaises(PipelineError, Pipeline, input_directory,
+        #                  output_directory, final_output_directory, nprocs=18)
 
         # nprocs must be greater than 0.
-        self.assertRaises(PipelineError, Pipeline, input_directory,
-                          output_directory, final_output_directory, nprocs=0)
+        # self.assertRaises(PipelineError, Pipeline, input_directory,
+        #                  output_directory, final_output_directory, nprocs=0)
 
         # window of time must be legitimate.
         # (older_than can't be less than or equal to younger_than.)
-        self.assertRaises(PipelineError, Pipeline, input_directory,
-                          output_directory, final_output_directory,
-                          younger_than=24, older_than=24)
+        # self.assertRaises(PipelineError, Pipeline, input_directory,
+        #                   output_directory, final_output_directory,
+        #                   younger_than=24, older_than=24)
 
         # using all default parameters should not raise an Error.
         msg = None
