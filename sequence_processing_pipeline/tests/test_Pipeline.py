@@ -2,6 +2,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import logging
 import unittest
+from os import makedirs
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -9,6 +10,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestPipeline(unittest.TestCase):
     def test_creation(self):
+        makedirs('sequence_processing_pipeline/tests/data/sequencing'
+                 '/knight_lab_completed_runs', exist_ok=True)
         input_directory = 'tests/data/sample-sequence-directory'
         output_directory = 'tests/data/output_directory'
         inv_input_directory = 'tests/data/invalid_input_directory'
