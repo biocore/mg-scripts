@@ -25,13 +25,13 @@ class TestConvertJob(unittest.TestCase):
         # ConvertJob should assert due to invalid_input_directory.
         self.assertRaises(PipelineError, ConvertJob, inv_input_directory,
                           sample_sheet_path, output_directory, True, 'qiita',
-                          1, 16, 24)
+                          1, 16, 24, '10gb')
 
         # ConvertJob should assert due run_dir/Data directory being
         # devoid of BCL files.
         self.assertRaises(PipelineError, ConvertJob, run_dir,
                           sample_sheet_path, output_directory, True, 'qiita',
-                          1, 16, 24)
+                          1, 16, 24, '10gb')
 
         # Create fake BCL files in the directory structure seen in real-world
         # examples.
@@ -49,7 +49,7 @@ class TestConvertJob(unittest.TestCase):
         msg = None
         try:
             ConvertJob(run_dir, sample_sheet_path, output_directory, True,
-                       'qiita', 1, 16, 24)
+                       'qiita', 1, 16, 24, '10gb')
         except PipelineError as e:
             msg = str(e)
 

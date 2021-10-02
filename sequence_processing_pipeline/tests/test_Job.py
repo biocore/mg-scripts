@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestJob(unittest.TestCase):
     def test_system_call(self):
-        job = Job()
+        job = Job('/path/to/run_dir', '200nnn_xnnnnn_nnnn_xxxxxxxxxx')
         results = job._system_call('ls sequence_processing_pipeline/'
                                    'tests/bin')
 
