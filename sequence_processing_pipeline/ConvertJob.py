@@ -23,7 +23,8 @@ class ConvertJob(Job):
         :param nprocs: The maximum number of parallel processes to use.
         :param wall_time_limit: A hard time limit to bound processing.
         '''
-        super().__init__(abspath(run_dir), self.__name__)
+        self.job_name = 'ConvertJob'
+        super().__init__(abspath(run_dir), self.job_name)
         self._directory_check(self.run_dir, create=False)
         self._validate_bcl_directory()
 

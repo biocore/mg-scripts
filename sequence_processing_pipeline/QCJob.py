@@ -33,7 +33,8 @@ class QCJob(Job):
         :param samtools_path: The path to the samtools executable
         '''
         # for now, keep this run_dir instead of abspath(run_dir)
-        super().__init__(run_dir, self.__name__)
+        self.job_name = 'QCJob'
+        super().__init__(run_dir, self.job_name)
         metadata = self._process_sample_sheet(sample_sheet_path)
         self.project_data = metadata['projects']
         self.needs_a_trimming = metadata['needs_adapter_trimming']

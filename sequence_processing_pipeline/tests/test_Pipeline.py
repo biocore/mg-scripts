@@ -11,26 +11,11 @@ class TestPipeline(unittest.TestCase):
     def test_creation(self):
         input_directory = 'tests/data/sample-sequence-directory'
         output_directory = 'tests/data/output_directory'
-        final_output_directory = 'tests/data/final_output_directory'
         inv_input_directory = 'tests/data/invalid_input_directory'
+        configuration_file = 'sequence_processing_pipeline/configuration.json'
         # inv_output_directory = 'tests/data/invalid_output_directory'
         # inv_final_output_directory =
         #  'tests/data/invalid_output_directory_two'
-
-        # all parameters defined
-        # pipeline = Pipeline(input_directory,
-        #                    output_directory,
-        #                    final_output_directory,
-        #                    younger_than=48,
-        #                    older_than=24,
-        #                    nprocs=16)
-
-        # test output_directory == final_output_directory
-        self.assertRaises(PipelineError,
-                          Pipeline,
-                          input_directory,
-                          output_directory,
-                          output_directory)
 
         # shutil.rmtree(
         # 'sequence_processing_pipeline/tests/data/invalid_output_directory')
@@ -41,8 +26,9 @@ class TestPipeline(unittest.TestCase):
         # test invalid input_directory
         self.assertRaises(PipelineError,
                           Pipeline,
+                          configuration_file,
                           inv_input_directory,
-                          output_directory, final_output_directory)
+                          output_directory)
 
         # test non-existant output_directory
         # pipeline = Pipeline(input_directory,
@@ -73,7 +59,7 @@ class TestPipeline(unittest.TestCase):
         # using all default parameters should not raise an Error.
         msg = None
         try:
-            Pipeline(input_directory, output_directory, final_output_directory)
+            Pipeline(configuration_file, input_directory, output_directory)
         except PipelineError as e:
             msg = str(e)
 

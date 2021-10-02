@@ -17,13 +17,15 @@ class Pipeline:
 
         try:
             f = open(configuration_file_path)
-            self.configuration = json.load(f)
+            self.configuration = json.load(f)['configuration']
+            f.close()
         except FileNotFoundError:
             raise PipelineError(f'{configuration_file_path} does not exist.')
         except JSONDecodeError:
             raise PipelineError(f'{configuration_file_path} is not a valid ',
                                 'json file')
 
+        logging.debug(json.dumps(self.configuration, indent=2))
         config = self.configuration['pipeline']
         younger_than = config['younger_than']
         older_than = config['older_than']

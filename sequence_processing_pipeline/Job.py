@@ -10,6 +10,7 @@ import logging
 class Job:
     def __init__(self, run_dir, job_name):
         self.run_dir = run_dir
+        self.job_name = job_name
         self.stdout_log_path = 'localhost:' + join(self.run_dir,
                                                    f'{self.job_name}.out.log')
         self.stderr_log_path = 'localhost:' + join(self.run_dir,
@@ -29,15 +30,15 @@ class Job:
         self.script_count += 1
 
         job_script_path = join(self.run_dir,
-                               f'{self.__name__}_{self.script_count}.sh')
+                               f'{self.job_name}_{self.script_count}.sh')
 
         output_log_path = join('localhost:',
                                self.run_dir,
-                               f'{self.__name__}_{self.script_count}.out.log')
+                               f'{self.job_name}_{self.script_count}.out.log')
 
         error_log_path = join('localhost:',
                               self.run_dir,
-                              f'{self.__name__}_{self.script_count}.err.log')
+                              f'{self.job_name}_{self.script_count}.err.log')
 
         return (job_script_path, output_log_path, error_log_path)
 

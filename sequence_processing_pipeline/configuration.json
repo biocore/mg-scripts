@@ -3,7 +3,8 @@
     "pipeline": {
       "younger_than": 90,
       "older_than": 24,
-      "archive_path": "/sequencing/lab_name/completed_runs"
+      "archive_path": "tests/data/sequencing/knight_lab_completed_runs"
+
     },
     "bcl2fastq": {
       "nodes": 1,

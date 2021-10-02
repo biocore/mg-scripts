@@ -6,7 +6,8 @@ import logging
 
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory):
-        super().__init__(run_dir, self.__name__)
+        self.job_name = 'GenPrepFileJob'
+        super().__init__(run_dir, self.job_name)
         # metadata = self._process_sample_sheet(sample_sheet_path)
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
