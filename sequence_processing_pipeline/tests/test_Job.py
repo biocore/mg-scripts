@@ -10,12 +10,12 @@ class TestJob(unittest.TestCase):
     def test_system_call(self):
         job = Job('/path/to/run_dir',
                   '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
-                  ['/bin/ls'],
+                  ['/bin/echo'],
                   None)
-        results = job._system_call('ls sequence_processing_pipeline/'
-                                   'tests/bin')
 
-        exp_stdout = {'bcl-convert', 'bcl2fastq'}
+        results = job._system_call('echo "Hello World!"')
+
+        exp_stdout = {"Hello World!"}
         exp_stderr = ""
         exp_return_code = 0
         obs_std_out = results['stdout'].split('\n')
