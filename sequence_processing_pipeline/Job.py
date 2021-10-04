@@ -71,22 +71,20 @@ class Job:
         '''
         raise PipelineError("Base class run() method not implemented.")
 
-    def _which(self, file_name, modules_to_load=None):
+    def _which(self, file_path, modules_to_load=None):
         '''
-        Return the path to an executable named 'file_name' found in PATH.
-        :param file_name: The name of the executable to find.
+        Returns file_path if file_path exists and file_path is a full path.
+        Otherwise returns the path to a file named 'file_path' found in PATH.
+        :param file_path: The path of the executable to find.
         :param modules_to_load: A list of Linux module names to load.
         :return: A path to 'file_name'.
         '''
-        tmp = split(file_name)
+        tmp = split(file_path)
         # remove any elements that are empty string.
         tmp = [x for x in tmp if x]
 
-        if len(tmp) > 1:
-            # this is not a filename, but a path
-            raise PipelineError("file_name must not contain a path")
+        cmd = 'which ' + file_path
 
-        cmd = 'which ' + file_name
         if modules_to_load:
             cmd = 'module load ' + ' '.join(modules_to_load) + ';' + cmd
 
@@ -95,11 +93,16 @@ class Job:
         file_path = stdout.strip()
 
         if file_path:
-            logging.debug(f'file-path found for {file_name}'
-                          f': {stdout}')
-            return file_path
+            if len(tmp) != 1:
+                # this is not a filename, but a path
+                if file_path != stdout:
+                    raise PipelineError(f'file-path found for {file_path}: '
+                                        f'{stdout}')
+            else:
+                logging.debug(f'file-path found for {file_path}: {stdout}')
+                return file_path
 
-        raise PipelineError("file '%s' does not exist." % file_name)
+        raise PipelineError("file '%s' does not exist." % file_path)
 
     def _file_check(self, file_path):
         if exists(file_path):

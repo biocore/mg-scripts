@@ -8,14 +8,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestJob(unittest.TestCase):
     def test_system_call(self):
-        job = Job('/path/to/run_dir',
-                  '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
-                  ['/bin/echo'],
-                  None)
+        job = Job('/path/to/run_dir', '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
+                  ['ls'], None)
+        results = job._system_call('ls sequence_processing_pipeline/'
+                                   'tests/bin')
 
-        results = job._system_call('echo "Hello World!"')
-
-        exp_stdout = {"Hello World!"}
+        exp_stdout = {'bcl-convert', 'bcl2fastq'}
         exp_stderr = ""
         exp_return_code = 0
         obs_std_out = results['stdout'].split('\n')
