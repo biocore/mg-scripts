@@ -33,10 +33,10 @@ class Job:
         # the version given, raise a PipelineError.
         for executable_path in executable_paths:
             file_path, file_name = split(executable_path)
-            result = self._which(file_name, modules_to_load=modules_to_load)
-            if result != executable_path:
-                raise PipelineError(f"Found path '{result} does not match "
-                                    f"{executable_path}")
+            # No need to test results. _which() will raise a PipelineError if
+            # file_name is a path and the path found does not match. It will
+            # also raise a PipelineError if the file could not be found.
+            self._which(file_name, modules_to_load=modules_to_load)
 
     def generate_job_script_path(self):
         '''
@@ -83,26 +83,24 @@ class Job:
         # remove any elements that are empty string.
         tmp = [x for x in tmp if x]
 
+        isPath = True if len(tmp) > 1 else False
+
         cmd = 'which ' + file_path
 
         if modules_to_load:
             cmd = 'module load ' + ' '.join(modules_to_load) + ';' + cmd
 
         results = self._system_call(cmd)
-        stdout = results['stdout']
-        file_path = stdout.strip()
+        result = results['stdout'].strip()
 
-        if file_path:
-            if len(tmp) != 1:
-                # this is not a filename, but a path
-                if file_path != stdout:
-                    raise PipelineError(f'file-path found for {file_path}: '
-                                        f'{stdout}')
-            else:
-                logging.debug(f'file-path found for {file_path}: {stdout}')
-                return file_path
+        if not result:
+            raise PipelineError("File '%s' does not exist." % file_path)
 
-        raise PipelineError("file '%s' does not exist." % file_path)
+        if isPath == True and result != file_path:
+            raise PipelineError(f"Found path '{result} does not match "
+                                f"{file_path}")
+
+        return result
 
     def _file_check(self, file_path):
         if exists(file_path):
