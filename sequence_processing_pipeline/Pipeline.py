@@ -112,12 +112,13 @@ class Pipeline:
             convert_job = ConvertJob(self.run_dir,
                                      ss_path,
                                      fastq_output_directory,
-                                     True,
                                      config['queue'],
                                      config['nodes'],
                                      config['nprocs'],
                                      config['wallclock_time_in_hours'] * 3600,
-                                     config['per_process_memory_limit'])
+                                     config['per_process_memory_limit'],
+                                     config['executable_path'],
+                                     config['modules_to_load'])
 
             convert_job.run()
 
@@ -133,7 +134,8 @@ class Pipeline:
                            config['per_process_memory_limit'],
                            config['fastp_executable_path'],
                            config['minimap2_executable_path'],
-                           config['samtools_executable_path'])
+                           config['samtools_executable_path'],
+                           config['modules_to_load'])
 
             qc_job.run()
 
