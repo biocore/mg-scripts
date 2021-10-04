@@ -1,4 +1,5 @@
 from os.path import join, split
+from os import makedirs
 
 
 class QCCmdGenerator:
@@ -112,13 +113,15 @@ class QCCmdGenerator:
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
-        json_output_path = join(self.project_name, fastp_reports_dir, 'json',
-                                self.filename1_short + '.json')
-        html_output_path = join(self.project_name, fastp_reports_dir, 'html',
-                                self.filename1_short + '.html')
+        tmp_path = join(self.project_name, fastp_reports_dir, 'json')
+        makedirs(tmp_path, exist_ok=True)
+        json_output_path = join(tmp_path, self.filename1_short + '.json')
 
-        partial = join(self.products_dir, self.project_name,
-                       'filtered_sequences')
+        tmp_path = join(self.project_name, fastp_reports_dir, 'html')
+        makedirs(tmp_path, exist_ok=True)
+        html_output_path = join(tmp_path, self.filename1_short + '.html')
+
+        partial = join(self.products_dir, 'filtered_sequences')
 
         path1 = join(partial, self.filename1_short + '.trimmed.fastq.gz')
         path2 = join(partial, self.filename2_short + '.trimmed.fastq.gz')

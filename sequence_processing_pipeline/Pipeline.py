@@ -13,7 +13,7 @@ from json.decoder import JSONDecodeError
 
 class Pipeline:
     def __init__(self, configuration_file_path, input_directory,
-                 output_directory):
+                 output_directory, run_id):
 
         try:
             f = open(configuration_file_path)
@@ -29,7 +29,7 @@ class Pipeline:
         config = self.configuration['pipeline']
         younger_than = config['younger_than']
         older_than = config['older_than']
-        archive_path = config['archive_path']
+        archive_path = join(config['archive_path'], run_id)
 
         if output_directory == archive_path:
             raise PipelineError(
@@ -115,7 +115,7 @@ class Pipeline:
                                      config['queue'],
                                      config['nodes'],
                                      config['nprocs'],
-                                     config['wallclock_time_in_hours'] * 3600,
+                                     config['wallclock_time_in_hours'],
                                      config['per_process_memory_limit'],
                                      config['executable_path'],
                                      config['modules_to_load'])
@@ -130,7 +130,7 @@ class Pipeline:
                            config['queue'],
                            config['nodes'],
                            config['nprocs'],
-                           config['wallclock_time_in_hours'] * 3600,
+                           config['wallclock_time_in_hours'],
                            config['per_process_memory_limit'],
                            config['fastp_executable_path'],
                            config['minimap2_executable_path'],

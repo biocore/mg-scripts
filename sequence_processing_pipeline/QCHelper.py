@@ -126,7 +126,7 @@ class QCHelper():
         logging.debug("Possible extra copying for "
                       f"chemistry = '{chemistry}' disabled.")
 
-        tmp = join(products_dir, project_name, 'filtered_sequences')
+        tmp = join(products_dir, 'filtered_sequences')
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 
@@ -164,7 +164,7 @@ class QCHelper():
         '''
         logging.debug("Pathway: True/True")
 
-        tmp = join(products_dir, project_name, 'filtered_sequences')
+        tmp = join(products_dir, 'filtered_sequences')
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 

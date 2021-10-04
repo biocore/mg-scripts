@@ -1,9 +1,9 @@
 from os import makedirs
 from os.path import exists, split, join
-from re import search
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
+import xml.dom.minidom
 import logging
 
 
@@ -226,31 +226,38 @@ class Job:
             stdout = results['stdout']
             stderr = results['stderr']
 
-            logging.debug("QSTAT STDOUT: %s\n" % stdout)
-            logging.debug("QSTAT STDERR: %s\n" % stderr)
+            logging.debug("QSTAT STDOUT: [%s]\n" % stdout)
+            logging.debug("QSTAT STDERR: [%s]\n" % stderr)
 
-            if stdout.startswith("qstat: Unknown Job Id Error"):
+            if stderr.startswith("qstat: Unknown Job Id Error"):
                 break
 
             # update job_info
             # even though job_id doesn't change, use this update as evidence
             # job_id was once in the queue.
-            job_info['job_id'] = search(
-                r"<Job_Id>(.*?)</Job_Id>", stdout).group(1)
-            job_info['job_name'] = search(
-                r"<Job_Name>(.*?)</Job_Name>", stdout).group(1)
-            job_info['status'] = search(
-                r"<job_state>(.*?)</job_state>", stdout).group(1)
-            job_info['elapsed_time'] = search(
-                r"<etime>(.*?)</etime>", stdout).group(1)
-            exit_status = search(
-                r"<exit_status>(.*?)</exit_status>", stdout)
-            if exit_status:
-                job_info['exit_status'] = exit_status.group(1)
+            doc = xml.dom.minidom.parseString(stdout)
+            jobs = doc.getElementsByTagName("Job")
+            for some_job in jobs:
+                tmp = some_job.getElementsByTagName("Job_Id")[0]
+                some_job_id = tmp.firstChild.nodeValue
+                if some_job_id == job_id:
+                    job_info['job_id'] = some_job_id
+                    tmp = some_job.getElementsByTagName("Job_Name")[0]
+                    job_info['job_name'] = tmp.firstChild.nodeValue
+                    tmp = some_job.getElementsByTagName("job_state")[0]
+                    job_info['job_state'] = tmp.firstChild.nodeValue
+                    # we cannot use exit_status, as it may appear for regular
+                    # jobs but apparently it doesn't appear for job arrays.
+                    # Use status = 'C' instead.
+                    tmp = some_job.getElementsByTagName("etime")[0]
+                    job_info['elapsed_time'] = tmp.firstChild.nodeValue
+                    break
 
             logging.debug("Job info: %s" % job_info)
 
-            if 'exit_status' in job_info:
+            # if job is completed after having run or exited after having
+            # run, then stop waiting.
+            if job_info['job_state'] in ['C', 'E']:
                 break
 
             # check once every minute - job info records should stay in the
@@ -259,12 +266,12 @@ class Job:
 
         if job_info['job_id']:
             # job was once in the queue
-            if job_info['exit_status'] == '0':
+            if job_info['job_state'] == 'C':
                 # job completed successfully
                 return job_info
             else:
                 # job exited unsuccessfully
-                status = job_info['exit_status']
+                status = job_info['job_state']
                 raise PipelineError("job %s exited with status %s" % (job_id,
                                                                       status))
         else:

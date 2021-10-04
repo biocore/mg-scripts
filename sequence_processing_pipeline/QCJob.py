@@ -1,7 +1,7 @@
 from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, dirname, split
+from os.path import join, split
 from os import walk, remove, stat, listdir, makedirs, rmdir
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
@@ -70,6 +70,9 @@ class QCJob(Job):
               destination_directory):
         # move the fastp html and json directories up-front.
         logging.debug('moving html directory')
+        logging.debug('reports directory: %s' % reports_directory)
+        logging.debug('source directory: %s' % source_directory)
+        logging.debug('destination directory: %s' % destination_directory)
         move(join(reports_directory, 'html'), source_directory)
         logging.debug('moving json directory')
         move(join(reports_directory, 'json'), source_directory)
@@ -90,6 +93,8 @@ class QCJob(Job):
         # expected by users in /sequencing... Move the entire results over
         # to /sequencing or another final location w/one rsync call.
         # For performance and reliability reasons, use rsync for copying.
+        logging.debug("moving %s to %s with rsync" % (source_directory,
+                                                      destination_directory))
         self._system_call('rsync -avp %s %s' % (
             source_directory, destination_directory))
 
@@ -152,10 +157,15 @@ class QCJob(Job):
             pbs_job_id = self.qsub(script_path, None, None)
             logging.debug(f'QCJob {pbs_job_id} completed')
 
+            logging.debug("self.products_dir: %s" % self.products_dir)
+            logging.debug("project->Sample_Project: %s" %
+                          project['Sample_Project'])
             source_dir = join(self.products_dir, project['Sample_Project'])
+            logging.debug("source_dir: %s" % source_dir)
 
             # convention is for this directory to be under source_directory
             filtered_directory = join(source_dir, 'filtered_sequences')
+            logging.debug("filtered_directory: %s" % filtered_directory)
             reports_directory = join(source_dir, 'fastp_reports_dir')
 
             # typically named 'zero_files'
@@ -180,7 +190,8 @@ class QCJob(Job):
         # put these split files in the same location as the fastq_files for
         # the project. Assume all filepaths in fastq_files have the same
         # result for dirname().
-        destination_path = dirname(fastq_files[0])
+        # destination_path = dirname(fastq_files[0])
+        destination_path = self.run_dir
 
         new_files = []
         count = 0
@@ -215,13 +226,13 @@ class QCJob(Job):
 
         header = valid_sheet.Header
         chemistry = header['chemistry']
-        needs_adapter_trimming = ('TRUE' if
+        needs_adapter_trimming = (True if
                                   header['Assay'] == 'Metagenomics'
-                                  else 'FALSE')
+                                  else False)
 
         sample_ids = []
         for sample in valid_sheet.samples:
-            logging.debug(f"Found sample: {sample['Sample_ID']} in project"
+            logging.debug(f"Found sample: {sample['Sample_ID']} in project "
                           f"{sample['Sample_Project']}.")
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
@@ -233,7 +244,7 @@ class QCJob(Job):
 
         # convert true/false and yes/no strings to true boolean values.
         for record in lst:
-            for key in ['BarcodesAreRC', 'HumanFiltering']:
+            for key in ['PolyGTrimming', 'HumanFiltering']:
                 if record[key].strip().lower() in ['true', 'yes']:
                     record[key] = True
                 elif record[key].strip().lower() in ['false', 'no']:
@@ -256,7 +267,6 @@ class QCJob(Job):
         lst = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
-                some_file = some_file.decode('utf-8')
                 if some_file.endswith('fastq.gz'):
                     some_path = join(search_path, some_file)
                     lst.append(some_path)
@@ -387,7 +397,9 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        qc = QCHelper(self.nprocs, self.trim_file, project_name,
+        foo = join(self.run_dir, self.trim_file + '0')
+
+        qc = QCHelper(self.nprocs, foo, project_name,
                       project_products_dir, self.mmi_db_path, adapter_a,
                       adapter_A, a_trim, h_filter, self.chemistry,
                       self.fastp_path, self.minimap2_path, self.samtools_path)
