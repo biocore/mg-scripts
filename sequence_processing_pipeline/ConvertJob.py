@@ -9,24 +9,29 @@ import re
 
 class ConvertJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 use_bcl_convert, queue_name, node_count,
-                 nprocs, wall_time_limit, pmem):
+                 queue_name, node_count, nprocs, wall_time_limit, pmem,
+                 bcl_tool_path, modules_to_load):
         '''
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
         :param run_dir: The 'run' directory that contains BCL files.
         :param sample_sheet_path: The path to a sample-sheet.
         :param output_directory: The path to store Fastq output.
-        :param use_bcl_convert: Choose bcl-convert or bcl2fastq
         :param queue_name: The name of the Torque queue to use for processing.
         :param node_count: The number of nodes to request.
         :param nprocs: The maximum number of parallel processes to use.
         :param wall_time_limit: A hard time limit to bound processing.
+        :param bcl_tool_path: The path to either bcl2fastq or bcl-convert.
+        :param modules_to_load: A list of Linux module names to load
         '''
         self.job_name = 'ConvertJob'
-        super().__init__(abspath(run_dir), self.job_name)
+        super().__init__(abspath(run_dir),
+                         self.job_name,
+                         [bcl_tool_path],
+                         modules_to_load)
         self._directory_check(self.run_dir, create=False)
         self._validate_bcl_directory()
+        self.modules_to_load = modules_to_load
 
         tmp = join(self.run_dir, 'Data', 'Fastq')
         # create the directory to store fastq files
@@ -40,28 +45,22 @@ class ConvertJob(Job):
         self.job_name = f"ConvertBCL2Fastq_{self.run_id}"
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
-        self.use_bcl_convert = use_bcl_convert
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
         self.pmem = pmem
+        self.bcl_tool = bcl_tool_path
 
-        d = {'bcl2fastq': {}, 'bcl-convert': {}}
+        tmp = False
+        for executable_name in ['bcl2fastq', 'bcl-convert']:
+            if executable_name in self.bcl_tool:
+                tmp = True
+                break
 
-        d['bcl2fastq']['module_load'] = 'module load bcl2fastq_2.20.0.422'
-        d['bcl2fastq']['queue_name'] = 'qiita'
-        d['bcl2fastq']['binary_name'] = 'bcl2fastq'
-        d['bcl-convert']['module_load'] = 'module load bclconvert_3.7.5'
-        d['bcl-convert']['queue_name'] = 'qiita'
-        d['bcl-convert']['binary_name'] = 'bcl-convert'
-
-        self.bcl_tool = d['bcl-convert'] if use_bcl_convert else d['bcl2fastq']
-
-        # if the binary can't be found on the platform running this
-        # package, _which() will raise a PipelineError.
-        self.bcl_tool['executable_path'] = self._which(
-            self.bcl_tool['binary_name'])
+        if not tmp:
+            raise PipelineError(f'{self.bcl_tool} is not the path to a known'
+                                'executable')
 
         self._file_check(self.sample_sheet_path)
 
@@ -165,9 +164,13 @@ class ConvertJob(Job):
         # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
         lines.append(f'cd {self.run_dir}')
-        lines.append(self.bcl_tool['module_load'])
+        tmp = "module load " + ' '.join(self.modules_to_load)
+        logging.debug(f"ConvertJob Modules to load: {tmp}")
+        lines.append(tmp)
 
-        if self.use_bcl_convert:
+        # Assume that the bcl-convert tool is named 'bcl-convert' and choose
+        # accordingly.
+        if 'bcl-convert' in self.bcl_tool:
             lines.append(('%s '
                           '--sample-sheet %s '
                           '--output-directory %s '
@@ -177,7 +180,7 @@ class ConvertJob(Job):
                           '--bcl-num-compression-threads 16 '
                           '--bcl-num-parallel-tiles 8 '
                           '--bcl-sampleproject-subdirectories true '
-                          '--force') % (self.bcl_tool['executable_path'],
+                          '--force') % (self.bcl_tool,
                                         self.sample_sheet_path,
                                         self.output_directory))
         else:
@@ -192,7 +195,7 @@ class ConvertJob(Job):
                           '--writing-threads 2 '
                           '--create-fastq-for-index-reads '
                           '--ignore-missing-positions ') %
-                         (self.bcl_tool['executable_path'],
+                         (self.bcl_tool,
                           self.sample_sheet_path,
                           self.output_directory))
 

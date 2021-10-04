@@ -1,7 +1,7 @@
 from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, dirname
+from os.path import join, dirname, split
 from os import walk, remove, stat, listdir, makedirs, rmdir
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
@@ -12,7 +12,7 @@ class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, mmi_db_path,
                  output_directory, queue_name, node_count, nprocs,
                  wall_time_limit, pmem, fastp_path, minimap2_path,
-                 samtools_path):
+                 samtools_path, modules_to_load):
         '''
         Submit a Torque job where the contents of run_dir are processed using
         fastp, minimap, and samtools. Human-genome sequences will be filtered
@@ -31,11 +31,16 @@ class QCJob(Job):
         :param fastp_path: The path to the fastp executable
         :param minimap2_path: The path to the minimap2 executable
         :param samtools_path: The path to the samtools executable
+        :param modules_to_load: A list of Linux module names to load
         '''
         # for now, keep this run_dir instead of abspath(run_dir)
         self.job_name = 'QCJob'
-        super().__init__(run_dir, self.job_name)
+        super().__init__(run_dir,
+                         self.job_name,
+                         [fastp_path, minimap2_path, samtools_path],
+                         modules_to_load)
         metadata = self._process_sample_sheet(sample_sheet_path)
+        self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
         self.needs_a_trimming = metadata['needs_adapter_trimming']
         self.trim_file = 'split_file_'
@@ -51,6 +56,7 @@ class QCJob(Job):
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
+        self.modules_to_load = modules_to_load
 
         # POST-PROCESSING RELATED
         # self.destination_directory = '/pscratch/seq_test/test_copy'
@@ -213,40 +219,78 @@ class QCJob(Job):
                                   header['Assay'] == 'Metagenomics'
                                   else 'FALSE')
 
+        sample_ids = []
+        for sample in valid_sheet.samples:
+            logging.debug(f"Found sample: {sample['Sample_ID']} in project"
+                          f"{sample['Sample_Project']}.")
+            sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
+
         bioinformatics = valid_sheet.Bioinformatics
 
         # reorganize the data into a list of dictionaries, one for each row.
         # the ordering of the rows will be preserved in the order of the list.
+        lst = bioinformatics.to_dict('records')
 
-        lst = []
-        for i in range(0, len(bioinformatics)):
-            lst.append({})
-
-        for key in bioinformatics:
-            my_series = bioinformatics[key]
-            for index, value in my_series.items():
-                # convert all manner of positive/negative implying strings
-                # into a true boolean value.
-                if value.strip().lower() in ['true', 'yes']:
-                    value = True
-                elif value.strip().lower() in ['false', 'no']:
-                    value = False
-                lst[index][key] = value
+        # convert true/false and yes/no strings to true boolean values.
+        for record in lst:
+            for key in ['BarcodesAreRC', 'HumanFiltering']:
+                if record[key].strip().lower() in ['true', 'yes']:
+                    record[key] = True
+                elif record[key].strip().lower() in ['false', 'no']:
+                    record[key] = False
+                else:
+                    raise PipelineError(f"Unexpected value '{record[key]}' "
+                                        f"for column '{key}' in sample-sheet '"
+                                        f"{sample_sheet_path}'")
 
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
-        return {'chemistry': chemistry, 'projects': lst,
-                'needs_adapter_trimming': needs_adapter_trimming}
+        return {'chemistry': chemistry,
+                'projects': lst,
+                'sample_ids': sample_ids,
+                'needs_adapter_trimming': needs_adapter_trimming
+                }
 
-    def _find_fastq_files(self, project_name):
+    def _find_fastq_files_in_run_dir(self, project_name):
         search_path = join(self.run_dir, 'Data', 'Fastq', project_name)
         lst = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
+                some_file = some_file.decode('utf-8')
                 if some_file.endswith('fastq.gz'):
-                    if '_R1_' in some_file:
-                        some_path = join(search_path, some_file)
-                        lst.append(some_path)
+                    some_path = join(search_path, some_file)
+                    lst.append(some_path)
+        return lst
+
+    def _find_fastq_files(self, project_name):
+        # filter the list of (sample_id, sample_project) tuples stored in
+        # self.sample_ids so that only the ids matching project_name are in
+        # the list.
+        sample_ids = filter(lambda c: c[1] == project_name, self.sample_ids)
+        # strip out the project name from the matching elements.
+        sample_ids = [x[0] for x in sample_ids]
+
+        # The sample-sheet only contains sample IDs, not actual filenames.
+        # Hence, we need to generate a list of possible fastq files to process,
+        # and filter out the ones that don't contain samples mentioned in the
+        # file.
+        files_found = self._find_fastq_files_in_run_dir(project_name)
+        logging.debug(f"Fastq files found: {files_found}")
+
+        lst = []
+
+        for some_file in files_found:
+            # use os.path.split() to reliably return the file's name.
+            file_path, file_name = split(some_file)
+            # assume each file_name begins with a sample_id. Note that this
+            # name is generated by programs like bcl-convert and bcl2fastq
+            # so this is fairly durable.
+            # e.g.: X00185910 and X00185910_S177_L003_R1_001.fastq.gz.
+            tmp = file_name.split('_')[0]
+            if tmp in sample_ids:
+                # this Fastq file is one we should process.
+                logging.debug(f"Located Fastq file for id '{id}': {some_file}")
+                lst.append(some_file)   # Save the full path.
         return lst
 
     def _generate_split_count(self, count):
@@ -337,7 +381,9 @@ class QCJob(Job):
         # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
         lines.append("cd %s" % self.run_dir)
-        lines.append("module load fastp_0.20.1 samtools_1.12 minimap2_2.18")
+        tmp = "module load " + ' '.join(self.modules_to_load)
+        logging.debug(f"QCJob Modules to load: {tmp}")
+        lines.append(tmp)
 
         project_products_dir = join(self.products_dir, project_name)
 

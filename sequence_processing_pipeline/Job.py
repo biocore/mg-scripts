@@ -8,7 +8,15 @@ import logging
 
 
 class Job:
-    def __init__(self, run_dir, job_name):
+    def __init__(self, run_dir, job_name, executable_paths,
+                 modules_to_load=None):
+        '''
+        Base-class to implement Jobs from.
+        :param run_dir: The path to a lab run_dir.
+        :param job_name: A name for the job. Used to create log files.
+        :param executable_paths: A list of executables to validate.
+        :param modules_to_load: A list of modules to load before validation.
+        '''
         self.run_dir = run_dir
         self.job_name = job_name
         self.stdout_log_path = 'localhost:' + join(self.run_dir,
@@ -17,6 +25,18 @@ class Job:
                                                    f'{self.job_name}.err.log')
 
         self.script_count = 0
+
+        # For each executable in the list, get its filename and use _which()
+        # to see if it can be found. Directly pass an optional list of modules
+        # to load before-hand, so that the binary can be found.
+        # If the executable can't be found or doesn't have the same path as
+        # the version given, raise a PipelineError.
+        for executable_path in executable_paths:
+            file_path, file_name = split(executable_path)
+            result = self._which(file_name, modules_to_load=modules_to_load)
+            if result != executable_path:
+                raise PipelineError(f"Found path '{result} does not match "
+                                    f"{executable_path}")
 
     def generate_job_script_path(self):
         '''
@@ -51,7 +71,13 @@ class Job:
         '''
         raise PipelineError("Base class run() method not implemented.")
 
-    def _which(self, file_name):
+    def _which(self, file_name, modules_to_load=None):
+        '''
+        Return the path to an executable named 'file_name' found in PATH.
+        :param file_name: The name of the executable to find.
+        :param modules_to_load: A list of Linux module names to load.
+        :return: A path to 'file_name'.
+        '''
         tmp = split(file_name)
         # remove any elements that are empty string.
         tmp = [x for x in tmp if x]
@@ -60,7 +86,11 @@ class Job:
             # this is not a filename, but a path
             raise PipelineError("file_name must not contain a path")
 
-        results = self._system_call('which ' + file_name)
+        cmd = 'which ' + file_name
+        if modules_to_load:
+            cmd = 'module load ' + ' '.join(modules_to_load) + ';' + cmd
+
+        results = self._system_call(cmd)
         stdout = results['stdout']
         file_path = stdout.strip()
 

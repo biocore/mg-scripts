@@ -2,7 +2,8 @@ import logging
 from sequence_processing_pipeline.Pipeline import Pipeline
 
 
-def main(sample_sheet_path, input_directory, output_directory):
+def main(configuration_file_path, sample_sheet_path, input_directory,
+         output_directory):
     '''
     Provide an easy entry point for users who would import the package and use
     it. It defines the parameters needed to process a directory of data.
@@ -12,7 +13,8 @@ def main(sample_sheet_path, input_directory, output_directory):
     '''
     logging.debug('Sequence Processing Pipeline main() Started')
 
-    pipeline = Pipeline(input_directory, output_directory)
+    pipeline = Pipeline(configuration_file_path, input_directory,
+                        output_directory)
     pipeline.process(sample_sheet_path)
 
     logging.debug('Sequence Processing Pipeline main() Completed')
