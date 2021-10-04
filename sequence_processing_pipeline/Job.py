@@ -96,7 +96,7 @@ class Job:
         if not result:
             raise PipelineError("File '%s' does not exist." % file_path)
 
-        if isPath == True and result != file_path:
+        if isPath is True and result != file_path:
             raise PipelineError(f"Found path '{result} does not match "
                                 f"{file_path}")
 
