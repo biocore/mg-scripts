@@ -22,17 +22,15 @@ class GenPrepFileJob(Job):
     def run(self):
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir
-        cmd = [self.seqpro_path]
-        cmd.append(self.run_dir)
-        cmd.append(self.sample_sheet_path)
 
         # note that seqpro takes in a sample-sheet as input. Unlike other
         # Jobs that process the sample-sheet, validate parameters, and ensure
         # that output is segregated by project name, seqpro will be doing that
-        # for us. Hence our output directory will just be a base directory
-        # that seqpro can use to write project directories into.
-        tmp = join(self.output_directory, 'FastQC_output')
-        cmd.append(tmp)
+        # for us. A single call to seqpro will generate n output files, one
+        # for each project described in the sample-sheet's Bioinformatics
+        # heading.
+        cmd = [self.seqpro_path, self.run_dir, self.sample_sheet_path,
+               join(self.output_directory, 'prep_files')]
 
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
         # and QCJob currently moves its products to the final location. It
@@ -42,8 +40,8 @@ class GenPrepFileJob(Job):
 
         out, err, rc = self._system_call(' '.join(cmd))
 
-        logging.debug(f"Seqpro STDOUT: {out}")
-        logging.debug(f"Seqpro STDERR: {err}")
+        logging.debug(f"Seqpro stdout: {out}")
+        logging.debug(f"Seqpro stderr: {err}")
         logging.debug(f"Seqpro return code: {rc}")
 
         if rc != 0:
