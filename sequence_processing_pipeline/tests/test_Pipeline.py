@@ -3,6 +3,8 @@ from sequence_processing_pipeline.Pipeline import Pipeline
 import logging
 import unittest
 from os import makedirs
+from os.path import join, dirname, abspath
+from functools import partial
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -12,13 +14,8 @@ class TestPipeline(unittest.TestCase):
     def test_creation(self):
         makedirs('sequence_processing_pipeline/tests/data/sequencing'
                  '/knight_lab_completed_runs', exist_ok=True)
-        input_directory = 'tests/data/sample-sequence-directory'
-        output_directory = 'tests/data/output_directory'
-        inv_input_directory = 'tests/data/invalid_input_directory'
+
         configuration_file = 'sequence_processing_pipeline/configuration.json'
-        # inv_output_directory = 'tests/data/invalid_output_directory'
-        # inv_final_output_directory =
-        #  'tests/data/invalid_output_directory_two'
 
         # shutil.rmtree(
         # 'sequence_processing_pipeline/tests/data/invalid_output_directory')
@@ -30,8 +27,9 @@ class TestPipeline(unittest.TestCase):
         self.assertRaises(PipelineError,
                           Pipeline,
                           configuration_file,
-                          inv_input_directory,
-                          output_directory)
+                          'tests/data/sample-sequence-directory',
+                          'tests/data/output_directory',
+                          run_id='run-id')
 
         # test non-existant output_directory
         # pipeline = Pipeline(input_directory,
@@ -60,9 +58,14 @@ class TestPipeline(unittest.TestCase):
         #                   younger_than=24, older_than=24)
 
         # using all default parameters should not raise an Error.
+        test_path = partial(join, dirname(abspath(__file__)))
+        input_directory = test_path('data/sample-sequence-directory')
+        output_directory = test_path('data/output_directory')
+
         msg = None
         try:
-            Pipeline(configuration_file, input_directory, output_directory)
+            Pipeline(configuration_file, input_directory, output_directory,
+                     run_id='run-id')
         except PipelineError as e:
             msg = str(e)
 
