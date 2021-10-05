@@ -216,7 +216,7 @@ class ConvertJob(Job):
         Run BCL2Fastq conversion on data in root directory.
         Job-related parameters are specified here for easy adjustment and
         job restart.
-        :return:
+        :return: None
         '''
         script_path = self._generate_job_script()
         logging.debug(f'ConvertJob script is located at: {script_path}')

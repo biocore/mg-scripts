@@ -35,6 +35,9 @@
       "minimap2_executable_path": "minimap2",
       "samtools_executable_path": "samtools",
       "per_process_memory_limit": "10gb"
+    },
+    "seqpro": {
+      "executable_path": "seqpro"
     }
   }
 }
