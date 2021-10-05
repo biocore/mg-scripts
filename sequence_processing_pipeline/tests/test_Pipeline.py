@@ -27,7 +27,7 @@ class TestPipeline(unittest.TestCase):
         self.assertRaises(PipelineError,
                           Pipeline,
                           configuration_file,
-                          'tests/data/sample-sequence-directory',
+                          'not-valid-sample-sequence-directory',
                           'tests/data/output_directory',
                           run_id='run-id')
 
