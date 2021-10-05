@@ -1,4 +1,4 @@
-# Sequence Process Pipeline
+# Sequence Processing Pipeline
 
 A Jupyter notebook to assist wet lab shotgun pipeline.
 A packaged Python-based implementation of Knight Lab's sequencing process pipeline.
