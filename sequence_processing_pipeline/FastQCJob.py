@@ -41,7 +41,7 @@ class FastQCJob(Job):
         # Pool emulates the behavior of the GNU parallel command that was
         # used in the legacy scripts.
         with Pool(processes=self.nprocs) as fastqc_pool:
-            results = fastqc_pool.map_async(exec_fastqc, params).get()
+            fastqc_pool.map_async(exec_fastqc, params).get()
 
         # For now, create an entirely separate pool for multiqc from fastqc
         # to ensure all fastqc calls are completed before multiqc ones start.
@@ -58,7 +58,7 @@ class FastQCJob(Job):
                                          for_multiqc=True)
 
         with Pool(processes=self.nprocs) as multiqc_pool:
-            results = multiqc_pool.map_async(exec_multiqc, params).get()
+            multiqc_pool.map_async(exec_multiqc, params).get()
 
     def _find_projects(self, path_to_run_id_data_fastq_dir):
         results = []
