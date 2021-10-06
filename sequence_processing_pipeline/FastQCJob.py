@@ -9,7 +9,7 @@ from sequence_processing_pipeline.exec_multiqc import exec_multiqc
 
 class FastQCJob(Job):
     def __init__(self, run_dir, output_directory, nprocs, nthreads,
-                 fastqc_path, multiqc_path, modules_to_load):
+                 fastqc_path, multiqc_path, modules_to_load, qiita_job_id):
         self.job_name = 'FastQCJob'
         super().__init__(run_dir, self.job_name, [fastqc_path, multiqc_path],
                          modules_to_load)
@@ -26,6 +26,7 @@ class FastQCJob(Job):
         self.fastqc_output_path = output_directory
         # '.../output_dir/run_id/project/filter_type'
         self.processed_fastq_path = output_directory
+        self.qiita_job_id = qiita_job_id
 
     def run(self):
 

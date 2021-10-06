@@ -10,7 +10,7 @@ import re
 class ConvertJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory,
                  queue_name, node_count, nprocs, wall_time_limit, pmem,
-                 bcl_tool_path, modules_to_load):
+                 bcl_tool_path, modules_to_load, qiita_job_id):
         '''
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -23,6 +23,7 @@ class ConvertJob(Job):
         :param wall_time_limit: A hard time limit to bound processing.
         :param bcl_tool_path: The path to either bcl2fastq or bcl-convert.
         :param modules_to_load: A list of Linux module names to load
+        :param qiita_job_id: identify Torque jobs using qiita_job_id
         '''
         self.job_name = 'ConvertJob'
         super().__init__(abspath(run_dir),
@@ -42,7 +43,7 @@ class ConvertJob(Job):
         self.job_script_path, tmp1, tmp2 = self.generate_job_script_path()
         # self.run_id is of the form 210518_A00953_0305_AHCJT7DSX2
         self.run_id = basename(self.run_dir)
-        self.job_name = f"ConvertBCL2Fastq_{self.run_id}"
+        self.job_name = f"{qiita_job_id}_ConvertJob"
         self.sample_sheet_path = sample_sheet_path
         self.output_directory = output_directory
         self.queue_name = queue_name
