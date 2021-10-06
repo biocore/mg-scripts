@@ -42,7 +42,6 @@ class FastQCJob(Job):
         # used in the legacy scripts.
         with Pool(processes=self.nprocs) as fastqc_pool:
             results = fastqc_pool.map_async(exec_fastqc, params).get()
-            print(results)
 
         # For now, create an entirely separate pool for multiqc from fastqc
         # to ensure all fastqc calls are completed before multiqc ones start.
@@ -60,7 +59,6 @@ class FastQCJob(Job):
 
         with Pool(processes=self.nprocs) as multiqc_pool:
             results = multiqc_pool.map_async(exec_multiqc, params).get()
-            print(results)
 
     def _find_projects(self, path_to_run_id_data_fastq_dir):
         results = []
@@ -69,7 +67,7 @@ class FastQCJob(Job):
             files = self._find_files(project_dir)
 
             # extract only fastq files from the list
-            files = [x for x in files if '.fastq.gz' in x]
+            files = [x for x in files if x.endswith('.fastq.gz')]
 
             if files:
                 tmp = ' '.join(files)
@@ -88,7 +86,7 @@ class FastQCJob(Job):
 
                 if filter_type != 'amplicon':
                     # filter out index '_In_' files
-                    files = [x for x in files if '_R1_' or '_R2_' in x]
+                    files = [x for x in files if '_R1_' in x or '_R2_' in x]
 
                 logging.debug("%s is a project directory" % project_dir)
                 results.append((directory, filter_type, project_dir, files))

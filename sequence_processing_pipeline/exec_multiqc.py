@@ -2,6 +2,7 @@ from subprocess import Popen, PIPE
 import logging
 from os import makedirs
 from os.path import join
+from functools import partial
 
 
 def exec_multiqc(params):
@@ -12,18 +13,22 @@ def exec_multiqc(params):
                                            'multiqc-bclconvert-config.yaml')
 
     reports_results_dir = join(fastqc_output_dir, 'Reports')
+    makedirs(reports_results_dir, exist_ok=True)
 
-    tmp = join(fastqc_output_dir, project_name)
-    filtered_results_dir = join(tmp, filter_type)
-    convert_results_dir = join(tmp, 'bclconvert')
-    multiqc_results_dir = join(tmp, 'multiqc')
-    raw_fastq_json_dir = join(tmp, 'json')
+    base_path = partial(join, fastqc_output_dir, project_name)
+
+    filtered_results_dir = base_path(filter_type)
+    makedirs(filtered_results_dir, exist_ok=True)
+
+    convert_results_dir = base_path('bclconvert')
+    makedirs(convert_results_dir, exist_ok=True)
+
+    multiqc_results_dir = base_path('multiqc')
+    makedirs(multiqc_results_dir, exist_ok=True)
+
+    raw_fastq_json_dir = base_path('json')
 
     json_dir = join(fastq_trimmed_dir, 'json')
-
-    for some_path in [reports_results_dir, filtered_results_dir,
-                      convert_results_dir, multiqc_results_dir]:
-        makedirs(some_path, exist_ok=True)
 
     cmd = ['multiqc', '-c', multiqc_configuration_file_path, '--fullnames',
            '--force', reports_results_dir, raw_fastq_json_dir, json_dir,
