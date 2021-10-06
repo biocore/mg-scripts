@@ -1,6 +1,6 @@
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.QCJob import QCJob
-# from sequence_processing_pipeline.FastQC import FastQCJOb
+from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
@@ -138,6 +138,18 @@ class Pipeline:
                            config['modules_to_load'])
 
             qc_job.run()
+
+            config = self.configuration['fastqc']
+            output_directory = join(self.final_output_dir, 'FastQC')
+            fastqc_job = FastQCJob(self.run_dir,
+                                   output_directory,
+                                   config['nprocs'],
+                                   config['nthreads'],
+                                   config['fastqc_executable_path'],
+                                   config['multiqc_executable_path'],
+                                   config['modules_to_load'])
+
+            fastqc_job.run()
 
         except PipelineError as e:
             logging.error(e)

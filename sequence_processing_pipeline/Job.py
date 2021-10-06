@@ -1,4 +1,4 @@
-from os import makedirs
+from os import makedirs, walk
 from os.path import exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
@@ -108,6 +108,12 @@ class Job:
             return True
         else:
             raise PipelineError("file '%s' does not exist." % file_path)
+
+    def _find_files(self, search_path):
+        lst = []
+        for root, dirs, files in walk(search_path):
+            lst += [join(root, x) for x in files]
+        return lst
 
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
