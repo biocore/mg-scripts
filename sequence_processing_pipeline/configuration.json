@@ -35,6 +35,13 @@
       "minimap2_executable_path": "minimap2",
       "samtools_executable_path": "samtools",
       "per_process_memory_limit": "10gb"
+    },
+    "fastqc": {
+      "nprocs": 16,
+      "nthreads": 16,
+      "modules_to_load": [],
+      "fastqc_executable_path, ": "fastqc",
+      "multiqc_executable_path": "multiqc"
     }
   }
 }
