@@ -12,11 +12,12 @@ class TestGenPrepFileJob(unittest.TestCase):
         run_dir = 'tests/data/sample-sequence-directory'
         sample_sheet_path = 'tests/data/good-sample-sheet.csv'
         output_directory = 'tests/data/output_directory'
+        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
 
         msg = None
         try:
             GenPrepFileJob(run_dir, sample_sheet_path, output_directory,
-                           'seqpro', [])
+                           'seqpro', [], qiita_id)
         except PipelineError as e:
             msg = str(e)
 
