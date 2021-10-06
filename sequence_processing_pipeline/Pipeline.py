@@ -1,6 +1,7 @@
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.FastQCJob import FastQCJob
+from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
@@ -138,6 +139,15 @@ class Pipeline:
                            config['modules_to_load'])
 
             qc_job.run()
+
+            config = self.configuration['seqpro']
+            gpf_job = GenPrepFileJob(self.run_dir,
+                                     sample_sheet_params['sample_sheet_path'],
+                                     self.final_output_dir,
+                                     config['seqpro_path'],
+                                     config['modules_to_load'])
+
+            gpf_job.run()
 
             config = self.configuration['fastqc']
             output_directory = join(self.final_output_dir, 'FastQC')
