@@ -92,12 +92,13 @@ class Pipeline:
                 raise PipelineError("directory_path '%s' does not exist." %
                                     directory_path)
 
-    def process(self, sample_sheet_path):
+    def process(self, sample_sheet_path, qiita_job_id):
         '''
         Process a single BCL directory.
         Assume sample sheet is supplied externally.
         Assume directory doesn't require time period checking.
         :param sample_sheet:
+        :param qiita_job_id: identify Torque jobs using qiita_job_id
         :return:
         '''
         try:
@@ -119,7 +120,8 @@ class Pipeline:
                                      config['wallclock_time_in_hours'],
                                      config['per_process_memory_limit'],
                                      config['executable_path'],
-                                     config['modules_to_load'])
+                                     config['modules_to_load'],
+                                     qiita_job_id)
 
             convert_job.run()
 
@@ -136,7 +138,8 @@ class Pipeline:
                            config['fastp_executable_path'],
                            config['minimap2_executable_path'],
                            config['samtools_executable_path'],
-                           config['modules_to_load'])
+                           config['modules_to_load'],
+                           qiita_job_id)
 
             qc_job.run()
 
@@ -145,7 +148,8 @@ class Pipeline:
                                      sample_sheet_params['sample_sheet_path'],
                                      self.final_output_dir,
                                      config['seqpro_path'],
-                                     config['modules_to_load'])
+                                     config['modules_to_load'],
+                                     qiita_job_id)
 
             gpf_job.run()
 
@@ -157,7 +161,8 @@ class Pipeline:
                                    config['nthreads'],
                                    config['fastqc_executable_path'],
                                    config['multiqc_executable_path'],
-                                   config['modules_to_load'])
+                                   config['modules_to_load'],
+                                   qiita_job_id)
 
             fastqc_job.run()
 

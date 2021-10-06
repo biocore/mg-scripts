@@ -12,7 +12,7 @@ class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, mmi_db_path,
                  output_directory, queue_name, node_count, nprocs,
                  wall_time_limit, pmem, fastp_path, minimap2_path,
-                 samtools_path, modules_to_load):
+                 samtools_path, modules_to_load, qiita_job_id):
         '''
         Submit a Torque job where the contents of run_dir are processed using
         fastp, minimap, and samtools. Human-genome sequences will be filtered
@@ -32,6 +32,7 @@ class QCJob(Job):
         :param minimap2_path: The path to the minimap2 executable
         :param samtools_path: The path to the samtools executable
         :param modules_to_load: A list of Linux module names to load
+        :param qiita_job_id: identify Torque jobs using qiita_job_id
         '''
         # for now, keep this run_dir instead of abspath(run_dir)
         self.job_name = 'QCJob'
@@ -57,6 +58,7 @@ class QCJob(Job):
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
         self.modules_to_load = modules_to_load
+        self.qiita_job_id = qiita_job_id
 
         # POST-PROCESSING RELATED
         # self.destination_directory = '/pscratch/seq_test/test_copy'
@@ -337,7 +339,8 @@ class QCJob(Job):
 
         # declare a name for this job to be sample_job
         # lines.append("#PBS -N {}".format(project_name))
-        lines.append("#PBS -N %s" % project_name)
+        lines.append("#PBS -N %s" %
+                     f"{self.qiita_job_id}_QCJob_{project_name}")
 
         # what torque calls a queue, slurm calls a partition
         # SBATCH -p SOMETHING -> PBS -q SOMETHING

@@ -6,7 +6,7 @@ import logging
 
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 seqpro_path, modules_to_load):
+                 seqpro_path, modules_to_load, qiita_job_id):
         # for now, keep this run_dir instead of abspath(run_dir)
         self.job_name = 'GenPrepFileJob'
         super().__init__(run_dir,
@@ -18,6 +18,7 @@ class GenPrepFileJob(Job):
         self.seqpro_path = seqpro_path
         self.modules_to_load = modules_to_load
         self.output_directory = output_directory
+        self.qiita_job_id = qiita_job_id
 
     def run(self):
         # seqpro usage:
