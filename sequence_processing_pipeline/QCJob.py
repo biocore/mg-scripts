@@ -328,6 +328,18 @@ class QCJob(Job):
         job_script_path, output_log_path, error_log_path = \
             self.generate_job_script_path()
 
+        project_products_dir = join(self.products_dir, project_name)
+
+        foo = join(self.run_dir, self.trim_file + '0')
+        sh_details_fp = join(
+            self.run_dir, self.trim_file + project_name + '.array-details')
+
+        qc = QCHelper(self.nprocs, foo, project_name,
+                      project_products_dir, self.mmi_db_path, adapter_a,
+                      adapter_A, a_trim, h_filter, self.chemistry,
+                      self.fastp_path, self.minimap2_path, self.samtools_path)
+        cmds = qc.generate_commands()
+
         lines.append("#!/bin/bash")
         # The Torque equiv for calling SBATCH on this script and supplying
         # params w/environment variables is to do the same on QSUB but with
@@ -378,8 +390,7 @@ class QCJob(Job):
         lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
         lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
 
-        # array input files are labeled file0, file1,...filen-1
-        lines.append("#PBS -t 0-%d%%20" % (len(self.trim_data)))
+        lines.append("#PBS -t 0-%d%%20" % len(cmds))
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
@@ -399,17 +410,6 @@ class QCJob(Job):
         logging.debug(f"QCJob Modules to load: {tmp}")
         lines.append(tmp)
 
-        project_products_dir = join(self.products_dir, project_name)
-
-        foo = join(self.run_dir, self.trim_file + '0')
-        sh_details_fp = join(
-            self.run_dir, self.trim_file + project_name + '.array-details')
-
-        qc = QCHelper(self.nprocs, foo, project_name,
-                      project_products_dir, self.mmi_db_path, adapter_a,
-                      adapter_A, a_trim, h_filter, self.chemistry,
-                      self.fastp_path, self.minimap2_path, self.samtools_path)
-
         lines.append('offset=${PBS_ARRAYID}')
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
@@ -419,6 +419,6 @@ class QCJob(Job):
             f.write('\n'.join(lines))
 
         with open(sh_details_fp, 'w') as f:
-            f.write('\n'.join(qc.generate_commands()))
+            f.write('\n'.join(cmds))
 
         return job_script_path
