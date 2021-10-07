@@ -379,7 +379,7 @@ class QCJob(Job):
         lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
 
         # array input files are labeled file0, file1,...filen-1
-        lines.append("#PBS -t 0-%d%%20" % (split_count - 1))
+        lines.append("#PBS -t 0-%d%%20" % (len(self.trim_data)))
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
