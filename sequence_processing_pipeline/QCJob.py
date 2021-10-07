@@ -401,10 +401,11 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        sh_fp = join(self.run_dir, self.trim_file + project_name)
-        sh_details_fp = sh_fp + '.array-details'
+        foo = join(self.run_dir, self.trim_file + '0')
+        sh_details_fp = join(
+            self.run_dir, self.trim_file + project_name + '.array-details')
 
-        qc = QCHelper(self.nprocs, sh_fp, project_name,
+        qc = QCHelper(self.nprocs, foo, project_name,
                       project_products_dir, self.mmi_db_path, adapter_a,
                       adapter_A, a_trim, h_filter, self.chemistry,
                       self.fastp_path, self.minimap2_path, self.samtools_path)
