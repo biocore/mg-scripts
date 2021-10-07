@@ -1,5 +1,5 @@
 import logging
-from os.path import exists, split, join
+from os.path import exists, join
 from sequence_processing_pipeline.QCCmdGenerator import QCCmdGenerator
 from os import makedirs
 
@@ -63,17 +63,7 @@ class QCHelper():
             raise ValueError("h_filter must be boolean.")
 
         with open(trim_file, 'r') as f:
-            lines = f.readlines()
-            lines = [x.strip() for x in lines]
-            self.trim_data = lines
-
-        # added sanity check. Don't continue processing if the trim_file
-        # contains a path to something unexpected.
-        for line in self.trim_data:
-            parent_dir, file_name = split(line)
-            if file_name == '':
-                # file_name will be '' if line ends in '/'
-                raise ValueError('trim_file contains a directory.')
+            self.trim_data = [x.strip() for x in f.readlines() if '_R1_' in x]
 
         # require path to human-phix-db.mmi even if it's not needed.
         # simpler to validate state.
