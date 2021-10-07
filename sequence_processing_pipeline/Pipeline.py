@@ -32,6 +32,8 @@ class Pipeline:
         older_than = config['older_than']
         archive_path = join(config['archive_path'], run_id)
 
+        self.run_id = run_id
+
         if output_directory == archive_path:
             raise PipelineError(
                 "output_directory '%s' is the same as "
@@ -143,8 +145,17 @@ class Pipeline:
 
             qc_job.run()
 
+            # right now, it's preferable to use the trimmed/filtered products
+            # as they are laid out on disk the way seqpro expects. Hence the
+            # input directory for GenPrepFileJob is where QCJob moved its
+            # output files to.
+            #
+            # seqpro needs a directory named RUN_ID w/subdirectories:
+            # PROJECT_IDn/filtered_sequences or PROJECT_IDn/trimmed_sequences
+            # to generate a prep-file for that project.
+            gpf_input_path = join(self.final_output_dir, self.run_id)
             config = self.configuration['seqpro']
-            gpf_job = GenPrepFileJob(self.run_dir,
+            gpf_job = GenPrepFileJob(gpf_input_path,
                                      sample_sheet_params['sample_sheet_path'],
                                      self.final_output_dir,
                                      config['seqpro_path'],
