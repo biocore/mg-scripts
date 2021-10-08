@@ -163,7 +163,6 @@ class FastQCJob(Job):
         lines_per_split = int((len(cmds) + split_count - 1) / split_count)
         trim_files = self._generate_trim_files(cmds, lines_per_split)
 
-        print(trim_files)
         script_path = self._generate_job_script(cmds,
                                                 self.queue_name,
                                                 self.node_count,
@@ -259,23 +258,3 @@ class FastQCJob(Job):
 
         return job_script_path
 
-
-if __name__ == '__main__':
-    queue_name = 'qiita'
-    node_count = 1
-    wall_time_limit = 24
-    pmem = '8gb'
-    test = FastQCJob('/path/to/210518_A00953_0305_test7',
-                     '/path/to/210518_A00953_0305_test7/'
-                     '210518_A00953_0305_AHCJT7DSX2/FastQC_Output',
-                     1,
-                     16,
-                     'fastqc',
-                     ['fastqc_0.11.5'],
-                     'NO_QIITA_ID',
-                     '210518_A00953_0305_AHCJT7DSX2',
-                     queue_name,
-                     node_count,
-                     wall_time_limit,
-                     pmem)
-    test.run()

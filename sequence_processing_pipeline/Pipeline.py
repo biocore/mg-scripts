@@ -140,7 +140,6 @@ if __name__ == '__main__':
 
     fastq_output_directory = join(run_dir, 'Data', 'Fastq')
 
-    # config = self.configuration['bcl-convert']
     config = configuration['bcl2fastq']
     convert_job = ConvertJob(run_dir,
                              sdo.sample_sheet_path,
@@ -193,9 +192,6 @@ if __name__ == '__main__':
 
     gpf_input_path = join(final_output_dir, run_id)
     gpf_output_path = join(final_output_dir, run_id, 'prep-files')
-    # input = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2"
-    # output = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2
-    #          /prep-files"
 
     config = configuration['seqpro']
     gpf_job = GenPrepFileJob(gpf_input_path,
