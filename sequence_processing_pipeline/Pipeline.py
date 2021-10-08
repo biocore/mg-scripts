@@ -14,7 +14,6 @@ from json.decoder import JSONDecodeError
 
 class Pipeline:
     def __init__(self, configuration_file_path, input_directory, run_id):
-
         try:
             f = open(configuration_file_path)
             self.configuration = json.load(f)['configuration']
@@ -30,8 +29,8 @@ class Pipeline:
         older_than = config['older_than']
         archive_path = join(config['archive_path'], run_id)
 
-        self._directory_check(input_directory, create=False)
-        self._directory_check(archive_path, create=True)
+        self.directory_check(input_directory, create=False)
+        self.directory_check(archive_path, create=True)
 
         self.run_id = run_id
 
@@ -42,16 +41,14 @@ class Pipeline:
         self.run_dir = input_directory
 
         self.sentinel_file = "RTAComplete.txt"
+
         # internally, threshold will be represented in seconds
-        self.younger_than = younger_than * 60 * 60
-        self.older_than = older_than * 60 * 60
-        # self.nprocs = nprocs
-        # location in /sequencing directory or other directory
-        # must end in name of the form 200nnn_xnnnnn_nnnn_xxxxxxxxxx or
-        # similar.
+        self.younger_than = younger_than
+        self.older_than = older_than
+
         self.final_output_dir = archive_path
 
-    def _directory_check(self, directory_path, create=False):
+    def directory_check(self, directory_path, create=False):
         if exists(directory_path):
             logging.debug("directory '%s' exists." % directory_path)
         else:
@@ -67,107 +64,7 @@ class Pipeline:
                 raise PipelineError("directory_path '%s' does not exist." %
                                     directory_path)
 
-    def process(self, sample_sheet_path, qiita_job_id):
-        '''
-        Process a single BCL directory.
-        Assume sample sheet is supplied externally.
-        Assume directory doesn't require time period checking.
-        :param sample_sheet:
-        :param qiita_job_id: identify Torque jobs using qiita_job_id
-        :return:
-        '''
-        try:
-            sdo = SequenceDirectory(self.run_dir,
-                                    external_sample_sheet=sample_sheet_path)
-            sample_sheet_params = sdo.process()
-
-            ss_path = sample_sheet_params['sample_sheet_path']
-            fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
-
-            # TODO: Add checks to ensure fields are defined.
-            # config = self.configuration['bcl-convert']
-            config = self.configuration['bcl2fastq']
-            convert_job = ConvertJob(self.run_dir,
-                                     ss_path,
-                                     fastq_output_directory,
-                                     config['queue'],
-                                     config['nodes'],
-                                     config['nprocs'],
-                                     config['wallclock_time_in_hours'],
-                                     config['per_process_memory_limit'],
-                                     config['executable_path'],
-                                     config['modules_to_load'],
-                                     qiita_job_id)
-
-            convert_job.run()
-
-            config = self.configuration['qc']
-            qc_job = QCJob(self.run_dir,
-                           sample_sheet_params['sample_sheet_path'],
-                           config['mmi_db'],
-                           self.final_output_dir,
-                           config['queue'],
-                           config['nodes'],
-                           config['nprocs'],
-                           config['wallclock_time_in_hours'],
-                           config['per_process_memory_limit'],
-                           config['fastp_executable_path'],
-                           config['minimap2_executable_path'],
-                           config['samtools_executable_path'],
-                           config['modules_to_load'],
-                           qiita_job_id)
-
-            qc_job.run()
-
-            config = self.configuration['fastqc']
-            output_directory = join(self.final_output_dir, 'FastQC')
-            fastqc_job = FastQCJob(self.run_dir,
-                                   output_directory,
-                                   config['nprocs'],
-                                   config['nthreads'],
-                                   config['fastqc_executable_path'],
-                                   config['modules_to_load'],
-                                   qiita_job_id,
-                                   self.run_id,
-                                   config['queue'],
-                                   config['nodes'],
-                                   config['wallclock_time_in_hours'],
-                                   config['per_process_memory_limit'])
-
-            fastqc_job.run()
-
-            gpf_input_path = join(self.final_output_dir, self.run_id)
-            gpf_output_path = join(self.final_output_dir, self.run_id,
-                                   'prep-files')
-            # input = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2"
-            # output = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2
-            #          /prep-files"
-
-            config = self.configuration['seqpro']
-            gpf_job = GenPrepFileJob(gpf_input_path,
-                                     sample_sheet_params['sample_sheet_path'],
-                                     gpf_output_path,
-                                     config['seqpro_path'],
-                                     config['modules_to_load'],
-                                     qiita_job_id)
-
-            gpf_job.run()
-
-        except PipelineError as e:
-            logging.error(e)
-
-    def _time_is_right(self, timestamp):
-        # calculate how old the timestamp is
-        delta_t = epoch_time() - timestamp
-
-        # if the timestamp falls w/in the range defined by the object, then
-        # it is a legitimate target.
-        if delta_t < self.younger_than and delta_t > self.older_than:
-            return True
-
-        return False
-
-    def _find_bcl_directories(self):
+    def find_bcl_directories(self):
         """
         Walk root directory and locate all scan directory root folders
         :return: list of BCL directories within root folder.
@@ -192,7 +89,7 @@ class Pipeline:
 
         return new_dirs
 
-    def _filter_directories_for_time(self, new_dirs):
+    def filter_directories_for_time(self, new_dirs):
         """
         Filter directories for those that match allowed timespan.
         :return: list of BCL directories within timespan.
@@ -208,7 +105,8 @@ class Pipeline:
                 # within the threshold of what is considered 'new and
                 # completed data',then this directory is a legitimate
                 # target.
-                if self._time_is_right(some_timestamp):
+                delta_t = epoch_time() - some_timestamp
+                if delta_t < self.younger_than and delta_t > self.older_than:
                     # save the path as well as the original epoch timestamp
                     # as a tuple.
                     filtered_dirs.append((some_path, some_timestamp))
@@ -223,3 +121,88 @@ class Pipeline:
                 logging.warning(s.format(some_path, self.sentinel_file))
 
         return filtered_dirs
+
+
+if __name__ == '__main__':
+    run_dir = ''
+    sample_sheet_path = ''
+    qiita_job_id = ''
+    configuration_file_path = ''
+    input_directory = ''
+    run_id = ''
+    final_output_dir = ''
+
+    pipeline = Pipeline(configuration_file_path, input_directory, run_id)
+
+    configuration = pipeline.configuration
+
+    sdo = SequenceDirectory(run_dir, sample_sheet_path=sample_sheet_path)
+
+    fastq_output_directory = join(run_dir, 'Data', 'Fastq')
+
+    # config = self.configuration['bcl-convert']
+    config = configuration['bcl2fastq']
+    convert_job = ConvertJob(run_dir,
+                             sdo.sample_sheet_path,
+                             fastq_output_directory,
+                             config['queue'],
+                             config['nodes'],
+                             config['nprocs'],
+                             config['wallclock_time_in_hours'],
+                             config['per_process_memory_limit'],
+                             config['executable_path'],
+                             config['modules_to_load'],
+                             qiita_job_id)
+
+    convert_job.run()
+
+    config = configuration['qc']
+    qc_job = QCJob(run_dir,
+                   sdo.sample_sheet_path,
+                   config['mmi_db'],
+                   final_output_dir,
+                   config['queue'],
+                   config['nodes'],
+                   config['nprocs'],
+                   config['wallclock_time_in_hours'],
+                   config['per_process_memory_limit'],
+                   config['fastp_executable_path'],
+                   config['minimap2_executable_path'],
+                   config['samtools_executable_path'],
+                   config['modules_to_load'],
+                   qiita_job_id)
+
+    qc_job.run()
+
+    config = configuration['fastqc']
+    output_directory = join(final_output_dir, 'FastQC')
+    fastqc_job = FastQCJob(run_dir,
+                           output_directory,
+                           config['nprocs'],
+                           config['nthreads'],
+                           config['fastqc_executable_path'],
+                           config['modules_to_load'],
+                           qiita_job_id,
+                           run_id,
+                           config['queue'],
+                           config['nodes'],
+                           config['wallclock_time_in_hours'],
+                           config['per_process_memory_limit'])
+
+    fastqc_job.run()
+
+    gpf_input_path = join(final_output_dir, run_id)
+    gpf_output_path = join(final_output_dir, run_id, 'prep-files')
+    # input = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2"
+    # output = "210518_A00953_0305_test7/210518_A00953_0305_AHCJT7DSX2
+    #          /prep-files"
+
+    config = configuration['seqpro']
+    gpf_job = GenPrepFileJob(gpf_input_path,
+                             sdo.sample_sheet_path,
+                             gpf_output_path,
+                             config['seqpro_path'],
+                             config['modules_to_load'],
+                             qiita_job_id)
+
+    gpf_job.run()
