@@ -28,8 +28,7 @@ class TestPipeline(unittest.TestCase):
                           Pipeline,
                           configuration_file,
                           'not-valid-sample-sequence-directory',
-                          'tests/data/output_directory',
-                          run_id='run-id')
+                          'tests/data/output_directory')
 
         # test non-existant output_directory
         # pipeline = Pipeline(input_directory,
@@ -60,12 +59,10 @@ class TestPipeline(unittest.TestCase):
         # using all default parameters should not raise an Error.
         test_path = partial(join, dirname(abspath(__file__)))
         input_directory = test_path('data/sample-sequence-directory')
-        output_directory = test_path('data/output_directory')
 
         msg = None
         try:
-            Pipeline(configuration_file, input_directory, output_directory,
-                     run_id='run-id')
+            Pipeline(configuration_file, input_directory, run_id='run-id')
         except PipelineError as e:
             msg = str(e)
 
