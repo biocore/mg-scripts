@@ -44,10 +44,8 @@ class TestSequenceDirectory(unittest.TestCase):
         # when creating a new object.
         success = True
         try:
-            another = SequenceDirectory(join(base_path,
-                                             'sample-sequence-directory'),
-                                        join(base_path,
-                                             'good-sample-sheet.csv'))
+            SequenceDirectory(join(base_path, 'sample-sequence-directory'),
+                              join(base_path, 'good-sample-sheet.csv'))
         except PipelineError:
             success = False
 
