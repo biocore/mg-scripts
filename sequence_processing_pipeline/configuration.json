@@ -41,11 +41,15 @@
       "modules_to_load": []
     },
     "fastqc": {
+      "nodes": 1,
       "nprocs": 16,
+      "queue": "qiita",
       "nthreads": 16,
-      "modules_to_load": [],
+      "wallclock_time_in_hours": 36,
+      "modules_to_load": ["fastqc_0.11.5"],
       "fastqc_executable_path, ": "fastqc",
-      "multiqc_executable_path": "multiqc"
+      "multiqc_executable_path": "multiqc",
+      "per_process_memory_limit": "10gb"
     }
   }
 }

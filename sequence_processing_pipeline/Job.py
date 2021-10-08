@@ -154,8 +154,6 @@ class Job:
         permission from the authors of this function to port it to Qiita and
         keep it under BSD license.
         """
-        logging.debug("Job _system_call() method called.")
-
         proc = Popen(cmd, universal_newlines=True, shell=True,
                      stdout=PIPE, stderr=PIPE)
         # Communicate pulls all stdout/stderr from the PIPEs
@@ -231,9 +229,6 @@ class Job:
                                         allow_return_codes=[153])
             stdout = results['stdout']
             stderr = results['stderr']
-
-            logging.debug("QSTAT STDOUT: [%s]\n" % stdout)
-            logging.debug("QSTAT STDERR: [%s]\n" % stderr)
 
             if stderr.startswith("qstat: Unknown Job Id Error"):
                 break

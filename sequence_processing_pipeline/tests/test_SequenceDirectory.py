@@ -44,10 +44,8 @@ class TestSequenceDirectory(unittest.TestCase):
         # when creating a new object.
         success = True
         try:
-            another = SequenceDirectory(join(base_path,
-                                             'sample-sequence-directory'),
-                                        join(base_path,
-                                             'good-sample-sheet.csv'))
+            SequenceDirectory(join(base_path, 'sample-sequence-directory'),
+                              join(base_path, 'good-sample-sheet.csv'))
         except PipelineError:
             success = False
 
@@ -56,20 +54,16 @@ class TestSequenceDirectory(unittest.TestCase):
         # assert that SequenceDirectory object correctly extracts the metadata
         # from a known sample sheet.
 
-        results = sdo.process()
-        self.assertEqual(results['chemistry'], 'Default')
-        self.assertEqual(results['base_mask'],
-                         '--use-bases-mask Y150,I12,I12,Y150')
-        self.assertEqual(results['experiment_name'], 'RKL0042')
-        self.assertEqual(results['sequence_directory'],
+        self.assertEqual(sdo.chemistry, 'Default')
+        self.assertEqual(sdo.experiment_name, 'RKL0042')
+        self.assertEqual(sdo.sequence_directory,
                          join(base_path, 'sample-sequence-directory'))
-        self.assertEqual(results['sample_sheet_path'],
+        self.assertEqual(sdo.sample_sheet_path,
                          join(base_path, 'good-sample-sheet.csv'))
 
         # assert that SequenceDirectory object correctly raises an error when
         # initialized with an invalid sample sheet.
         a = join(base_path, 'sample-sequence-directory')
         b = join(base_path, 'no-project-name-sample-sheet.csv')
-        another = SequenceDirectory(a, b)
 
-        self.assertRaises(PipelineError, another.process)
+        self.assertRaises(PipelineError, SequenceDirectory, a, b)
