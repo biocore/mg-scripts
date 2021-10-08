@@ -46,4 +46,3 @@ class SequenceDirectory:
         header = valid_sheet.Header
         self.experiment_name = header['Experiment Name']
         self.chemistry = header['Chemistry']
-

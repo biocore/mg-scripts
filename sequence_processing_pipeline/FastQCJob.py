@@ -161,7 +161,7 @@ class FastQCJob(Job):
         cmds = self.get_cmds()
         split_count = self._generate_split_count(len(cmds))
         lines_per_split = int((len(cmds) + split_count - 1) / split_count)
-        trim_files = self._generate_trim_files(cmds, lines_per_split)
+        self._generate_trim_files(cmds, lines_per_split)
 
         script_path = self._generate_job_script(cmds,
                                                 self.queue_name,
@@ -257,4 +257,3 @@ class FastQCJob(Job):
             f.write('\n'.join(cmds))
 
         return job_script_path
-
