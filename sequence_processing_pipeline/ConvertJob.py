@@ -148,7 +148,6 @@ class ConvertJob(Job):
         # notification system, when a job starts, terminates, or gets aborted.
         lines.append("#PBS -M "
                      "ccowart@ucsd.edu,"
-                     "jdereus@ucsd.edu,"
                      "qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
@@ -166,7 +165,6 @@ class ConvertJob(Job):
         lines.append("set -x")
         lines.append(f'cd {self.run_dir}')
         tmp = "module load " + ' '.join(self.modules_to_load)
-        logging.debug(f"ConvertJob Modules to load: {tmp}")
         lines.append(tmp)
 
         # Assume that the bcl-convert tool is named 'bcl-convert' and choose
@@ -184,6 +182,8 @@ class ConvertJob(Job):
                           '--force') % (self.bcl_tool,
                                         self.sample_sheet_path,
                                         self.output_directory))
+
+            # equivalent cp for bcl-conversion (see below) needed.
         else:
             lines.append(('%s '
                           '--sample-sheet %s '
@@ -200,10 +200,12 @@ class ConvertJob(Job):
                           self.sample_sheet_path,
                           self.output_directory))
 
-        # CC: Insert COPY (scratch.py) Here
+            # Stats directory is needed downstream.
+            # It's a small directory (~64k)
+            # Copy here instead of pulling it downstream.
+            lines.append(f'cp -r ./Data/Fastq/Stats ./{self.run_id}')
 
         with open(self.job_script_path, 'w') as f:
-            logging.debug(f"Writing job script to {self.job_script_path}")
             for line in lines:
                 # remove long spaces in some lines.
                 line = re.sub(r'\s+', ' ', line)
@@ -220,7 +222,7 @@ class ConvertJob(Job):
         :return:
         '''
         script_path = self._generate_job_script()
-        logging.debug(f'ConvertJob script is located at: {script_path}')
+        logging.debug(script_path)
 
         job_info = self.qsub(self.job_script_path, None, None)
         logging.info(f'Successful job: {job_info}')

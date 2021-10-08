@@ -68,16 +68,16 @@ class QCJob(Job):
         # has trouble with.
         self.minimum_bytes = 500
 
-    def _copy(self, reports_directory, source_directory,
-              destination_directory):
+    def _copy(self, reports_directory, src_dir,
+              dst_dir):
         # move the fastp html and json directories up-front.
         logging.debug('moving html directory')
         logging.debug('reports directory: %s' % reports_directory)
-        logging.debug('source directory: %s' % source_directory)
-        logging.debug('destination directory: %s' % destination_directory)
-        move(join(reports_directory, 'html'), source_directory)
+        logging.debug('source directory: %s' % src_dir)
+        logging.debug('destination directory: %s' % dst_dir)
+        move(join(reports_directory, 'html'), src_dir)
         logging.debug('moving json directory')
-        move(join(reports_directory, 'json'), source_directory)
+        move(join(reports_directory, 'json'), src_dir)
 
         # delete the reports_directory
         # this is because the directory should be empty, but often it is
@@ -95,10 +95,9 @@ class QCJob(Job):
         # expected by users in /sequencing... Move the entire results over
         # to /sequencing or another final location w/one rsync call.
         # For performance and reliability reasons, use rsync for copying.
-        logging.debug("moving %s to %s with rsync" % (source_directory,
-                                                      destination_directory))
-        self._system_call('rsync -avp %s %s' % (
-            source_directory, destination_directory))
+        logging.debug("moving %s to %s with rsync" % (src_dir, dst_dir))
+        results = self._system_call('rsync -avp %s %s' % (src_dir, dst_dir))
+        logging.debug("Results of rsync operation: %s" % results)
 
     def _filter(self, filtered_directory, empty_files_directory,
                 minimum_bytes):
@@ -178,10 +177,18 @@ class QCJob(Job):
             logging.debug('possible copy to '
                           '/qmounts/qiita_data/uploads/${qiita_proj}/ '
                           "under qiita's ownership disabled.")
-            self._filter(filtered_directory, empty_files_directory,
-                         self.minimum_bytes)
-            self._copy(reports_directory, source_dir,
-                       self.destination_directory)
+
+            logging.debug('filtered_directory: %s' % filtered_directory)
+            logging.debug('empty_files_directory: %s' % empty_files_directory)
+            logging.debug('self.minimum_bytes: %s' % self.minimum_bytes)
+            # self._filter(filtered_directory, empty_files_directory,
+            # self.minimum_bytes)
+            logging.debug('reports_directory: %s' % reports_directory)
+            logging.debug('source_dir: %s' % source_dir)
+            logging.debug('self.destination_directory: %s' %
+                          self.destination_directory)
+            # self._copy(reports_directory, source_dir,
+            # self.destination_directory)
 
     def _generate_trim_files(self, fastq_files, split_count):
         def _chunk_list(some_list, n):
@@ -234,8 +241,6 @@ class QCJob(Job):
 
         sample_ids = []
         for sample in valid_sheet.samples:
-            logging.debug(f"Found sample: {sample['Sample_ID']} in project "
-                          f"{sample['Sample_Project']}.")
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
         bioinformatics = valid_sheet.Bioinformatics

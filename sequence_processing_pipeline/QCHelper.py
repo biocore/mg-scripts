@@ -77,9 +77,11 @@ class QCHelper():
         strings needed to process the fastq files referenced in the trim file.
         :return: A list of strings that can be run using Popen() and the like.
         '''
-        logging.debug('QC.generate_command() called.')
-
         fastp_reports_dir = join(self.products_dir, 'fastp_reports_dir')
+
+        # if this directory is not made, then fastp will not create the html
+        # and json directories and generate output files for them.
+        makedirs(fastp_reports_dir, exist_ok=True)
 
         # possible amplicon
         if self.a_trim is True:

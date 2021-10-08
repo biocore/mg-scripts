@@ -39,11 +39,11 @@ class GenPrepFileJob(Job):
         # it's done. Hence, self.output_directory and the path to run_dir
         # might be different locations than the others.
 
-        out, err, rc = self._system_call(' '.join(cmd))
+        results = self._system_call(' '.join(cmd))
 
-        logging.debug(f"Seqpro stdout: {out}")
-        logging.debug(f"Seqpro stderr: {err}")
-        logging.debug(f"Seqpro return code: {rc}")
+        logging.debug(f"Seqpro stdout: {results['stdout']}")
+        logging.debug(f"Seqpro stderr: {results['stderr']}")
+        logging.debug(f"Seqpro return code: {results['return_code']}")
 
-        if rc != 0:
+        if results['return_code'] != 0:
             raise PipelineError("Seqpro encountered an error")
