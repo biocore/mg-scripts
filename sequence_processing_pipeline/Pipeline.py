@@ -1,6 +1,7 @@
 from sequence_processing_pipeline.ConvertJob import ConvertJob
-from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.FastQCJob import FastQCJob
+from sequence_processing_pipeline.QCJob import QCJob
+from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -10,10 +11,11 @@ import os
 from os.path import join, exists
 import json
 from json.decoder import JSONDecodeError
+import shutil
 
 
 class Pipeline:
-    def __init__(self, configuration_file_path, input_directory, run_id):
+    def __init__(self, configuration_file_path, run_id):
         try:
             f = open(configuration_file_path)
             self.configuration = json.load(f)['configuration']
@@ -23,22 +25,25 @@ class Pipeline:
         except JSONDecodeError:
             raise PipelineError(f'{configuration_file_path} is not a valid ',
                                 'json file')
-
         config = self.configuration['pipeline']
+        self.search_paths = config['search_paths']
+        self.run_id = run_id
+        # just take the first result for now
+        self.run_dir = self._search_for_run_dir(run_id)[0]
+        self.products_dir = join(self.run_dir, run_id)
+        os.makedirs(self.products_dir, exist_ok=True)
+
+        self.fastq_output_directory = join(self.run_dir, 'Data', 'Fastq')
+        self.final_output_dir = config['archive_path']
         younger_than = config['younger_than']
         older_than = config['older_than']
         archive_path = join(config['archive_path'], run_id)
 
-        self.directory_check(input_directory, create=False)
         self.directory_check(archive_path, create=True)
-
-        self.run_id = run_id
 
         if older_than >= younger_than:
             raise PipelineError(
                 'older_than cannot be equal to or less than younger_than.')
-
-        self.run_dir = input_directory
 
         self.sentinel_file = "RTAComplete.txt"
 
@@ -47,6 +52,23 @@ class Pipeline:
         self.older_than = older_than
 
         self.final_output_dir = archive_path
+
+    def _search_for_run_dir(self, run_id):
+        results = []
+        for search_path in self.search_paths:
+            logging.debug(search_path)
+            for entry in os.listdir(search_path):
+                some_path = join(search_path, entry)
+                logging.debug(some_path)
+                logging.debug(run_id)
+                if os.path.isdir(some_path) and some_path.endswith(run_id):
+                    results.append(some_path)
+        return results
+
+    def copy_results_to_archive(self):
+        job = Job()
+        job._system_call('rsync -avp %s %s' % (self.products_dir,
+                                               self.final_output_dir))
 
     def directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -124,26 +146,26 @@ class Pipeline:
 
 
 if __name__ == '__main__':
-    run_dir = ''
-    sample_sheet_path = ''
-    qiita_job_id = ''
-    configuration_file_path = ''
-    input_directory = ''
-    run_id = ''
-    final_output_dir = ''
+    def log_time():
+        t = epoch_time()
+        logging.debug(f"Current time (epoch value): {t}")
 
-    pipeline = Pipeline(configuration_file_path, input_directory, run_id)
+    log_time()
 
-    configuration = pipeline.configuration
+    sample_sheet_path = '/path/to/sample-sheet'
+    run_id = '210518_A00953_0305_test11'
+    config_file_path = '/path/to/configuration.json'
+    qiita_job_id = 'NOT_A_QIITA_JOB_ID'
 
-    sdo = SequenceDirectory(run_dir, sample_sheet_path=sample_sheet_path)
+    pipeline = Pipeline(config_file_path, run_id)
+    sdo = SequenceDirectory(pipeline.run_dir,
+                            sample_sheet_path=sample_sheet_path)
 
-    fastq_output_directory = join(run_dir, 'Data', 'Fastq')
-
-    config = configuration['bcl2fastq']
-    convert_job = ConvertJob(run_dir,
+    log_time()
+    config = pipeline.configuration['bcl-convert']
+    convert_job = ConvertJob(pipeline.run_dir,
                              sdo.sample_sheet_path,
-                             fastq_output_directory,
+                             pipeline.fastq_output_directory,
                              config['queue'],
                              config['nodes'],
                              config['nprocs'],
@@ -155,11 +177,25 @@ if __name__ == '__main__':
 
     convert_job.run()
 
-    config = configuration['qc']
-    qc_job = QCJob(run_dir,
+    # Currently this is performed outside a Job as it's not the
+    # resposibility of ConvertJob() to see that this file is copied for
+    # GenPrepFileJob(), and GenPrepFileJob() shouldn't have to know where
+    # this information is located.
+    src1 = join(pipeline.run_dir, 'Data/Fastq/Reports')
+    src2 = join(pipeline.run_dir, 'Data/Fastq/Stats')
+    if exists(src1):
+        shutil.copytree(src1, join(pipeline.products_dir, 'Reports'))
+    elif exists(src2):
+        shutil.copytree(src2, join(pipeline.products_dir, 'Stats'))
+    else:
+        raise PipelineError("Cannot locate Fastq metadata directory.")
+
+    log_time()
+    config = pipeline.configuration['qc']
+    qc_job = QCJob(pipeline.run_dir,
                    sdo.sample_sheet_path,
                    config['mmi_db'],
-                   final_output_dir,
+                   pipeline.products_dir,
                    config['queue'],
                    config['nodes'],
                    config['nprocs'],
@@ -173,9 +209,10 @@ if __name__ == '__main__':
 
     qc_job.run()
 
-    config = configuration['fastqc']
-    output_directory = join(final_output_dir, 'FastQC')
-    fastqc_job = FastQCJob(run_dir,
+    log_time()
+    config = pipeline.configuration['fastqc']
+    output_directory = join(pipeline.products_dir, 'FastQC')
+    fastqc_job = FastQCJob(pipeline.run_dir,
                            output_directory,
                            config['nprocs'],
                            config['nthreads'],
@@ -190,15 +227,23 @@ if __name__ == '__main__':
 
     fastqc_job.run()
 
-    gpf_input_path = join(final_output_dir, run_id)
-    gpf_output_path = join(final_output_dir, run_id, 'prep-files')
+    gpf_output_path = join(pipeline.products_dir, 'prep-files')
+    os.makedirs(gpf_output_path, exist_ok=True)
 
-    config = configuration['seqpro']
-    gpf_job = GenPrepFileJob(gpf_input_path,
+    log_time()
+    config = pipeline.configuration['seqpro']
+    gpf_job = GenPrepFileJob(pipeline.products_dir,
                              sdo.sample_sheet_path,
                              gpf_output_path,
                              config['seqpro_path'],
                              config['modules_to_load'],
                              qiita_job_id)
 
-    gpf_job.run()
+    try:
+        gpf_job.run()
+    except PipelineError as e:
+        print(f"Caught known seqpro error: {str(e)}")
+
+    log_time()
+    pipeline.copy_results_to_archive()
+    log_time()

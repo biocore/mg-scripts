@@ -119,12 +119,11 @@ class QCJob(Job):
                     empty_list.append(full_path)
                     empty_list.append(full_path_reverse)
 
-        if empty_list:
-            # for now, we won't mind if the empty_files_directory exists
-            # already. We'll assume nothing is in it or if there are files
-            # they can be overwritten and don't hurt anything.
-            logging.debug(f'making directory {empty_files_directory}')
-            makedirs(empty_files_directory, exist_ok=True)
+        # for now, we won't mind if the empty_files_directory exists
+        # already. We'll assume nothing is in it or if there are files
+        # they can be overwritten and don't hurt anything.
+        logging.debug(f'making directory {empty_files_directory}')
+        makedirs(empty_files_directory, exist_ok=True)
 
         for item in empty_list:
             logging.debug(f'moving {item}')
@@ -181,8 +180,8 @@ class QCJob(Job):
             logging.debug('filtered_directory: %s' % filtered_directory)
             logging.debug('empty_files_directory: %s' % empty_files_directory)
             logging.debug('self.minimum_bytes: %s' % self.minimum_bytes)
-            # self._filter(filtered_directory, empty_files_directory,
-            # self.minimum_bytes)
+            self._filter(filtered_directory, empty_files_directory,
+                         self.minimum_bytes)
             logging.debug('reports_directory: %s' % reports_directory)
             logging.debug('source_dir: %s' % source_dir)
             logging.debug('self.destination_directory: %s' %

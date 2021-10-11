@@ -2,6 +2,7 @@ from os import listdir
 from os.path import join
 from sequence_processing_pipeline.Job import Job
 import logging
+from os import makedirs
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -116,7 +117,7 @@ class FastQCJob(Job):
                 output_dir = join(tmp, 'bclconvert')
             else:
                 output_dir = join(tmp, filter_type)
-            # makedirs(output_dir, exist_ok=True)
+            makedirs(output_dir, exist_ok=True)
             for some_file in files:
                 fastqc_results.append((self.nthreads, some_file, output_dir))
 
