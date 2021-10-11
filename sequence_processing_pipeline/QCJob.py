@@ -10,7 +10,7 @@ from shutil import move
 
 class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, mmi_db_path,
-                 output_directory, queue_name, node_count, nprocs,
+                 products_dir, queue_name, node_count, nprocs,
                  wall_time_limit, pmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id):
         '''
@@ -21,8 +21,7 @@ class QCJob(Job):
         :param sample_sheet_path: Path to a sample sheet file.
         :param fpmmp_path: Path to fpmmp.sh script in running environment.
         :param mmi_db_path: Path to human genome database in running env.
-        :param output_directory: Completed runs root path. E.g.:
-         /sequencing/ucsd_2/complete_runs
+        :param products_dir: The path to the products directory
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
         :param nprocs: Number of processes to use in runing env.
@@ -33,6 +32,7 @@ class QCJob(Job):
         :param samtools_path: The path to the samtools executable
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
+        :param products_dir: The path to the products directory
         '''
         # for now, keep this run_dir instead of abspath(run_dir)
         self.job_name = 'QCJob'
@@ -52,17 +52,13 @@ class QCJob(Job):
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
-        self.products_dir = join(self.run_dir, 'products')
+        self.products_dir = products_dir
         self.pmem = pmem
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
         self.modules_to_load = modules_to_load
         self.qiita_job_id = qiita_job_id
-
-        # POST-PROCESSING RELATED
-        # self.destination_directory = '/pscratch/seq_test/test_copy'
-        self.destination_directory = output_directory
 
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
@@ -185,7 +181,7 @@ class QCJob(Job):
             logging.debug('reports_directory: %s' % reports_directory)
             logging.debug('source_dir: %s' % source_dir)
             logging.debug('self.destination_directory: %s' %
-                          self.destination_directory)
+                          self.products_dir)
             # self._copy(reports_directory, source_dir,
             # self.destination_directory)
 
@@ -334,11 +330,11 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        foo = join(self.run_dir, self.trim_file + '0')
+        tf_fp = join(self.run_dir, self.trim_file + '0')
         sh_details_fp = join(
             self.run_dir, self.trim_file + project_name + '.array-details')
 
-        qc = QCHelper(self.nprocs, foo, project_name,
+        qc = QCHelper(self.nprocs, tf_fp, project_name,
                       project_products_dir, self.mmi_db_path, adapter_a,
                       adapter_A, a_trim, h_filter, self.chemistry,
                       self.fastp_path, self.minimap2_path, self.samtools_path)
