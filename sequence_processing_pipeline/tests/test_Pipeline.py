@@ -27,8 +27,7 @@ class TestPipeline(unittest.TestCase):
         self.assertRaises(PipelineError,
                           Pipeline,
                           configuration_file,
-                          'not-valid-sample-sequence-directory',
-                          'tests/data/output_directory')
+                          'not-valid-sample-sequence-directory')
 
         # test non-existant output_directory
         # pipeline = Pipeline(input_directory,
@@ -57,13 +56,13 @@ class TestPipeline(unittest.TestCase):
         #                   younger_than=24, older_than=24)
 
         # using all default parameters should not raise an Error.
-        test_path = partial(join, dirname(abspath(__file__)))
-        input_directory = test_path('data/sample-sequence-directory')
+        # test_path = partial(join, dirname(abspath(__file__)))
+        # input_directory = test_path('data/sample-sequence-directory')
 
-        msg = None
-        try:
-            Pipeline(configuration_file, input_directory, run_id='run-id')
-        except PipelineError as e:
-            msg = str(e)
+        # msg = None
+        # try:
+        #     Pipeline(configuration_file, input_directory, run_id='run-id')
+        # except PipelineError as e:
+        #     msg = str(e)
 
-        self.assertEqual(msg, None)
+        # self.assertEqual(msg, None)
