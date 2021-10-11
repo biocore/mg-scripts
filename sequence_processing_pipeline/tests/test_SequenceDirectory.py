@@ -67,3 +67,7 @@ class TestSequenceDirectory(unittest.TestCase):
         b = join(base_path, 'no-project-name-sample-sheet.csv')
 
         self.assertRaises(PipelineError, SequenceDirectory, a, b)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -67,3 +67,7 @@ class TestPipeline(unittest.TestCase):
             msg = str(e)
 
         self.assertEqual(msg, None)
+
+
+if __name__ == '__main__':
+    unittest.main()

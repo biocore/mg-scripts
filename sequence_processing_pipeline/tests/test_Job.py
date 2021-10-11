@@ -22,3 +22,7 @@ class TestJob(unittest.TestCase):
         self.assertEqual(obs_std_out, exp_stdout)
         self.assertEqual(results['stderr'], exp_stderr)
         self.assertEqual(results['return_code'], exp_return_code)
+
+
+if __name__ == '__main__':
+    unittest.main()
