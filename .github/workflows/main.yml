@@ -47,7 +47,6 @@ jobs:
         shell: bash -l {0}
         run: |
           nosetests --with-coverage --cover-inclusive --cover-package sequence_processing_pipeline
-          coverage report
 
       - name: Coveralls
         uses: AndreMiras/coveralls-python-action@develop
@@ -62,4 +61,5 @@ jobs:
     - name: Coveralls Finished
       uses: AndreMiras/coveralls-python-action@develop
       with:
+        github-token: ${{ secrets.github_token }}
         parallel-finished: true
