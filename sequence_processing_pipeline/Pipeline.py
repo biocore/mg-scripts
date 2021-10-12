@@ -29,6 +29,8 @@ class Pipeline:
         self.search_paths = config['search_paths']
         self.run_id = run_id
         self.run_dir = self._search_for_run_dir(run_id)
+        if not self.run_dir:
+            raise PipelineError(f'{run_id} could not be found in the archive.')
         self.products_dir = join(self.run_dir, run_id)
         os.makedirs(self.products_dir, exist_ok=True)
 

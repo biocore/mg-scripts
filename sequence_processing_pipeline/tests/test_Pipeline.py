@@ -1,10 +1,8 @@
 import logging
 import unittest
 from os import makedirs
-from os.path import join, dirname, abspath
 from sequence_processing_pipeline.Pipeline import Pipeline
 from sequence_processing_pipeline.PipelineError import PipelineError
-from functools import partial
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -23,12 +21,11 @@ class TestPipeline(unittest.TestCase):
         #               '/data/invalid_output_directory_two'),
         #              ignore_errors=False)
 
-        # test invalid input_directory
+        # test invalid run_id
         self.assertRaises(PipelineError,
                           Pipeline,
                           configuration_file,
-                          'not-valid-sample-sequence-directory',
-                          'tests/data/output_directory')
+                          'not-sample-sequence-directory')
 
         # test non-existant output_directory
         # pipeline = Pipeline(input_directory,
@@ -57,12 +54,9 @@ class TestPipeline(unittest.TestCase):
         #                   younger_than=24, older_than=24)
 
         # using all default parameters should not raise an Error.
-        test_path = partial(join, dirname(abspath(__file__)))
-        input_directory = test_path('data/sample-sequence-directory')
-
         msg = None
         try:
-            Pipeline(configuration_file, input_directory, run_id='run-id')
+            Pipeline(configuration_file, 'sample-sequence-directory')
         except PipelineError as e:
             msg = str(e)
 
