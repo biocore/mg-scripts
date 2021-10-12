@@ -20,7 +20,6 @@ class GenPrepFileJob(Job):
         self.output_directory = output_directory
         self.qiita_job_id = qiita_job_id
 
-    def run(self):
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir
 
@@ -30,16 +29,17 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        cmd = [self.seqpro_path, self.run_dir, self.sample_sheet_path,
-               join(self.output_directory, 'prep_files')]
+        self.command = [
+            self.seqpro_path, self.run_dir, self.sample_sheet_path,
+            join(self.output_directory, 'prep_files')]
 
+    def run(self):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
         # and QCJob currently moves its products to the final location. It
         # would be cleaner if it did not do this, but currently that is how
         # it's done. Hence, self.output_directory and the path to run_dir
         # might be different locations than the others.
-
-        results = self._system_call(' '.join(cmd))
+        results = self._system_call(' '.join(self.command))
 
         logging.debug(f"Seqpro stdout: {results['stdout']}")
         logging.debug(f"Seqpro stderr: {results['stderr']}")

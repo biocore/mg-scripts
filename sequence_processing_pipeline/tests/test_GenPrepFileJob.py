@@ -1,28 +1,23 @@
 from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
-from sequence_processing_pipeline.PipelineError import PipelineError
-import logging
+from os.path import join
+from functools import partial
 import unittest
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestGenPrepFileJob(unittest.TestCase):
     def test_creation(self):
-        run_dir = 'tests/data/sample-sequence-directory'
-        sample_sheet_path = 'tests/data/good-sample-sheet.csv'
-        output_directory = 'tests/data/output_directory'
+        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
+        run_dir = path('sample-sequence-directory')
+        sample_sheet_path = path('good-sample-sheet.csv')
+        output_directory = path('output_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
 
-        msg = None
-        try:
-            GenPrepFileJob(run_dir, sample_sheet_path, output_directory,
-                           'seqpro', [], qiita_id)
-        except PipelineError as e:
-            msg = str(e)
+        job = GenPrepFileJob(run_dir, sample_sheet_path, output_directory,
+                             'seqpro', [], qiita_id)
+        exp = ['seqpro', run_dir, sample_sheet_path,
+               join(output_directory, 'prep_files')]
 
-        logging.debug(msg)
-        # self.assertEqual(msg, None)
+        self.assertEqual(job.command, exp)
 
 
 if __name__ == '__main__':
