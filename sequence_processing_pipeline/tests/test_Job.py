@@ -13,7 +13,7 @@ class TestJob(unittest.TestCase):
                '/path/to/run_dir/200nnn_xnnnnn_nnnn_xxxxxxxxxx_1.err.log')
         self.assertEqual(job.generate_job_script_path(), exp)
 
-        self.assertEqual(job._which('ls'), '/bin/ls')
+        self.assertEqual(job._which('ls'), '/usr/bin/ls')
 
         with self.assertRaises(PipelineError):
             job._file_check('/does/not/exist')
