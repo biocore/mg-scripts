@@ -35,6 +35,12 @@ class FastQCJob(Job):
         self.products_dir = join(self.run_dir, run_id)
         self.pmem = pmem
 
+        self.commands = self.get_cmds()
+        split_count = self._generate_split_count(len(self.commands))
+        lines_per_split = int(
+            (len(self.commands) + split_count - 1) / split_count)
+        self._generate_trim_files(self.commands, lines_per_split)
+
     def get_cmds(self):
         results = []
 
@@ -158,26 +164,13 @@ class FastQCJob(Job):
         return 1
 
     def run(self):
-        cmds = self.get_cmds()
-        split_count = self._generate_split_count(len(cmds))
-        lines_per_split = int((len(cmds) + split_count - 1) / split_count)
-        self._generate_trim_files(cmds, lines_per_split)
-
-        script_path = self._generate_job_script(cmds,
-                                                self.queue_name,
-                                                self.node_count,
-                                                self.nprocs,
-                                                self.wall_time_limit,
-                                                split_count,
-                                                self.pmem)
+        script_path = self._generate_job_script()
 
         pbs_job_id = self.qsub(script_path, None, None)
         logging.debug(pbs_job_id)
 
-    def _generate_job_script(self, cmds, queue_name, node_count, nprocs,
-                             wall_time_limit, split_count, pmem):
+    def _generate_job_script(self):
         lines = []
-
         # unlike w/ConvertBCL2FastqJob, multiple qc.sh scripts will be
         # generated, one for each project defined in the sample sheet.
         # since we will generate a job-script for each project, we won't use
@@ -203,11 +196,11 @@ class FastQCJob(Job):
         # SBATCH -p SOMETHING -> PBS -q SOMETHING
         # (Torque doesn't appear to have a quality of service (-q) option. so
         # this will go unused in translation.)
-        lines.append("#PBS -q %s" % queue_name)
+        lines.append("#PBS -q %s" % self.queue_name)
 
         # request one node
         # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
-        lines.append("#PBS -l nodes=%d:ppn=%d" % (node_count, nprocs))
+        lines.append(f"#PBS -l nodes={self.node_count}:ppn={self.nprocs}")
 
         # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
@@ -215,17 +208,17 @@ class FastQCJob(Job):
         # Slurm
         # walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
         # using the larger value found in the two scripts (72 vs ? hours)
-        lines.append("#PBS -l walltime=%d:00:00" % wall_time_limit)
+        lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
-        lines.append(f"#PBS -l pmem={pmem}")
+        lines.append(f"#PBS -l pmem={self.pmem}")
 
         # --output -> -o
         lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
         lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
 
-        lines.append("#PBS -t 1-%d%%20" % len(cmds))
+        lines.append("#PBS -t 1-%d%%20" % len(self.commands))
 
         # there is no equivalent for this in Torque, I believe
         # --cpus-per-task 1
@@ -254,6 +247,6 @@ class FastQCJob(Job):
             f.write('\n'.join(lines))
 
         with open(sh_details_fp, 'w') as f:
-            f.write('\n'.join(cmds))
+            f.write('\n'.join(self.commands))
 
         return job_script_path
