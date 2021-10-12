@@ -39,6 +39,10 @@ jobs:
         run: |
           pip install -e ".[all]"
 
+      - name: Python linter
+        shell: bash -l {0}
+        run: flake8 sequence_processing_pipeline/ setup.py sequence_processing_pipeline/scripts/sequence-processing-pipeline
+
       - name: Run tests and measure coverage
         shell: bash -l {0}
         run: |
@@ -59,19 +63,3 @@ jobs:
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - name: flake8
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.6
-    - name: install dependencies
-      run: python -m pip install --upgrade pip
-    - name: Check out repository code
-      uses: actions/checkout@v2
-    - name: lint
-      run: |
-        pip install -q flake8
-        flake8 sequence_processing_pipeline/ setup.py sequence_processing_pipeline/scripts/sequence-processing-pipeline
