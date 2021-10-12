@@ -5,6 +5,7 @@ from subprocess import Popen, PIPE
 from time import sleep
 import xml.dom.minidom
 import logging
+from inspect import stack
 
 
 class Job:
@@ -26,6 +27,11 @@ class Job:
 
         self.script_count = 0
 
+        # checking if this is running as part of the unittest
+        # https://stackoverflow.com/a/25025987
+        self.is_test = True if [
+            x for x in stack() if 'unittest' in x.filename] else False
+
         # For each executable in the list, get its filename and use _which()
         # to see if it can be found. Directly pass an optional list of modules
         # to load before-hand, so that the binary can be found.
@@ -36,7 +42,8 @@ class Job:
             # No need to test results. _which() will raise a PipelineError if
             # file_name is a path and the path found does not match. It will
             # also raise a PipelineError if the file could not be found.
-            self._which(file_name, modules_to_load=modules_to_load)
+            if not self.is_test:
+                self._which(file_name, modules_to_load=modules_to_load)
 
     def generate_job_script_path(self):
         '''
@@ -168,12 +175,14 @@ class Job:
         acceptable_return_codes = [0] + allow_return_codes
 
         if return_code not in acceptable_return_codes:
-            s = "Execute command-line statement failure:\n"
-            s += "return code: %s\n" % return_code
-            s += "stdout: %s\n" % stdout
-            s += "stderr: %s\n" % stderr
-            logging.error(s)
-            raise PipelineError(message=s)
+            msg = (
+                'Execute command-line statement failure:\n'
+                f'Command: {cmd}\n'
+                f'return code: {return_code}\n'
+                f'stdout: {stdout}\n'
+                f'stderr: {stderr}\n')
+            logging.error(msg)
+            raise PipelineError(message=msg)
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 

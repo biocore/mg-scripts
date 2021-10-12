@@ -1,12 +1,8 @@
-from os import makedirs, environ
+from os.path import join, realpath, dirname
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.PipelineError import PipelineError
-from shutil import rmtree
-import logging
+from functools import partial
 import unittest
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestConvertJob(unittest.TestCase):
@@ -15,47 +11,53 @@ class TestConvertJob(unittest.TestCase):
         # root directory of the single sequence directory given as
         # input by the user. Later we can re-introduce directories
         # that contain multiple BCL root directories.
-        run_dir = 'tests/data/sample-sequence-directory'
-        sample_sheet_path = 'tests/data/good-sample-sheet.csv'
-        output_directory = 'tests/data/output_directory'
-        inv_input_directory = 'tests/data/invalid_input_directory'
-        # inv_output_dir = 'tests/data/invalid_output_directory'
-        # inv_final_output_dir = 'tests/data/invalid_output_directory_two'
+        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
+        run_dir = path('sample-sequence-directory')
+        sample_sheet_path = path('good-sample-sheet.csv')
+        output_directory = path('output_directory')
+        inv_input_directory = path('inv_input_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
 
         # ConvertJob should assert due to invalid_input_directory.
-        self.assertRaises(PipelineError, ConvertJob, inv_input_directory,
-                          sample_sheet_path, output_directory, 'qiita', 1, 16,
-                          24, '10gb', 'tests/bin/bcl-convert', [], qiita_id)
+        with self.assertRaises(PipelineError):
+            ConvertJob(inv_input_directory, sample_sheet_path,
+                       output_directory, 'qiita', 1, 16, 24, '10gb',
+                       'tests/bin/bcl-convert', [], qiita_id)
 
-        # ConvertJob should assert due run_dir/Data directory being
-        # devoid of BCL files.
-        self.assertRaises(PipelineError, ConvertJob, run_dir,
-                          sample_sheet_path, output_directory, 'qiita', 1, 16,
-                          24, '10gb', 'tests/bin/bcl-convert', [], qiita_id)
+        job = ConvertJob(run_dir, sample_sheet_path, output_directory, 'qiita',
+                         1, 16, 24, '10gb', 'tests/bin/bcl-convert', [],
+                         qiita_id)
+        with open(job._generate_job_script()) as f:
+            obs = ''.join(f.readlines())
 
-        # Create fake BCL files in the directory structure seen in real-world
-        # examples.
-        makedirs('tests/data/sample-sequence-directory/Data/Intensities'
-                 '/BaseCalls/L003', exist_ok=True)
-        with open('tests/data/sample-sequence-directory/Data/Intensities'
-                  '/BaseCalls/L003/fake.bcl', 'w') as f:
-            f.write('this is a text file.')
+        full_run_dir = join(
+            realpath(dirname(__file__)), 'data', 'sample-sequence-directory')
 
-        # ConvertJob should not assert an error now.
-        environ['PATH'] = ('/Users/ccowart/PycharmProjects/mg-scripts/'
-                           'sequence_processing_pipeline/tests/bin:'
-                           + environ['PATH'])
+        self.assertEqual(obs, SCRIPT_EXP.format(full_run_dir=full_run_dir))
 
-        msg = None
-        try:
-            ConvertJob(run_dir, sample_sheet_path, output_directory, 'qiita',
-                       1, 16, 24, '10gb', 'tests/bin/bcl-convert', [],
-                       qiita_id)
-        except PipelineError as e:
-            msg = str(e)
 
-        logging.debug(msg)
-        # self.assertEqual(msg, None)
+SCRIPT_EXP = ''.join([
+    '#!/bin/bash\n',
+    '#PBS -N abcdabcdabcdabcdabcdabcdabcdabcd_ConvertJob\n',
+    '#PBS -q qiita\n',
+    '#PBS -l nodes=1:ppn=16\n',
+    '#PBS -V\n',
+    '#PBS -l walltime=24:00:00\n',
+    '#PBS -m bea\n',
+    '#PBS -M ccowart@ucsd.edu,qiita.help@gmail.com\n',
+    '#PBS -l pmem=10gb\n',
+    '#PBS -o localhost:{full_run_dir}/ConvertJob.out.log\n',
+    '#PBS -e localhost:{full_run_dir}/ConvertJob.err.log\n',
+    'set -x\n',
+    'cd {full_run_dir}\n',
+    'module load \n',
+    'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
+    'data/good-sample-sheet.csv --output-directory '
+    'sequence_processing_pipeline/tests/data/output_directory '
+    '--bcl-input-directory . --bcl-num-decompression-threads 8 '
+    '--bcl-num-conversion-threads 8 --bcl-num-compression-threads 16 '
+    '--bcl-num-parallel-tiles 8 --bcl-sampleproject-subdirectories '
+    'true --force\n'])
 
-        rmtree('tests/data/sample-sequence-directory/Data/Intensities')
+if __name__ == '__main__':
+    unittest.main()

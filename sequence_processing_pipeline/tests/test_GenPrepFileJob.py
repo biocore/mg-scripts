@@ -23,3 +23,7 @@ class TestGenPrepFileJob(unittest.TestCase):
 
         logging.debug(msg)
         # self.assertEqual(msg, None)
+
+
+if __name__ == '__main__':
+    unittest.main()
