@@ -43,7 +43,6 @@ jobs:
         shell: bash -l {0}
         run: |
           nosetests --with-coverage --cover-inclusive --cover-package sequence_processing_pipeline
-          coverage report
 
       - name: Coveralls
         uses: AndreMiras/coveralls-python-action@develop
