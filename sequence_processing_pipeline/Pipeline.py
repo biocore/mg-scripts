@@ -28,8 +28,7 @@ class Pipeline:
         config = self.configuration['pipeline']
         self.search_paths = config['search_paths']
         self.run_id = run_id
-        # just take the first result for now
-        self.run_dir = self._search_for_run_dir(run_id)[0]
+        self.run_dir = self._search_for_run_dir(run_id)
         self.products_dir = join(self.run_dir, run_id)
         os.makedirs(self.products_dir, exist_ok=True)
 
@@ -54,16 +53,15 @@ class Pipeline:
         self.final_output_dir = archive_path
 
     def _search_for_run_dir(self, run_id):
-        results = []
         for search_path in self.search_paths:
-            logging.debug(search_path)
+            logging.debug(f'Searching {search_path} for {run_id}')
             for entry in os.listdir(search_path):
                 some_path = join(search_path, entry)
-                logging.debug(some_path)
-                logging.debug(run_id)
+                # ensure some_path never ends in '/'
+                some_path = some_path.rstrip('/')
                 if os.path.isdir(some_path) and some_path.endswith(run_id):
-                    results.append(some_path)
-        return results
+                    logging.debug(f'Found {some_path}')
+                    return some_path
 
     def copy_results_to_archive(self):
         job = Job()
