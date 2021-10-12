@@ -17,7 +17,7 @@ class TestFastQCJob(unittest.TestCase):
                       'queue_name', '4', '23:00:00', '8g')
 
         job = FastQCJob(run_dir, output_directory, '8', '16',
-                        '/path/fastqc_path', [], qiita_job_id, 'run-id',
+                        '/path/fastqc_path', [], qiita_job_id, '',
                         'queue_name', '4', '23:00:00', '8g')
         exp = (
             f'{run_dir}/FastQCJob_1.sh',
