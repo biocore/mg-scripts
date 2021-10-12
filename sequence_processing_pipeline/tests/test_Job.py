@@ -1,6 +1,5 @@
 import unittest
 from sequence_processing_pipeline.Job import Job
-import logging
 
 
 class TestJob(unittest.TestCase):
