@@ -10,19 +10,25 @@ logging.basicConfig(level=logging.DEBUG)
 
 class FastQCJob(Job):
     def __init__(self, run_dir, output_directory, nprocs, nthreads,
-                 fastqc_path, modules_to_load, qiita_job_id,
-                 queue_name, node_count, wall_time_limit, jmem, pool_size):
+                 fastqc_path, modules_to_load, qiita_job_id, queue_name,
+                 node_count, wall_time_limit, jmem, pool_size,
+                 multiqc_config_file_path):
         self.job_name = 'FastQCJob'
         super().__init__(run_dir, self.job_name, [fastqc_path],
                          modules_to_load)
         self.run_id = basename(self.run_dir)
         self.nprocs = nprocs
         self.nthreads = nthreads
-        self.fastqc_path = fastqc_path
-        if self._file_check(self.fastqc_path):
+
+        if self._file_check(fastqc_path):
             self.fastqc_path = fastqc_path
         else:
             raise PipelineError(f"'{fastqc_path}' does not exist")
+
+        if self._file_check(multiqc_config_file_path):
+            self.multiqc_config_file_path = multiqc_config_file_path
+        else:
+            raise PipelineError(f"'{multiqc_config_file_path}' does not exist")
 
         self.modules_to_load = modules_to_load
         self.raw_fastq_path = join(self.run_dir, 'Data', 'Fastq')
@@ -36,9 +42,11 @@ class FastQCJob(Job):
         self.products_dir = join(self.run_dir, self.run_id)
         # for CI, create this directory if it doesn't exist already.
         self._directory_check(self.products_dir, create=True)
+
         self.jmem = jmem
         self.pool_size = pool_size
 
+        self.project_names = []  # ['THDMI_US_10317']
         self.commands = self._get_commands()
         split_count = self._generate_split_count(len(self.commands))
         lines_per_split = int((len(self.commands) + split_count - 1) /
@@ -64,6 +72,10 @@ class FastQCJob(Job):
             command = ['fastqc', '--noextract', '-t', str(number_of_threads),
                        file_path, '-o', output_path]
             results.append(' '.join(command))
+
+        # remove duplicate project names from the list, now that
+        # processing is complete.
+        self.project_names = list(set(self.project_names))
 
         return results
 
@@ -110,6 +122,7 @@ class FastQCJob(Job):
         fastqc_results = []
 
         for project_name, filter_type, fastq_path, files in projects:
+            self.project_names.append(project_name)
             base_path = join(self.fastqc_output_path, project_name)
             dir_name = 'bclconvert' if is_raw_input else filter_type
 
@@ -151,6 +164,29 @@ class FastQCJob(Job):
     def run(self):
         pbs_job_id = self.qsub(self.script_path, None, None)
         logging.debug(pbs_job_id)
+
+        for project in self.project_names:
+            logging.debug('PROJECT: %s' % project)
+            fastp_reports = join(self.run_dir, self.run_id, project,
+                                 'fastp_reports_dir', 'json')
+            fastqc_reports = join(self.run_dir, self.run_id, 'FastQC',
+                                  project)
+            # filtered_reports may be redundant, as multiqc  can use
+            # fastqc_reports as a root to search
+            filtered_reports = join(fastqc_reports, 'filtered_sequences')
+            cmd = ['multiqc', '-c', self.multiqc_yaml_path, '--fullnames',
+                   '--force', fastp_reports, fastqc_reports, filtered_reports,
+                   '-o', join(self.fastqc_output_path, 'multiqc'),
+                   '--interactive']
+            logging.debug(cmd)
+
+            results = self._system_call(' '.join(cmd))
+            logging.debug(f"_stdout: {results['stdout']}")
+            logging.debug(f"_stderr: {results['stderr']}")
+            logging.debug(f"return code: {results['return_code']}")
+
+            if results['return_code'] != 0:
+                raise PipelineError("multiqc encountered an error")
 
     def _generate_job_script(self):
         lines = []
