@@ -1,6 +1,7 @@
 from os import listdir
-from os.path import join
+from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
+from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
 
 
@@ -9,51 +10,58 @@ logging.basicConfig(level=logging.DEBUG)
 
 class FastQCJob(Job):
     def __init__(self, run_dir, output_directory, nprocs, nthreads,
-                 fastqc_path, modules_to_load, qiita_job_id, run_id,
+                 fastqc_path, modules_to_load, qiita_job_id,
                  queue_name, node_count, wall_time_limit, jmem, pool_size):
         self.job_name = 'FastQCJob'
         super().__init__(run_dir, self.job_name, [fastqc_path],
                          modules_to_load)
+        self.run_id = basename(self.run_dir)
         self.nprocs = nprocs
         self.nthreads = nthreads
         self.fastqc_path = fastqc_path
+        if self._file_check(self.fastqc_path):
+            self.fastqc_path = fastqc_path
+        else:
+            raise PipelineError(f"'{fastqc_path}' does not exist")
+
         self.modules_to_load = modules_to_load
         self.raw_fastq_path = join(self.run_dir, 'Data', 'Fastq')
         self.fastqc_output_path = output_directory
-        self.processed_fastq_path = join(self.run_dir, run_id)
+        self.processed_fastq_path = join(self.run_dir, self.run_id)
         self.qiita_job_id = qiita_job_id
         self.trim_file = 'fqc_split_file_'
         self.queue_name = queue_name
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
-        self.products_dir = join(self.run_dir, run_id)
+        self.products_dir = join(self.run_dir, self.run_id)
         self.jmem = jmem
         self.pool_size = pool_size
 
-        self.cmds = self._get_cmds()
-        split_count = self._generate_split_count(len(self.cmds))
-        lines_per_split = int((len(self.cmds) + split_count - 1) / split_count)
-        self._generate_trim_files(self.cmds, lines_per_split)
+        self.commands = self._get_commands()
+        split_count = self._generate_split_count(len(self.commands))
+        lines_per_split = int((len(self.commands) + split_count - 1) /
+                              split_count)
+        self._generate_trim_files(self.commands, lines_per_split)
         self.script_path = self._generate_job_script()
 
-    def _get_cmds(self):
+    def _get_commands(self):
         results = []
 
         # gather the parameters for processing all relevant raw fastq files.
         params = self._scan_fastq_files(True)
 
         for number_of_threads, file_path, output_path in params:
-            cmd = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                   file_path, '-o', output_path]
-            results.append(' '.join(cmd))
+            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
+                       file_path, '-o', output_path]
+            results.append(' '.join(command))
 
         # next, do the same for the trimmed/filtered fastq files.
         params = self._scan_fastq_files(False)
 
         for number_of_threads, file_path, output_path in params:
-            cmd = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                   file_path, '-o', output_path]
-            results.append(' '.join(cmd))
+            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
+                       file_path, '-o', output_path]
+            results.append(' '.join(command))
 
         return results
 
@@ -160,7 +168,7 @@ class FastQCJob(Job):
         lines.append(f"#PBS -l mem={self.jmem}")
         lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
         lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
-        lines.append("#PBS -t 1-%d%%%d" % (len(self.cmds), self.pool_size))
+        lines.append("#PBS -t 1-%d%%%d" % (len(self.commands), self.pool_size))
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
@@ -179,6 +187,6 @@ class FastQCJob(Job):
             f.write('\n'.join(lines))
 
         with open(sh_details_fp, 'w') as f:
-            f.write('\n'.join(self.cmds))
+            f.write('\n'.join(self.commands))
 
         return job_script_path

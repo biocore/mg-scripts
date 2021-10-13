@@ -17,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
 
 
 class Pipeline:
-    def __init__(self, configuration_file_path, run_id, config_dict=None):
+    def __init__(self, configuration_file_path, run_id, config_dict):
         if config_dict:
             if 'configuration' in config_dict:
                 self.configuration = config_dict['configuration']
@@ -52,7 +52,7 @@ class Pipeline:
                     'older_than']:
             if key not in config:
                 raise PipelineError(f"'{key}' is not a key in "
-                                    "{self.configuration_file_path}")
+                                    f"{self.configuration_file_path}")
 
         self.search_paths = config['search_paths']
         self.run_id = run_id
@@ -244,7 +244,6 @@ if __name__ == '__main__':
                            config['fastqc_executable_path'],
                            config['modules_to_load'],
                            qiita_job_id,
-                           run_id,
                            config['queue'],
                            config['nodes'],
                            config['wallclock_time_in_hours'],

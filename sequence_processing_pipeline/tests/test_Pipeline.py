@@ -1,15 +1,11 @@
 import json
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
-import logging
 import unittest
 from os import utime, makedirs
 from os.path import join
 from copy import deepcopy
 from time import time
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestPipeline(unittest.TestCase):
@@ -29,48 +25,63 @@ class TestPipeline(unittest.TestCase):
 
     def test_creation(self):
         # Pipeline should assert due to config_file
-        with self.assertRaises(PipelineError):
-            Pipeline(self.bad_config_file, self.good_run_id)
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.bad_config_file, self.good_run_id, None)
+
+        self.assertEqual(str(e.exception), "'search_paths' is not a key in "
+                                           "sequence_processing_pipeline/tests"
+                                           "/data/bad_configuration.json")
 
         # Pipeline should assert due to an invalid config file path.
-        with self.assertRaises(PipelineError):
-            Pipeline(self.invalid_config_file, self.good_run_id)
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.invalid_config_file, self.good_run_id, None)
+
+        self.assertEqual(str(e.exception), 'does/not/exist/configuration.json '
+                                           'does not exist.')
 
         # Pipeline should assert on config_file = None
-        with self.assertRaises(PipelineError):
-            Pipeline(None, self.good_run_id)
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(None, self.good_run_id, None)
+
+        self.assertEqual(str(e.exception), 'configuration_file_path cannot be '
+                                           'None')
 
         # Pipeline should assert due to invalid_run_id
-        with self.assertRaises(PipelineError):
-            Pipeline(self.good_config_file, self.invalid_run_id)
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.good_config_file, self.invalid_run_id, None)
+
+        self.assertEqual(str(e.exception), "A run-dir for 'not-sample-sequence"
+                                           "-directory' could not be found")
 
         # Pipeline should assert on run_id = None
-        with self.assertRaises(PipelineError):
-            Pipeline(self.good_config_file, None)
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.good_config_file, None, None)
 
         with open(join('sequence_processing_pipeline', 'configuration.json'),
                   'r') as f:
             cfg = json.load(f)
-            with self.assertRaises(PipelineError):
+            with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['younger_than'] = -1
-                logging.debug(json.dumps(cpy_cfg, indent=2))
-                Pipeline(self.good_config_file, self.good_run_id,
-                         config_dict=cpy_cfg)
-            with self.assertRaises(PipelineError):
+                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+            self.assertEqual(str(e.exception), 'older_than and younger_than '
+                                               'cannot be less than zero.')
+            with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['older_than'] = -1
-                Pipeline(self.good_config_file, self.good_run_id,
-                         config_dict=cpy_cfg)
-            with self.assertRaises(PipelineError):
+                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+            self.assertEqual(str(e.exception), 'older_than and younger_than '
+                                               'cannot be less than zero.')
+            with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['younger_than'] = 20
                 cpy_cfg['configuration']['pipeline']['older_than'] = 30
-                Pipeline(self.good_config_file, self.good_run_id,
-                         config_dict=cpy_cfg)
+                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+            self.assertEqual(str(e.exception), 'older_than cannot be equal to '
+                                               'or less than younger_than.')
 
     def test_find_bcl_directories(self):
-        pipeline = Pipeline(self.good_config_file, self.good_run_id)
+        pipeline = Pipeline(self.good_config_file, self.good_run_id, None)
         obs = pipeline.find_bcl_directories(self.data_directory)
         # there are a number of directories under 'data'. Only
         # 'sample-sequence-directory' has the layout expected of a
@@ -89,7 +100,8 @@ class TestPipeline(unittest.TestCase):
             cfg['configuration']['pipeline']['younger_than'] = 2
             cfg['configuration']['pipeline']['older_than'] = 1
 
-            # Test 1
+            # Set directory's timestamp to between one and two hours and
+            # verify it is returned by filter_directories_for_time().
 
             # get the current time in seconds since the epoch.
             current_time = time()
@@ -98,8 +110,7 @@ class TestPipeline(unittest.TestCase):
             utime(join(self.data_directory, 'sample-sequence-directory'),
                   (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                                config_dict=cfg)
+            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
             # there should be only sample-sequence-directory in the results.
             results = pipeline.find_bcl_directories(self.data_directory)
 
@@ -108,7 +119,8 @@ class TestPipeline(unittest.TestCase):
                    "sample-sequence-directory"]
             self.assertEqual(obs, exp)
 
-            # Test 2
+            # Set directory's timestamp to just older than two hours and
+            # verify it is not returned by filter_directories_for_time().
 
             # get the current time in seconds since the epoch.
             current_time = time()
@@ -117,8 +129,7 @@ class TestPipeline(unittest.TestCase):
             utime(join(self.data_directory, 'sample-sequence-directory'),
                   (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                                config_dict=cfg)
+            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
             # there should be only sample-sequence-directory in the results.
             results = pipeline.find_bcl_directories(self.data_directory)
 
@@ -126,7 +137,8 @@ class TestPipeline(unittest.TestCase):
             exp = []
             self.assertEqual(obs, exp)
 
-            # Test 3
+            # Set directory's timestamp to just under one hour and
+            # verify it is not returned by filter_directories_for_time().
 
             # get the current time in seconds since the epoch.
             current_time = time()
@@ -135,8 +147,7 @@ class TestPipeline(unittest.TestCase):
             utime(join(self.data_directory, 'sample-sequence-directory'),
                   (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                                config_dict=cfg)
+            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
             # there should be only sample-sequence-directory in the results.
             results = pipeline.find_bcl_directories(self.data_directory)
 

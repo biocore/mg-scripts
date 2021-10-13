@@ -1,4 +1,4 @@
-from os.path import join, realpath, dirname
+from os.path import join
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from functools import partial
@@ -20,10 +20,14 @@ class TestConvertJob(unittest.TestCase):
         self.maxDiff = None
 
         # ConvertJob should assert due to invalid_input_directory.
-        with self.assertRaises(PipelineError):
+        with self.assertRaises(PipelineError) as e:
             ConvertJob(inv_input_directory, sample_sheet_path,
                        output_directory, 'qiita', 1, 16, 24, '10gb',
                        'tests/bin/bcl-convert', [], qiita_id)
+
+        self.assertEqual(str(e.exception), ("directory_path '"
+                                            f"{path('inv_input_directory')}' "
+                                            "does not exist."))
 
         job = ConvertJob(run_dir, sample_sheet_path, output_directory, 'qiita',
                          1, 16, 24, '10gb', 'tests/bin/bcl-convert', [],
@@ -31,10 +35,7 @@ class TestConvertJob(unittest.TestCase):
         with open(job._generate_job_script()) as f:
             obs = ''.join(f.readlines())
 
-        full_run_dir = join(
-            realpath(dirname(__file__)), 'data', 'sample-sequence-directory')
-
-        self.assertEqual(obs, SCRIPT_EXP.format(full_run_dir=full_run_dir))
+        self.assertEqual(obs, SCRIPT_EXP.format(run_dir=run_dir))
 
 
 SCRIPT_EXP = ''.join([
@@ -47,10 +48,10 @@ SCRIPT_EXP = ''.join([
     '#PBS -m bea\n',
     '#PBS -M qiita.help@gmail.com\n',
     '#PBS -l pmem=10gb\n',
-    '#PBS -o localhost:{full_run_dir}/ConvertJob.out.log\n',
-    '#PBS -e localhost:{full_run_dir}/ConvertJob.err.log\n',
+    '#PBS -o localhost:{run_dir}/ConvertJob.out.log\n',
+    '#PBS -e localhost:{run_dir}/ConvertJob.err.log\n',
     'set -x\n',
-    'cd {full_run_dir}\n',
+    'cd {run_dir}\n',
     'module load \n',
     'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
     'data/good-sample-sheet.csv --output-directory '
@@ -59,6 +60,7 @@ SCRIPT_EXP = ''.join([
     '--bcl-num-conversion-threads 16 --bcl-num-compression-threads 16 '
     '--bcl-num-parallel-tiles 16 --bcl-sampleproject-subdirectories '
     'true --force\n'])
+
 
 if __name__ == '__main__':
     unittest.main()

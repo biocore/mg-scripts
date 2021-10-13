@@ -1,8 +1,4 @@
 import unittest
-import logging
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestQCJob(unittest.TestCase):

@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import walk
-from os.path import join, abspath, exists, basename
+from os.path import join, exists, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -26,7 +26,7 @@ class ConvertJob(Job):
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         '''
         self.job_name = 'ConvertJob'
-        super().__init__(abspath(run_dir),
+        super().__init__(run_dir,
                          self.job_name,
                          [bcl_tool_path],
                          modules_to_load)
