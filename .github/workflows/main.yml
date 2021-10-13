@@ -41,7 +41,8 @@ jobs:
 
       - name: Python linter
         shell: bash -l {0}
-        run: flake8 sequence_processing_pipeline/ setup.py sequence_processing_pipeline/scripts/sequence-processing-pipeline
+        #run: flake8 sequence_processing_pipeline/ setup.py sequence_processing_pipeline/scripts/sequence-processing-pipeline
+        run: flake8 sequence_processing_pipeline/ setup.py
 
       - name: Run tests and measure coverage
         shell: bash -l {0}
