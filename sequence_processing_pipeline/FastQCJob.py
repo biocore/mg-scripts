@@ -1,4 +1,4 @@
-from os import listdir, makedirs
+from os import listdir
 from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
