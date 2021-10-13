@@ -1,8 +1,8 @@
 from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, split
-from os import walk, remove, stat, listdir, makedirs, rmdir
+from os.path import join, split, basename
+from os import walk, remove, stat, listdir, makedirs
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
@@ -12,14 +12,13 @@ class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, mmi_db_path, queue_name,
                  node_count, nprocs, wall_time_limit, jmem, fastp_path,
                  minimap2_path, samtools_path, modules_to_load, qiita_job_id,
-                 pool_size):
+                 pool_size, products_dir):
         '''
         Submit a Torque job where the contents of run_dir are processed using
         fastp, minimap, and samtools. Human-genome sequences will be filtered
         out if needed.
         :param run_dir: Path to a run directory.
         :param sample_sheet_path: Path to a sample sheet file.
-        :param fpmmp_path: Path to fpmmp.sh script in running environment.
         :param mmi_db_path: Path to human genome database in running env.
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
@@ -32,6 +31,7 @@ class QCJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param pool_size: The number of jobs to process concurrently.
+        :param products_dir: The path to the products directory
         '''
         # for now, keep this run_dir instead of abspath(run_dir)
         self.job_name = 'QCJob'
@@ -52,7 +52,8 @@ class QCJob(Job):
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
-        self.products_dir = join(self.run_dir, 'products')
+        self.run_id = basename(self.run_dir)
+        self.products_dir = products_dir
         self.jmem = jmem
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
@@ -64,34 +65,6 @@ class QCJob(Job):
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
         self.minimum_bytes = 500
-
-    def _copy(self, reports_directory, src_dir,
-              dst_dir):
-        # move the fastp html and json directories up-front.
-        logging.debug('moving html directory')
-        logging.debug('reports directory: %s' % reports_directory)
-        logging.debug('source directory: %s' % src_dir)
-        logging.debug('destination directory: %s' % dst_dir)
-        move(join(reports_directory, 'html'), src_dir)
-        logging.debug('moving json directory')
-        move(join(reports_directory, 'json'), src_dir)
-
-        # delete the reports_directory
-        # this is because the directory should be empty, but often it is
-        # also a subdirectory of the directory we will be later copying
-        # to the final location.
-        try:
-            logging.debug('Removing fastp_report_dir directory')
-            rmdir(reports_directory)
-        except OSError as e:
-            # This will usually be because there are still directories
-            # in the directory.
-            raise PipelineError(str(e))
-
-        # For performance and reliability reasons, use rsync for copying.
-        logging.debug("Moving %s to %s with rsync" % (src_dir, dst_dir))
-        results = self._system_call('rsync -avp %s %s' % (src_dir, dst_dir))
-        logging.debug("Results of rsync operation: %s" % results)
 
     def _filter(self, filtered_directory, empty_files_directory,
                 minimum_bytes):
@@ -137,6 +110,12 @@ class QCJob(Job):
 
             pbs_job_id = self.qsub(script_path, None, None)
             logging.debug(f'QCJob {pbs_job_id} completed')
+
+            source_dir = join(self.products_dir, project['Sample_Project'])
+            filtered_directory = join(source_dir, 'filtered_sequences')
+            empty_files_directory = join(source_dir, 'zero_files')
+            self._filter(filtered_directory, empty_files_directory,
+                         self.minimum_bytes)
 
     def _generate_trim_files(self, fastq_files, split_count):
         def _chunk_list(some_list, n):

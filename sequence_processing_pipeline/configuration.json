@@ -3,8 +3,8 @@
     "pipeline": {
       "younger_than": 90,
       "older_than": 24,
-      "archive_path": "tests/data/sequencing/knight_lab_completed_runs"
-
+      "archive_path": "sequence_processing_pipeline/tests/data/sequencing/knight_lab_completed_runs",
+      "search_paths": ["sequence_processing_pipeline/tests/data"]
     },
     "bcl2fastq": {
       "nodes": 1,
@@ -48,7 +48,7 @@
       "nthreads": 16,
       "wallclock_time_in_hours": 1,
       "modules_to_load": ["fastqc_0.11.5"],
-      "fastqc_executable_path, ": "fastqc",
+      "fastqc_executable_path": "fastqc",
       "multiqc_executable_path": "multiqc",
       "job_total_memory_limit": "20gb",
       "job_pool_size": 30
