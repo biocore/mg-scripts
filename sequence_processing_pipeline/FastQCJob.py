@@ -30,7 +30,13 @@ class FastQCJob(Job):
         self.jmem = jmem
         self.pool_size = pool_size
 
-    def get_cmds(self):
+        self.cmds = self._get_cmds()
+        split_count = self._generate_split_count(len(self.cmds))
+        lines_per_split = int((len(self.cmds) + split_count - 1) / split_count)
+        self._generate_trim_files(self.cmds, lines_per_split)
+        self.script_path = self._generate_job_script()
+
+    def _get_cmds(self):
         results = []
 
         # gather the parameters for processing all relevant raw fastq files.
@@ -133,17 +139,10 @@ class FastQCJob(Job):
         return 1
 
     def run(self):
-        cmds = self.get_cmds()
-        split_count = self._generate_split_count(len(cmds))
-        lines_per_split = int((len(cmds) + split_count - 1) / split_count)
-        self._generate_trim_files(cmds, lines_per_split)
-
-        script_path = self._generate_job_script(cmds)
-
-        pbs_job_id = self.qsub(script_path, None, None)
+        pbs_job_id = self.qsub(self.script_path, None, None)
         logging.debug(pbs_job_id)
 
-    def _generate_job_script(self, cmds):
+    def _generate_job_script(self):
         lines = []
 
         job_script_path, output_log_path, error_log_path = \
@@ -161,7 +160,7 @@ class FastQCJob(Job):
         lines.append(f"#PBS -l mem={self.jmem}")
         lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
         lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
-        lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
+        lines.append("#PBS -t 1-%d%%%d" % (len(self.cmds), self.pool_size))
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
@@ -180,6 +179,6 @@ class FastQCJob(Job):
             f.write('\n'.join(lines))
 
         with open(sh_details_fp, 'w') as f:
-            f.write('\n'.join(cmds))
+            f.write('\n'.join(self.cmds))
 
         return job_script_path
