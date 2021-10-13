@@ -146,9 +146,7 @@ class ConvertJob(Job):
 
         # list of users to be contacted independently of this package's
         # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#PBS -M "
-                     "ccowart@ucsd.edu,"
-                     "qiita.help@gmail.com")
+        lines.append("#PBS -M qiita.help@gmail.com")
 
         # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
         # taking the larger of both values (10G > 6G)
@@ -174,10 +172,10 @@ class ConvertJob(Job):
                           '--sample-sheet %s '
                           '--output-directory %s '
                           '--bcl-input-directory . '
-                          '--bcl-num-decompression-threads 8 '
-                          '--bcl-num-conversion-threads 8 '
+                          '--bcl-num-decompression-threads 16 '
+                          '--bcl-num-conversion-threads 16 '
                           '--bcl-num-compression-threads 16 '
-                          '--bcl-num-parallel-tiles 8 '
+                          '--bcl-num-parallel-tiles 16 '
                           '--bcl-sampleproject-subdirectories true '
                           '--force') % (self.bcl_tool,
                                         self.sample_sheet_path,
@@ -191,9 +189,9 @@ class ConvertJob(Job):
                           '--mask-short-adapter-reads 1 '
                           '-R . '
                           '-o %s '
-                          '--loading-threads 8 '
-                          '--processing-threads 8 '
-                          '--writing-threads 2 '
+                          '--loading-threads 16 '
+                          '--processing-threads 16 '
+                          '--writing-threads 16 '
                           '--create-fastq-for-index-reads '
                           '--ignore-missing-positions ') %
                          (self.bcl_tool,

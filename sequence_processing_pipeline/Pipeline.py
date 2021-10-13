@@ -164,12 +164,13 @@ if __name__ == '__main__':
                    config['nodes'],
                    config['nprocs'],
                    config['wallclock_time_in_hours'],
-                   config['per_process_memory_limit'],
+                   config['job_total_memory_limit'],
                    config['fastp_executable_path'],
                    config['minimap2_executable_path'],
                    config['samtools_executable_path'],
                    config['modules_to_load'],
-                   qiita_job_id)
+                   qiita_job_id,
+                   config['job_pool_size'])
 
     qc_job.run()
 
@@ -186,8 +187,8 @@ if __name__ == '__main__':
                            config['queue'],
                            config['nodes'],
                            config['wallclock_time_in_hours'],
-                           config['per_process_memory_limit'])
-
+                           config['job_total_memory_limit'],
+                           config['job_pool_size'])
     fastqc_job.run()
 
     gpf_input_path = join(final_output_dir, run_id)

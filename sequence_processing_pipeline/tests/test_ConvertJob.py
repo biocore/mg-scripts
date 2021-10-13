@@ -17,6 +17,7 @@ class TestConvertJob(unittest.TestCase):
         output_directory = path('output_directory')
         inv_input_directory = path('inv_input_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+        self.maxDiff = None
 
         # ConvertJob should assert due to invalid_input_directory.
         with self.assertRaises(PipelineError):
@@ -44,7 +45,7 @@ SCRIPT_EXP = ''.join([
     '#PBS -V\n',
     '#PBS -l walltime=24:00:00\n',
     '#PBS -m bea\n',
-    '#PBS -M ccowart@ucsd.edu,qiita.help@gmail.com\n',
+    '#PBS -M qiita.help@gmail.com\n',
     '#PBS -l pmem=10gb\n',
     '#PBS -o localhost:{full_run_dir}/ConvertJob.out.log\n',
     '#PBS -e localhost:{full_run_dir}/ConvertJob.err.log\n',
@@ -54,9 +55,9 @@ SCRIPT_EXP = ''.join([
     'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
     'data/good-sample-sheet.csv --output-directory '
     'sequence_processing_pipeline/tests/data/output_directory '
-    '--bcl-input-directory . --bcl-num-decompression-threads 8 '
-    '--bcl-num-conversion-threads 8 --bcl-num-compression-threads 16 '
-    '--bcl-num-parallel-tiles 8 --bcl-sampleproject-subdirectories '
+    '--bcl-input-directory . --bcl-num-decompression-threads 16 '
+    '--bcl-num-conversion-threads 16 --bcl-num-compression-threads 16 '
+    '--bcl-num-parallel-tiles 16 --bcl-sampleproject-subdirectories '
     'true --force\n'])
 
 if __name__ == '__main__':

@@ -28,13 +28,14 @@
       "nodes": 1,
       "nprocs": 16,
       "queue": "qiita",
-      "wallclock_time_in_hours": 36,
+      "wallclock_time_in_hours": 1,
       "mmi_db": "/databases/minimap2/human-phix-db.mmi",
       "modules_to_load": ["fastp_0.20.1", "samtools_1.12", " minimap2_2.18"],
       "fastp_executable_path": "fastp",
       "minimap2_executable_path": "minimap2",
       "samtools_executable_path": "samtools",
-      "per_process_memory_limit": "10gb"
+      "job_total_memory_limit": "20gb",
+      "job_pool_size": 30
     },
     "seqpro": {
       "seqpro_path": "seqpro",
@@ -45,11 +46,12 @@
       "nprocs": 16,
       "queue": "qiita",
       "nthreads": 16,
-      "wallclock_time_in_hours": 36,
+      "wallclock_time_in_hours": 1,
       "modules_to_load": ["fastqc_0.11.5"],
       "fastqc_executable_path, ": "fastqc",
       "multiqc_executable_path": "multiqc",
-      "per_process_memory_limit": "10gb"
+      "job_total_memory_limit": "20gb",
+      "job_pool_size": 30
     }
   }
 }
