@@ -4,33 +4,38 @@ from functools import partial
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 
+
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
 class TestFastQCJob(unittest.TestCase):
-    def test_creation(self):
-        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
-        run_dir = path('sample-sequence-directory')
-        output_directory = path('output_directory')
-        qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+    def setUp(self):
+        self.maxDiff = None
+        self.path = partial(join, 'sequence_processing_pipeline', 'tests',
+                            'data')
+        self.run_dir = self.path('sample-sequence-directory')
+        self.output_directory = self.path('output_directory')
+        self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
 
+    def test_creation(self):
         with self.assertRaises(PipelineError) as e:
-            FastQCJob(run_dir, output_directory, 16, 16,
+            FastQCJob(self.run_dir, self.output_directory, 16, 16,
                       'sequence_processing_pipeline/tests/bin/not-fastqc',
-                      [], qiita_job_id, 'queue_name', 4, 23, '8g', 30)
+                      [], self.qiita_job_id, 'queue_name', 4, 23, '8g', 30)
 
         self.assertEqual(str(e.exception), "file 'sequence_processing_pipeline"
                                            "/tests/bin/not-fastqc' does not ex"
                                            "ist.")
 
-        job = FastQCJob(run_dir, output_directory, 16, 16,
+    def test_creation2(self):
+        job = FastQCJob(self.run_dir, self.output_directory, 16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc',
-                        [], qiita_job_id, 'queue_name', 4, 23, '8g', 30)
+                        [], self.qiita_job_id, 'queue_name', 4, 23, '8g', 30)
 
-        exp = (f'{run_dir}/FastQCJob_2.sh',
-               f'localhost:/{run_dir}/FastQCJob_2.out.log',
-               f'localhost:/{run_dir}/FastQCJob_2.err.log')
+        exp = (f'{self.run_dir}/FastQCJob_2.sh',
+               f'localhost:/{self.run_dir}/FastQCJob_2.out.log',
+               f'localhost:/{self.run_dir}/FastQCJob_2.err.log')
 
         self.assertEqual(job.generate_job_script_path(), exp)
 
