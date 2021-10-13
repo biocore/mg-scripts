@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from setuptools import setup
-from glob import glob
+# from glob import glob
 
 
 __version__ = "2021.08.24"
@@ -33,7 +33,6 @@ setup(name='sequence-processing-pipeline',
       author_email="qiita.help@gmail.com",
       url='https://github.com/biocore/mg-scripts',
       packages=['sequence_processing_pipeline'],
-      scripts=glob('scripts/*'),
       setup_requires=['numpy', 'cython'],
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
