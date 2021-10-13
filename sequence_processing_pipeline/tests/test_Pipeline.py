@@ -3,16 +3,20 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import logging
 import unittest
-from os import utime
+from os import utime, makedirs
 from os.path import join
 from copy import deepcopy
 from time import time
+
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 class TestPipeline(unittest.TestCase):
     def setUp(self):
+        makedirs('sequence_processing_pipeline/tests/data/sequencing'
+                 '/knight_lab_completed_runs', exist_ok=True)
+
         self.good_config_file = ('sequence_processing_pipeline/'
                                  'configuration.json')
         self.bad_config_file = ('sequence_processing_pipeline/tests/data/'
