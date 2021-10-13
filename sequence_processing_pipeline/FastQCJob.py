@@ -1,4 +1,4 @@
-from os import listdir
+from os import listdir, makedirs
 from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -34,6 +34,8 @@ class FastQCJob(Job):
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
         self.products_dir = join(self.run_dir, self.run_id)
+        # for CI, create this directory if it doesn't exist already.
+        self._directory_check(self.products_dir, create=True)
         self.jmem = jmem
         self.pool_size = pool_size
 
