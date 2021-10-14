@@ -94,8 +94,10 @@ class Pipeline:
     def copy_results_to_archive(self):
         # hack an empty Job() object to use job._system_call().
         job = Job('', '', [])
-        job._system_call('rsync -avp %s %s' % (self.products_dir,
-                                               self.final_output_dir))
+
+        fastqc_dir = join(self.products_dir, 'FastQC')
+        job._system_call('rsync -avp %s %s' %
+                         (fastqc_dir, self.final_output_dir))
 
     def directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -173,21 +175,28 @@ class Pipeline:
 
 
 if __name__ == '__main__':
-    logging.debug("Starting Pipeline")
+    logging.debug('')
 
-    sample_sheet_path = '/path/to/sample-sheet'
-    run_id = '210518_A00953_0305_test11'
-    config_file_path = '/path/to/configuration.json'
-    qiita_job_id = 'NOT_A_QIITA_JOB_ID'
+    sample_sheet_path = '/pscratch/seq_test/tests/charlie/working_copy.csv'
+    run_id = '210518_A00953_0305_test19'
+    config_file_path = ('/pscratch/seq_test/tests/210518_A00953_0305_test19'
+                        '/configuration.json')
+    qiita_job_id = 'TEST_JOB12'
 
-    pipeline = Pipeline(config_file_path, run_id)
+    makedirs(f'/pscratch/seq_test/tests/{run_id}/{run_id}', exist_ok=True)
+
+    pipeline = Pipeline(config_file_path, run_id, None)
+
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)
 
+    logging.debug('')
     config = pipeline.configuration['bcl-convert']
+
+    logging.debug(pipeline.run_dir)
+
     convert_job = ConvertJob(pipeline.run_dir,
                              sdo.sample_sheet_path,
-                             pipeline.fastq_output_dir,
                              config['queue'],
                              config['nodes'],
                              config['nprocs'],
@@ -197,14 +206,8 @@ if __name__ == '__main__':
                              config['modules_to_load'],
                              qiita_job_id)
 
-    logging.debug("Starting ConvertJob")
     convert_job.run()
-    logging.debug("ConvertJob Finished")
 
-    # Currently this is performed outside a Job as it's not the
-    # resposibility of ConvertJob() to see that this file is copied for
-    # GenPrepFileJob(), and GenPrepFileJob() shouldn't have to know where
-    # this information is located.
     src1 = join(pipeline.run_dir, 'Data/Fastq/Reports')
     src2 = join(pipeline.run_dir, 'Data/Fastq/Stats')
     if exists(src1):
@@ -214,6 +217,7 @@ if __name__ == '__main__':
     else:
         raise PipelineError("Cannot locate Fastq metadata directory.")
 
+    logging.debug('')
     config = pipeline.configuration['qc']
     qc_job = QCJob(pipeline.run_dir,
                    sdo.sample_sheet_path,
@@ -228,12 +232,17 @@ if __name__ == '__main__':
                    config['samtools_executable_path'],
                    config['modules_to_load'],
                    qiita_job_id,
-                   config['job_pool_size'],
-                   pipeline.products_dir, )
+                   30,
+                   pipeline.products_dir)
 
-    logging.debug("Starting QCJob")
     qc_job.run()
-    logging.debug("QCJob Finished")
+
+    logging.debug('')
+
+    makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
+                  'bclconvert'), exist_ok=True)
+    makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
+                  'filtered_sequences'), exist_ok=True)
 
     config = pipeline.configuration['fastqc']
     output_directory = join(pipeline.products_dir, 'FastQC')
@@ -248,15 +257,15 @@ if __name__ == '__main__':
                            config['nodes'],
                            config['wallclock_time_in_hours'],
                            config['job_total_memory_limit'],
-                           config['job_pool_size'])
+                           30,
+                           config['multiqc_config_file_path'])
 
-    logging.debug("Starting FastQCJob")
     fastqc_job.run()
-    logging.debug("FastQCJob Finished")
 
     gpf_output_path = join(pipeline.products_dir, 'prep-files')
     makedirs(gpf_output_path, exist_ok=True)
 
+    logging.debug('')
     config = pipeline.configuration['seqpro']
     gpf_job = GenPrepFileJob(pipeline.products_dir,
                              sdo.sample_sheet_path,
@@ -265,13 +274,12 @@ if __name__ == '__main__':
                              config['modules_to_load'],
                              qiita_job_id)
 
-    try:
-        logging.debug("Starting GenPrepFileJob")
-        gpf_job.run()
-        logging.debug("GenPrepFileJob Finished")
-    except PipelineError as e:
-        print(f"Caught known seqpro error: {str(e)}")
+    gpf_job.run()
 
-    logging.debug("Starting rsync")
+    logging.debug('')
+    logging.debug("Copying results to archive")
     pipeline.copy_results_to_archive()
-    logging.debug("Rsync Finished")
+    logging.debug("Results copied to archive.")
+
+    logging.debug('')
+    logging.debug("Process complete")
