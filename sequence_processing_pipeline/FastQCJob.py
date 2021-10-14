@@ -19,11 +19,7 @@ class FastQCJob(Job):
         self.run_id = basename(self.run_dir)
         self.nprocs = nprocs
         self.nthreads = nthreads
-
-        if self._file_check(fastqc_path):
-            self.fastqc_path = fastqc_path
-        else:
-            raise PipelineError(f"'{fastqc_path}' does not exist")
+        self.fastqc_path = fastqc_path
 
         if self._file_check(multiqc_config_file_path):
             self.multiqc_config_file_path = multiqc_config_file_path
