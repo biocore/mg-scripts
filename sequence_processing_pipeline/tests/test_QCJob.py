@@ -17,6 +17,7 @@ class TestQCJob(unittest.TestCase):
         self.run_dir = self.path('good-sample-sheet.csv')
         self.sample_sheet_path = ''
         self.mmi_db_path = self.path('mmi.db')
+        self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.products_dir = self.path('sample-sequence-directory',
                                       'sample-sequence-directory')
 
