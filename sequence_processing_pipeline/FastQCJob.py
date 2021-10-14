@@ -170,10 +170,10 @@ class FastQCJob(Job):
             # filtered_reports may be redundant, as multiqc  can use
             # fastqc_reports as a root to search
             filtered_reports = join(fastqc_reports, 'filtered_sequences')
-            cmd = ['multiqc', '-c', self.multiqc_yaml_path, '--fullnames',
-                   '--force', fastp_reports, fastqc_reports, filtered_reports,
-                   '-o', join(self.fastqc_output_path, 'multiqc'),
-                   '--interactive']
+            cmd = ['multiqc', '-c', self.multiqc_config_file_path,
+                   '--fullnames', '--force', fastp_reports, fastqc_reports,
+                   filtered_reports, '-o', join(self.fastqc_output_path,
+                                                'multiqc'), '--interactive']
             logging.debug(cmd)
 
             results = self._system_call(' '.join(cmd))
