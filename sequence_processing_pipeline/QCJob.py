@@ -6,6 +6,7 @@ from os import walk, remove, stat, listdir, makedirs
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
+import re
 
 
 class QCJob(Job):
@@ -45,7 +46,6 @@ class QCJob(Job):
         self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
         self.needs_a_trimming = metadata['needs_adapter_trimming']
-        self.trim_file = 'split_file_'
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
@@ -66,6 +66,27 @@ class QCJob(Job):
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
         self.minimum_bytes = 500
+
+        self.script_paths = {}
+
+        for project in self.project_data:
+            project_name = project['Sample_Project']
+            fastq_files = self._find_fastq_files(project_name)
+            split_count = self._generate_split_count(len(fastq_files))
+            lines_per_split = int((len(fastq_files) + split_count - 1)
+                                  / split_count)
+            trim_files = self._generate_trim_files(project_name,
+                                                   fastq_files,
+                                                   lines_per_split)
+            if len(trim_files) != split_count:
+                logging.warning("The number of trim files does not equal the "
+                                "number of expected files.")
+
+            script_path = self._generate_job_script(project_name,
+                                                    project['ForwardAdapter'],
+                                                    project['ReverseAdapter'],
+                                                    project['HumanFiltering'])
+            self.script_paths[project_name] = script_path
 
     def _filter(self, filtered_directory, empty_files_directory,
                 minimum_bytes):
@@ -93,49 +114,29 @@ class QCJob(Job):
 
     def run(self):
         for project in self.project_data:
-            fastq_files = self._find_fastq_files(project['Sample_Project'])
-            split_count = self._generate_split_count(len(fastq_files))
-            self._clear_trim_files()
-            lines_per_split = int((
-                len(fastq_files) + split_count - 1) / split_count)
-            trim_files = self._generate_trim_files(
-                fastq_files, lines_per_split)
-            if len(trim_files) != split_count:
-                logging.warning("The number of trim files does not equal the "
-                                "number of expected files.")
-
-            script_path = self._generate_job_script(project['Sample_Project'],
-                                                    project['ForwardAdapter'],
-                                                    project['ReverseAdapter'],
-                                                    project['HumanFiltering'])
-
-            pbs_job_id = self.qsub(script_path, None, None)
+            project_name = project['Sample_Project']
+            pbs_job_id = self.qsub(self.script_paths[project_name], None, None)
             logging.debug(f'QCJob {pbs_job_id} completed')
-
-            source_dir = join(self.products_dir, project['Sample_Project'])
+            source_dir = join(self.products_dir, project_name)
             filtered_directory = join(source_dir, 'filtered_sequences')
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter(filtered_directory, empty_files_directory,
                          self.minimum_bytes)
 
-    def _generate_trim_files(self, fastq_files, split_count):
-        def _chunk_list(some_list, n):
-            # taken from https://bit.ly/38S9O8Z
-            for i in range(0, len(some_list), n):
-                yield some_list[i:i + n]
+    def _generate_trim_files(self, project_name, fastq_files, split_count):
+        chunk_list = [fastq_files[i:i + split_count] for i in
+                      range(0, len(fastq_files), split_count)]
+        trim_files = []
 
-        new_files = []
-        count = 0
-        for chunk in _chunk_list(fastq_files, split_count):
-            trim_file_name = '%s%d' % (self.trim_file, count)
-            trim_file_path = join(self.run_dir, trim_file_name)
+        for count, chunk in enumerate(chunk_list):
+            trim_file_path = join(self.run_dir,
+                                  f'split_file_{project_name}_{count}')
             with open(trim_file_path, 'w') as f:
                 for line in chunk:
                     f.write("%s\n" % line)
-            new_files.append(trim_file_path)
-            count += 1
+            trim_files.append(trim_file_path)
 
-        return new_files
+        return trim_files
 
     def _clear_trim_files(self):
         # remove all files with a name beginning in self.trim_file.
@@ -143,7 +144,7 @@ class QCJob(Job):
         # hurt anything.
         for root, dirs, files in walk(self.run_dir):
             for some_file in files:
-                if self.trim_file in some_file:
+                if 'split_file_' in some_file:
                     some_path = join(root, some_file)
                     remove(some_path)
 
@@ -173,15 +174,11 @@ class QCJob(Job):
 
         # convert true/false and yes/no strings to true boolean values.
         for record in lst:
-            for key in ['PolyGTrimming', 'HumanFiltering']:
+            for key in record:
                 if record[key].strip().lower() in ['true', 'yes']:
                     record[key] = True
                 elif record[key].strip().lower() in ['false', 'no']:
                     record[key] = False
-                else:
-                    raise PipelineError(f"Unexpected value '{record[key]}' "
-                                        f"for column '{key}' in sample-sheet '"
-                                        f"{self.sample_sheet_path}'")
 
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
@@ -219,16 +216,13 @@ class QCJob(Job):
 
         for some_file in files_found:
             file_path, file_name = split(some_file)
-            # assume each file_name begins with a sample_id.
-            # This name is generated by programs like bcl-convert and
-            # bcl2fastq so this is fairly durable.
-            # e.g.: X00185910 and X00185910_S177_L003_R1_001.fastq.gz.
-            sample_id = file_name.split('_')[0]
-            if sample_id in sample_ids:
-                # this Fastq file is one we should process.
-                logging.debug(f"Located Fastq file for id '{id}': {some_file}")
-                # Save the full path.
-                lst.append(some_file)
+            m = re.match(r'(.*)_R\d_\d\d\d.fastq.gz', file_name)
+            if m:
+                sample_id = m.group(1)
+                if sample_id in sample_ids:
+                    # this Fastq file is one we should process.
+                    # Save the full path.
+                    lst.append(some_file)
 
         return lst
 
@@ -256,9 +250,9 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        tf_fp = join(self.run_dir, self.trim_file + '0')
+        tf_fp = join(self.run_dir, f'split_file_{project_name}_0')
         sh_details_fp = join(
-            self.run_dir, self.trim_file + project_name + '.array-details')
+            self.run_dir, f'split_file_{project_name}.array-details')
 
         qc = QCHelper(self.nprocs, tf_fp, project_name, project_products_dir,
                       self.mmi_db_path, adapter_a, adapter_A,
