@@ -94,6 +94,26 @@ class TestQCJob(unittest.TestCase):
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
 
+    def test_foo(self):
+        '''
+        Extra testing for _generate_split_count() since the number of sample
+        projects needed to exercise all of this method would be impractical.
+        :return:
+        '''
+        fastq_path = partial(join, self.sample_run_dir, 'Data', 'Fastq')
+        sample_path = fastq_path(self.project_list[0])
+
+        qc_job = QCJob(self.sample_run_dir, self.sample_sheet_path,
+                       self.mmi_db_path, 'queue_name', 1, 16, 24, '8gb',
+                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                       30, sample_path)
+
+        input = [-1, 0, 1, 499, 500, 501, 999, 1000, 1001, 1999, 2000, 2001]
+        exp_output = [1, 1, 1, 1, 1, 4, 4, 4, 10, 10, 10, 16]
+        obs_output = [qc_job._generate_split_count(x) for x in input]
+
+        self.assertEqual(obs_output, exp_output)
+
 
 if __name__ == '__main__':
     unittest.main()
