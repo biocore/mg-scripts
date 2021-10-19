@@ -22,6 +22,7 @@ class TestQCJob(unittest.TestCase):
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+        self.maxDiff = None
 
         try:
             shutil.rmtree(self.sample_run_dir)
