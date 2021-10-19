@@ -112,8 +112,6 @@ class QCHelper():
         :return: A list of strings to process the fastq files in trim_file.
         '''
         logging.debug("Pathway: True/False")
-        logging.debug("Possible extra copying for "
-                      f"chemistry = '{chemistry}' disabled.")
 
         tmp = join(products_dir, 'filtered_sequences')
         if not exists(tmp):
@@ -133,8 +131,6 @@ class QCHelper():
                                      self.minimap2_path, self.samtools_path)
 
             cmd = cmd_gen.generate_fastp_cmd()
-
-            logging.debug(f'New cmd generated: {cmd}')
             cmd_list.append(cmd)
 
         return cmd_list
@@ -167,7 +163,6 @@ class QCHelper():
 
             cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
                                                       self.human_phix_db_path)
-            logging.debug(f'New cmd generated: {cmd}')
             cmd_list.append(cmd)
 
         return cmd_list
