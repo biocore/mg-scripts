@@ -211,7 +211,6 @@ class QCJob(Job):
         # Generate a list of possible fastq files to process.
         # Filter out ones that don't contain samples mentioned in sample-sheet.
         files_found = self._find_fastq_files_in_run_dir(project_name)
-        logging.debug(f"Fastq files found: {files_found}")
 
         lst = []
 
@@ -264,6 +263,7 @@ class QCJob(Job):
 
         cmds = qc.generate_commands()
 
+        logging.debug(f"cmds generated: {cmds}")
         lines.append("#!/bin/bash")
         # declare a name for this job
         lines.append("#PBS -N %s" %
