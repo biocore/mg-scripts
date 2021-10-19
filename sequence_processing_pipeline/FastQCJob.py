@@ -205,10 +205,8 @@ class FastQCJob(Job):
         lines.append('hostname')
         lines.append('echo ${PBS_JOBID} ${PBS_ARRAYID}')
         lines.append("cd %s" % self.run_dir)
-        tmp = "module load " + ' '.join(self.modules_to_load)
-        logging.debug(f"QCJob Modules to load: {tmp}")
-        lines.append(tmp)
-
+        if self.modules_to_load:
+            lines.append("module load " + ' '.join(self.modules_to_load))
         lines.append('offset=${PBS_ARRAYID}')
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
