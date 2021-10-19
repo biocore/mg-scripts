@@ -255,7 +255,7 @@ class QCJob(Job):
                                     f'{project_name}_0'))
 
         sh_details_fp = join(self.run_dir, (f'{self.split_file_prefix}'
-              f'{project_name}.array-details'))
+                                            f'{project_name}.array-details'))
 
         qc = QCHelper(self.nprocs, tf_fp, project_name, project_products_dir,
                       self.mmi_db_path, adapter_a, adapter_A,
