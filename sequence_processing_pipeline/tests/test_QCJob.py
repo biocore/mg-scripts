@@ -133,6 +133,7 @@ class TestQCJob(unittest.TestCase):
                           'r') as f_exp:
                     lines_exp = f_exp.readlines()
                     lines_exp = [x.strip() for x in lines_exp]
+                    lines_exp.sort()
                     self.assertEqual(lines_obs, lines_exp)
 
     def test_qcjob_creation(self):
