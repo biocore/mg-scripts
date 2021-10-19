@@ -280,8 +280,8 @@ class QCJob(Job):
         lines.append(f"#PBS -l mem={self.jmem}")
 
         # Generate output files
-        lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
-        lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
+        lines.append("#PBS -o %s.${PBS_ARRAYID}" % output_log_path)
+        lines.append("#PBS -e %s.${PBS_ARRAYID}" % error_log_path)
 
         # Configure array size, and the size of the pool of concurrent jobs.
         lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
