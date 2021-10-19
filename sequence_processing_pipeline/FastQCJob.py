@@ -5,9 +5,6 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
 
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 class FastQCJob(Job):
     def __init__(self, run_dir, output_directory, nprocs, nthreads,
                  fastqc_path, modules_to_load, qiita_job_id, queue_name,

@@ -8,7 +8,6 @@ from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 import logging
 
-
 logging.basicConfig(level=logging.INFO)
 
 
@@ -82,13 +81,22 @@ class TestQCJob(unittest.TestCase):
                           'r') as f_obs:
                     lines_obs = f_obs.readlines()
                     lines_obs = [x.strip() for x in lines_obs]
-                    if remove_this is None:
-                        # assume there is only one line in the file to cd
-                        tmp = [x for x in lines_obs if x.startswith('cd ')][0]
-                        # cd /some/path/to/sequence_processing_pipeline/...
-                        remove_this = tmp.split(' ')[1].split(
-                            'sequence_processing_pipeline/tests')[0]
-                    lines_obs = [x.replace(remove_this, '') for x in lines_obs]
+                    # Technically, remove_this only needs to be calculated
+                    # once. Assume there is only one line in the file that
+                    # begins w/cd.
+                    tmp = [x for x in lines_obs if x.startswith('cd ')][0]
+                    # remove the cd, but restore other spaces
+                    tmp = ' '.join(tmp.split(' ')[1:])
+                    # split off path prepending 'sequence_processing...'
+                    tmp = tmp.split('sequence_processing_pipeline/tests')
+                    # if tmp2 has '' at element zero, then nothing
+                    # prepends 'sequence_processing_pipeline' and nothing
+                    # needs to be removed.
+                    remove_this = tmp[0] if tmp[0] != '' else None
+                    if remove_this:
+                        lines_obs = [x.replace(remove_this, '') for x in
+                                     lines_obs]
+
                     self.assertEqual(lines_obs, lines_exp)
 
         # assert that the array-details files were created and are in the
@@ -115,7 +123,10 @@ class TestQCJob(unittest.TestCase):
             with open(some_path, 'r') as f_obs:
                 lines_obs = f_obs.readlines()
                 lines_obs = [x.strip() for x in lines_obs]
-                lines_obs = [x.replace(remove_this, '') for x in lines_obs]
+                # remove_this is saved from above
+                if remove_this:
+                    lines_obs = [x.replace(remove_this, '') for x in lines_obs]
+
                 with open(self.path('qcjob_output', basename(some_path)),
                           'r') as f_exp:
                     lines_exp = f_exp.readlines()

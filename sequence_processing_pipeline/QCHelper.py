@@ -4,9 +4,6 @@ from sequence_processing_pipeline.QCCmdGenerator import QCCmdGenerator
 from os import makedirs
 
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 class QCHelper():
     def __init__(self, nprocs, trim_file, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,

@@ -5,10 +5,6 @@ from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-
 class TestFastQCJob(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
