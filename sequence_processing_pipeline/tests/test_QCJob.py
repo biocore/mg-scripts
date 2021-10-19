@@ -1,6 +1,6 @@
 import shutil
 import unittest
-from os.path import exists, join, basename
+from os.path import exists, join, basename, abspath
 from functools import partial
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 class TestQCJob(unittest.TestCase):
     def setUp(self):
         # adjustable test_root helps w/testing in different environments.
-        test_root = 'sequence_processing_pipeline'
+        test_root = abspath('sequence_processing_pipeline')
         self.path = partial(join, test_root, 'tests', 'data')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
         self.mmi_db_path = self.path('mmi.db')
@@ -94,9 +94,9 @@ class TestQCJob(unittest.TestCase):
                     # prepends 'sequence_processing_pipeline' and nothing
                     # needs to be removed.
                     remove_this = tmp[0] if tmp[0] != '' else None
-                    # if remove_this:
-                    #    lines_obs = [x.replace(remove_this, '') for x in
-                    #                 lines_obs]
+                    if remove_this:
+                        lines_obs = [x.replace(remove_this, '') for x in
+                                     lines_obs]
 
                     self.assertEqual(lines_obs, lines_exp)
 
