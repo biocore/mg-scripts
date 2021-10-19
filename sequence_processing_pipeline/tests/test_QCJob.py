@@ -127,6 +127,7 @@ class TestQCJob(unittest.TestCase):
                 # remove_this is saved from above
                 if remove_this:
                     lines_obs = [x.replace(remove_this, '') for x in lines_obs]
+                lines_obs.sort()
 
                 with open(self.path('qcjob_output', basename(some_path)),
                           'r') as f_exp:
