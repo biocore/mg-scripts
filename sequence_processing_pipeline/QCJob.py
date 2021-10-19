@@ -62,6 +62,7 @@ class QCJob(Job):
         self.modules_to_load = modules_to_load
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
+        self.split_file_prefix = 'split_file_'
 
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
@@ -129,8 +130,8 @@ class QCJob(Job):
         trim_files = []
 
         for count, chunk in enumerate(chunk_list):
-            trim_file_path = join(self.run_dir,
-                                  f'split_file_{project_name}_{count}')
+            tmp = self.split_file_prefix + f'{project_name}_{count}'
+            trim_file_path = join(self.run_dir, tmp)
             with open(trim_file_path, 'w') as f:
                 for line in chunk:
                     f.write("%s\n" % line)
@@ -144,7 +145,7 @@ class QCJob(Job):
         # hurt anything.
         for root, dirs, files in walk(self.run_dir):
             for some_file in files:
-                if 'split_file_' in some_file:
+                if self.split_file_prefix in some_file:
                     some_path = join(root, some_file)
                     remove(some_path)
 
@@ -250,9 +251,11 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        tf_fp = join(self.run_dir, f'split_file_{project_name}_0')
-        sh_details_fp = join(
-            self.run_dir, f'split_file_{project_name}.array-details')
+        tf_fp = join(self.run_dir, (f'{self.split_file_prefix}'
+                                    f'{project_name}_0'))
+
+        sh_details_fp = join(self.run_dir, (f'{self.split_file_prefix}'
+              f'{project_name}.array-details'))
 
         qc = QCHelper(self.nprocs, tf_fp, project_name, project_products_dir,
                       self.mmi_db_path, adapter_a, adapter_A,
