@@ -94,9 +94,9 @@ class TestQCJob(unittest.TestCase):
                     # prepends 'sequence_processing_pipeline' and nothing
                     # needs to be removed.
                     remove_this = tmp[0] if tmp[0] != '' else None
-                    if remove_this:
-                        lines_obs = [x.replace(remove_this, '') for x in
-                                     lines_obs]
+                    # if remove_this:
+                    #    lines_obs = [x.replace(remove_this, '') for x in
+                    #                 lines_obs]
 
                     self.assertEqual(lines_obs, lines_exp)
 
