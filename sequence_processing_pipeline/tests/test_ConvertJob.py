@@ -11,7 +11,7 @@ class TestConvertJob(unittest.TestCase):
         # root directory of the single sequence directory given as
         # input by the user. Later we can re-introduce directories
         # that contain multiple BCL root directories.
-        path = partial(join, '/Users/ccowart/Development/mg-scripts/charlie/sequence_processing_pipeline', 'tests', 'data')
+        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
         run_dir = path('sample-sequence-directory')
         sample_sheet_path = path('good-sample-sheet.csv')
         inv_input_directory = path('inv_input_directory')
