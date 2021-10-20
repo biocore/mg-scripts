@@ -170,7 +170,7 @@ class FastQCJob(Job):
             cmd = ['multiqc', '-c', self.multiqc_config_file_path,
                    '--fullnames', '--force', fastp_reports, fastqc_reports,
                    filtered_reports, '-o', join(self.fastqc_output_path,
-                                                'multiqc'), '--interactive']
+                   'multiqc'), '--interactive']
             logging.debug(cmd)
 
             results = self._system_call(' '.join(cmd))

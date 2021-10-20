@@ -79,6 +79,12 @@ class Pipeline:
         self.sentinel_file = "RTAComplete.txt"
 
     def _search_for_run_dir(self):
+        # this method will catch a run directory as well as its products
+        # directory, which also has the same name. Hence, return the
+        # shortest matching path as that will at least return the right
+        # path between the two.
+        results = []
+
         for search_path in self.search_paths:
             logging.debug(f'Searching {search_path} for {self.run_id}')
             for entry in listdir(search_path):
@@ -87,7 +93,13 @@ class Pipeline:
                 some_path = some_path.rstrip('/')
                 if isdir(some_path) and some_path.endswith(self.run_id):
                     logging.debug(f'Found {some_path}')
-                    return some_path
+                    results.append(some_path)
+
+        if results:
+            results.sort(key=lambda s: len(s))
+
+        return results[0]
+
         raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
                             "found")
 
@@ -96,8 +108,8 @@ class Pipeline:
         job = Job('', '', [])
 
         fastqc_dir = join(self.products_dir, 'FastQC')
-        job._system_call('rsync -avp %s %s' %
-                         (fastqc_dir, self.final_output_dir))
+        job._system_call('rsync -avp %s %s' % (fastqc_dir,
+                                               self.final_output_dir))
 
     def directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -175,28 +187,21 @@ class Pipeline:
 
 
 if __name__ == '__main__':
-    logging.debug('')
+    logging.debug("Starting Pipeline")
 
-    sample_sheet_path = '/pscratch/seq_test/tests/charlie/working_copy.csv'
-    run_id = '210518_A00953_0305_test19'
-    config_file_path = ('/pscratch/seq_test/tests/210518_A00953_0305_test19'
-                        '/configuration.json')
-    qiita_job_id = 'TEST_JOB12'
+    sample_sheet_path = '/path/to/sample-sheet'
+    run_id = '210518_A00953_0305_test11'
+    config_file_path = '/path/to/configuration.json'
+    qiita_job_id = 'NOT_A_QIITA_JOB_ID'
 
-    makedirs(f'/pscratch/seq_test/tests/{run_id}/{run_id}', exist_ok=True)
-
-    pipeline = Pipeline(config_file_path, run_id, None)
-
+    pipeline = Pipeline(config_file_path, run_id)
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)
 
-    logging.debug('')
     config = pipeline.configuration['bcl-convert']
-
-    logging.debug(pipeline.run_dir)
-
     convert_job = ConvertJob(pipeline.run_dir,
                              sdo.sample_sheet_path,
+                             pipeline.fastq_output_dir,
                              config['queue'],
                              config['nodes'],
                              config['nprocs'],
@@ -208,6 +213,10 @@ if __name__ == '__main__':
 
     convert_job.run()
 
+    # Currently this is performed outside a Job as it's not the
+    # resposibility of ConvertJob() to see that this file is copied for
+    # GenPrepFileJob(), and GenPrepFileJob() shouldn't have to know where
+    # this information is located.
     src1 = join(pipeline.run_dir, 'Data/Fastq/Reports')
     src2 = join(pipeline.run_dir, 'Data/Fastq/Stats')
     if exists(src1):
@@ -217,7 +226,6 @@ if __name__ == '__main__':
     else:
         raise PipelineError("Cannot locate Fastq metadata directory.")
 
-    logging.debug('')
     config = pipeline.configuration['qc']
     qc_job = QCJob(pipeline.run_dir,
                    sdo.sample_sheet_path,
@@ -232,17 +240,17 @@ if __name__ == '__main__':
                    config['samtools_executable_path'],
                    config['modules_to_load'],
                    qiita_job_id,
-                   30,
-                   pipeline.products_dir)
+                   config['job_pool_size'],
+                   pipeline.products_dir, )
 
     qc_job.run()
 
-    logging.debug('')
-
+    '''
     makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
                   'bclconvert'), exist_ok=True)
     makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
                   'filtered_sequences'), exist_ok=True)
+    '''
 
     config = pipeline.configuration['fastqc']
     output_directory = join(pipeline.products_dir, 'FastQC')
@@ -257,7 +265,7 @@ if __name__ == '__main__':
                            config['nodes'],
                            config['wallclock_time_in_hours'],
                            config['job_total_memory_limit'],
-                           30,
+                           config['job_pool_size'],
                            config['multiqc_config_file_path'])
 
     fastqc_job.run()
@@ -265,7 +273,6 @@ if __name__ == '__main__':
     gpf_output_path = join(pipeline.products_dir, 'prep-files')
     makedirs(gpf_output_path, exist_ok=True)
 
-    logging.debug('')
     config = pipeline.configuration['seqpro']
     gpf_job = GenPrepFileJob(pipeline.products_dir,
                              sdo.sample_sheet_path,
@@ -276,10 +283,4 @@ if __name__ == '__main__':
 
     gpf_job.run()
 
-    logging.debug('')
-    logging.debug("Copying results to archive")
     pipeline.copy_results_to_archive()
-    logging.debug("Results copied to archive.")
-
-    logging.debug('')
-    logging.debug("Process complete")
