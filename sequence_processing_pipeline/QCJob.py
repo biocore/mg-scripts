@@ -9,6 +9,9 @@ from shutil import move
 import re
 
 
+logging.basicConfig(level=logging.DEBUG)
+
+
 class QCJob(Job):
     def __init__(self, run_dir, sample_sheet_path, mmi_db_path, queue_name,
                  node_count, nprocs, wall_time_limit, jmem, fastp_path,
@@ -73,20 +76,13 @@ class QCJob(Job):
         for project in self.project_data:
             project_name = project['Sample_Project']
             fastq_files = self._find_fastq_files(project_name)
-            split_count = self._generate_split_count(len(fastq_files))
-            lines_per_split = int((len(fastq_files) + split_count - 1)
-                                  / split_count)
-            trim_files = self._generate_trim_files(project_name,
-                                                   fastq_files,
-                                                   lines_per_split)
-            if len(trim_files) != split_count:
-                logging.warning("The number of trim files does not equal the "
-                                "number of expected files.")
 
             script_path = self._generate_job_script(project_name,
                                                     project['ForwardAdapter'],
                                                     project['ReverseAdapter'],
-                                                    project['HumanFiltering'])
+                                                    project['HumanFiltering'],
+                                                    fastq_files)
+
             self.script_paths[project_name] = script_path
 
     def _filter(self, filtered_directory, empty_files_directory,
@@ -123,21 +119,6 @@ class QCJob(Job):
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter(filtered_directory, empty_files_directory,
                          self.minimum_bytes)
-
-    def _generate_trim_files(self, project_name, fastq_files, split_count):
-        chunk_list = [fastq_files[i:i + split_count] for i in
-                      range(0, len(fastq_files), split_count)]
-        trim_files = []
-
-        for count, chunk in enumerate(chunk_list):
-            tmp = self.split_file_prefix + f'{project_name}_{count}'
-            trim_file_path = join(self.run_dir, tmp)
-            with open(trim_file_path, 'w') as f:
-                for line in chunk:
-                    f.write("%s\n" % line)
-            trim_files.append(trim_file_path)
-
-        return trim_files
 
     def _clear_trim_files(self):
         # remove all files with a name beginning in self.trim_file.
@@ -226,18 +207,8 @@ class QCJob(Job):
 
         return lst
 
-    def _generate_split_count(self, count):
-        if count > 2000:
-            return 16
-        elif count <= 2000 and count > 1000:
-            return 10
-        elif count <= 1000 and count > 500:
-            return 4
-
-        return 1
-
     def _generate_job_script(self, project_name, adapter_a, adapter_A,
-                             h_filter):
+                             h_filter, fastq_file_paths):
         lines = []
 
         # Unlike w/ConvertBCL2FastqJob, multiple job scripts are generated,
@@ -250,20 +221,17 @@ class QCJob(Job):
 
         project_products_dir = join(self.products_dir, project_name)
 
-        tf_fp = join(self.run_dir, (f'{self.split_file_prefix}'
-                                    f'{project_name}_0'))
-
         sh_details_fp = join(self.run_dir, (f'{self.split_file_prefix}'
                                             f'{project_name}.array-details'))
 
-        qc = QCHelper(self.nprocs, tf_fp, project_name, project_products_dir,
-                      self.mmi_db_path, adapter_a, adapter_A,
-                      self.needs_a_trimming, h_filter, self.chemistry,
-                      self.fastp_path, self.minimap2_path, self.samtools_path)
+        qc = QCHelper(self.nprocs, fastq_file_paths, project_name,
+                      project_products_dir, self.mmi_db_path, adapter_a,
+                      adapter_A, self.needs_a_trimming, h_filter,
+                      self.chemistry, self.fastp_path, self.minimap2_path,
+                      self.samtools_path)
 
         cmds = qc.generate_commands()
 
-        logging.debug(f"cmds generated: {cmds}")
         lines.append("#!/bin/bash")
         # declare a name for this job
         lines.append("#PBS -N %s" %

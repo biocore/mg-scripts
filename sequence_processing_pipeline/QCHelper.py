@@ -5,7 +5,7 @@ from os import makedirs
 
 
 class QCHelper():
-    def __init__(self, nprocs, trim_file, project_name, products_dir,
+    def __init__(self, nprocs, fastq_file_paths, project_name, products_dir,
                  human_phix_db_path, adapter_a, adapter_A, a_trim, h_filter,
                  chemistry, fastp_path, minimap2_path, samtools_path):
         '''
@@ -13,7 +13,7 @@ class QCHelper():
         Generates an appropriate command-line string to run fastp and
         optionally minimap2 and samtools as needed.
         :param nprocs: Maximum number of processes/threads to use.
-        :param trim_file: A file containing all of the R1 fastq.gz files.
+        :param fastq_file_paths: A list of paths to the R1 fastq.gz files.
         :param project_name: The name of the project. From sample-sheet.
         :param products_dir: The root directory to place products.
         :param human_phix_db_path: The path to human_phix_db_path.mmi
@@ -59,8 +59,8 @@ class QCHelper():
         if not isinstance(self.h_filter, bool):
             raise ValueError("h_filter must be boolean.")
 
-        with open(trim_file, 'r') as f:
-            self.trim_data = [x.strip() for x in f.readlines() if '_R1_' in x]
+        self.fastq_file_paths = [x.strip() for x in fastq_file_paths if
+                                 '_R1_' in x]
 
         # require path to human-phix-db.mmi even if it's not needed.
         # simpler to validate state.
@@ -119,7 +119,7 @@ class QCHelper():
 
         cmd_list = []
 
-        for fastq_file_path in self.trim_data:
+        for fastq_file_path in self.fastq_file_paths:
             # technically, legacy behavior is to run fastp even if only
             # one of the two variables (adapter_a, adapter_A) is None.
             # However, let's assume that both should be None and if
@@ -155,7 +155,7 @@ class QCHelper():
 
         cmd_list = []
 
-        for fastq_file_path in self.trim_data:
+        for fastq_file_path in self.fastq_file_paths:
             cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
                                      project_name, self.nprocs, adapter_a,
                                      adapter_A, self.fastp_path,
