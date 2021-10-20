@@ -11,7 +11,7 @@ class TestConvertJob(unittest.TestCase):
         # root directory of the single sequence directory given as
         # input by the user. Later we can re-introduce directories
         # that contain multiple BCL root directories.
-        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
+        path = partial(join, '/Users/ccowart/Development/mg-scripts/charlie/sequence_processing_pipeline', 'tests', 'data')
         run_dir = path('sample-sequence-directory')
         sample_sheet_path = path('good-sample-sheet.csv')
         inv_input_directory = path('inv_input_directory')
@@ -52,8 +52,8 @@ SCRIPT_EXP = ''.join([
     'module load \n',
     'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
     'data/good-sample-sheet.csv --output-directory '
-    'sequence_processing_pipeline/tests/data/output_directory '
-    '--bcl-input-directory . --bcl-num-decompression-threads 16 '
+    'sequence_processing_pipeline/tests/data/sample-sequence-directory/Data/'
+    'Fastq --bcl-input-directory . --bcl-num-decompression-threads 16 '
     '--bcl-num-conversion-threads 16 --bcl-num-compression-threads 16 '
     '--bcl-num-parallel-tiles 16 --bcl-sampleproject-subdirectories '
     'true --force\n'])
