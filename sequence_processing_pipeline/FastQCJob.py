@@ -59,17 +59,17 @@ class FastQCJob(Job):
         # gather the parameters for processing all relevant raw fastq files.
         params = self._scan_fastq_files(True)
 
-        for number_of_threads, file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                       file_path, '-o', output_path]
+        for thread_count, fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(thread_count),
+                       fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
         # next, do the same for the trimmed/filtered fastq files.
         params = self._scan_fastq_files(False)
 
-        for number_of_threads, file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                       file_path, '-o', output_path]
+        for thread_count, fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(thread_count),
+                       fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
         # remove duplicate project names from the list, now that
@@ -87,8 +87,22 @@ class FastQCJob(Job):
             # extract only fastq files from the list
             files = [x for x in files if x.endswith('.fastq.gz')]
 
-            if files:
-                tmp = ' '.join(files)
+            # break files up into R1, R2, I1, I2
+            # assume _R1_ does not occur in the path as well.
+            r1_only = [x for x in files if '_R1_' in x]
+            r2_only = [x for x in files if '_R2_' in x]
+
+            if len(r1_only) != len(r2_only):
+                raise PipelineError('counts of R1 and R2 files do not match')
+
+            i1_only = [x for x in files if '_I1_' in x]
+            i2_only = [x for x in files if '_I2_' in x]
+
+            if len(i1_only) != len(i2_only):
+                raise PipelineError('counts of I1 and I2 files do not match')
+
+            if r1_only:
+                tmp = ' '.join(r1_only)
                 if 'trimmed_sequences' in tmp:
                     # a_trim = True, h_filter= = False
                     filter_type = 'trimmed_sequences'
@@ -105,10 +119,17 @@ class FastQCJob(Job):
                     else:
                         raise ValueError("indeterminate type")
 
-                if filter_type != 'amplicon':
-                    # filter out index '_In_' files
-                    files = [x for x in files if '_R1_' in x or '_R2_' in x]
-                results.append((directory, filter_type, project_dir, files))
+                r1_only.sort()
+                r2_only.sort()
+
+                if filter_type == 'amplicon':
+                    i1_only.sort()
+                    i2_only.sort()
+                    results.append((directory, filter_type, project_dir,
+                                    r1_only + i1_only, r2_only + i2_only))
+
+                results.append(
+                    (directory, filter_type, project_dir, r1_only, r2_only))
 
         return results
 
@@ -120,13 +141,14 @@ class FastQCJob(Job):
 
         fastqc_results = []
 
-        for project_name, filter_type, fastq_path, files in projects:
-            self.project_names.append(project_name)
-            base_path = join(self.fastqc_output_path, project_name)
-            dir_name = 'bclconvert' if is_raw_input else filter_type
+        for proj_name, fltr_type, fastq_fp, fwd_files, rev_files in projects:
+            self.project_names.append(proj_name)
+            base_path = join(self.fastqc_output_path, proj_name)
+            dir_name = 'bclconvert' if is_raw_input else fltr_type
 
-            for some_file in files:
-                fastqc_results.append((self.nthreads, some_file,
+            for some_fwd_file, some_rev_file in zip(fwd_files, rev_files):
+                fastqc_results.append((self.nthreads, some_fwd_file,
+                                       some_rev_file,
                                        join(base_path, dir_name)))
 
         return fastqc_results
@@ -225,3 +247,8 @@ class FastQCJob(Job):
             f.write('\n'.join(self.commands))
 
         return job_script_path
+
+
+'''
+
+'''
