@@ -97,8 +97,7 @@ class Pipeline:
 
         if results:
             results.sort(key=lambda s: len(s))
-
-        return results[0]
+            return results[0]
 
         raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
                             "found")
