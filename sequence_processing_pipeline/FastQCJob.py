@@ -1,7 +1,8 @@
-from os import listdir
+from os import listdir, makedirs
 from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
+from functools import partial
 import logging
 
 
@@ -39,13 +40,18 @@ class FastQCJob(Job):
         self.jmem = jmem
         self.pool_size = pool_size
 
-        self.project_names = []  # ['THDMI_US_10317']
+        self.project_names = []
         self.commands = self._get_commands()
         split_count = self._generate_split_count(len(self.commands))
         lines_per_split = int((len(self.commands) + split_count - 1) /
                               split_count)
         self._generate_trim_files(self.commands, lines_per_split)
         self.script_path = self._generate_job_script()
+
+        for project_name in self.project_names:
+            p_path = partial(join, self.products_dir, 'FastQC', project_name)
+            makedirs(p_path('bclconvert'), exist_ok=True)
+            makedirs(p_path('filtered_sequences'), exist_ok=True)
 
     def _get_commands(self):
         results = []
