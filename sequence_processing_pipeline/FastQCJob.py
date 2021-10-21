@@ -1,5 +1,5 @@
 from os import listdir, makedirs
-from os.path import join, basename
+from os.path import join, basename, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from functools import partial
@@ -186,21 +186,38 @@ class FastQCJob(Job):
         logging.debug(pbs_job_id)
 
         for project in self.project_names:
-            logging.debug('PROJECT: %s' % project)
-            fastp_reports = join(self.run_dir, self.run_id, project,
-                                 'fastp_reports_dir', 'json')
-            fastqc_reports = join(self.run_dir, self.run_id, 'FastQC',
-                                  project)
-            # filtered_reports may be redundant, as multiqc  can use
-            # fastqc_reports as a root to search
-            filtered_reports = join(fastqc_reports, 'filtered_sequences')
-            cmd = ['multiqc', '-c', self.multiqc_config_file_path,
-                   '--fullnames', '--force', fastp_reports, fastqc_reports,
-                   filtered_reports, '-o', join(self.fastqc_output_path,
-                                                'multiqc'), '--interactive']
-            logging.debug(cmd)
+            # MultiQC doesn't like input paths that don't exist. Simply add
+            # all paths that do exist as input.
+            input_path_list = []
+            p_path = partial(join, self.run_dir, self.run_id, 'FastQC',
+                             project)
 
-            results = self._system_call(' '.join(cmd))
+            for filter_type in ['bclconvert', 'trimmed_sequences',
+                                'filtered_sequences', 'amplicon']:
+                input_path_list.append(p_path(filter_type))
+
+            input_path_list.append(join(self.run_dir, self.run_id, 'FastQC',
+                                        'Reports'))
+
+            input_path_list.append(join(self.processed_fastq_path, project,
+                                        'fastp_reports_dir', 'json'))
+
+            # I don't usually see a json directory associated with raw data.
+            # It looks to be metadata coming directly off the machine, in the
+            # few instances I've seen it in /sequencing...
+            input_path_list.append(join(self.raw_fastq_path, project, 'json'))
+
+            input_path_list = [x for x in input_path_list if exists(x)]
+
+            cmd_head = ['multiqc', '-c', self.multiqc_config_file_path,
+                        '--fullnames', '--force']
+
+            cmd_tail = ['-o', join(self.fastqc_output_path, project,
+                                   'multiqc'), '--interactive']
+
+            results = self._system_call(' '.join(cmd_head + input_path_list
+                                                 + cmd_tail))
+
             logging.debug(f"_stdout: {results['stdout']}")
             logging.debug(f"_stderr: {results['stderr']}")
             logging.debug(f"return code: {results['return_code']}")
