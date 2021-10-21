@@ -244,13 +244,6 @@ if __name__ == '__main__':
 
     qc_job.run()
 
-    '''
-    makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
-                  'bclconvert'), exist_ok=True)
-    makedirs(join(pipeline.products_dir, 'FastQC', 'THDMI_US_10317',
-                  'filtered_sequences'), exist_ok=True)
-    '''
-
     config = pipeline.configuration['fastqc']
     output_directory = join(pipeline.products_dir, 'FastQC')
     fastqc_job = FastQCJob(pipeline.run_dir,

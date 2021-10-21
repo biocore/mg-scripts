@@ -14,6 +14,18 @@ class TestFastQCJob(unittest.TestCase):
         self.output_directory = self.path('output_directory')
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
 
+    def test_fastqc_not_found(self):
+        with self.assertRaises(PipelineError) as e:
+            FastQCJob(self.run_dir, self.output_directory, 16, 16,
+                      'sequence_processing_pipeline/tests/bin/not-fastqc',
+                      [], self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                      ('sequence_processing_pipeline/'
+                       'multiqc-bclconvert-config.yaml'))
+
+        self.assertEqual(str(e.exception), "file 'sequence_processing_pipeline"
+                                           "/tests/bin/not-fastqc' does not ex"
+                                           "ist.")
+
     def test_config_file_not_found(self):
         with self.assertRaises(PipelineError) as e:
             FastQCJob(self.run_dir, self.output_directory, 16, 16,

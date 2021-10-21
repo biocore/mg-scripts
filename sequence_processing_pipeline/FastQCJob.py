@@ -59,16 +59,16 @@ class FastQCJob(Job):
         # gather the parameters for processing all relevant raw fastq files.
         params = self._scan_fastq_files(True)
 
-        for thread_count, fwd_file_path, rev_file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(thread_count),
+        for fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(self.nthreads),
                        fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
         # next, do the same for the trimmed/filtered fastq files.
         params = self._scan_fastq_files(False)
 
-        for thread_count, fwd_file_path, rev_file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(thread_count),
+        for fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(self.nthreads),
                        fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
@@ -147,8 +147,7 @@ class FastQCJob(Job):
             dir_name = 'bclconvert' if is_raw_input else fltr_type
 
             for some_fwd_file, some_rev_file in zip(fwd_files, rev_files):
-                fastqc_results.append((self.nthreads, some_fwd_file,
-                                       some_rev_file,
+                fastqc_results.append((some_fwd_file, some_rev_file,
                                        join(base_path, dir_name)))
 
         return fastqc_results
