@@ -1,17 +1,16 @@
-from os import listdir
+from os import listdir, makedirs
 from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
+from functools import partial
 import logging
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class FastQCJob(Job):
     def __init__(self, run_dir, output_directory, nprocs, nthreads,
-                 fastqc_path, modules_to_load, qiita_job_id,
-                 queue_name, node_count, wall_time_limit, jmem, pool_size):
+                 fastqc_path, modules_to_load, qiita_job_id, queue_name,
+                 node_count, wall_time_limit, jmem, pool_size,
+                 multiqc_config_file_path):
         self.job_name = 'FastQCJob'
         super().__init__(run_dir, self.job_name, [fastqc_path],
                          modules_to_load)
@@ -19,10 +18,11 @@ class FastQCJob(Job):
         self.nprocs = nprocs
         self.nthreads = nthreads
         self.fastqc_path = fastqc_path
-        if self._file_check(self.fastqc_path):
-            self.fastqc_path = fastqc_path
+
+        if self._file_check(multiqc_config_file_path):
+            self.multiqc_config_file_path = multiqc_config_file_path
         else:
-            raise PipelineError(f"'{fastqc_path}' does not exist")
+            raise PipelineError(f"'{multiqc_config_file_path}' does not exist")
 
         self.modules_to_load = modules_to_load
         self.raw_fastq_path = join(self.run_dir, 'Data', 'Fastq')
@@ -36,9 +36,11 @@ class FastQCJob(Job):
         self.products_dir = join(self.run_dir, self.run_id)
         # for CI, create this directory if it doesn't exist already.
         self._directory_check(self.products_dir, create=True)
+
         self.jmem = jmem
         self.pool_size = pool_size
 
+        self.project_names = []
         self.commands = self._get_commands()
         split_count = self._generate_split_count(len(self.commands))
         lines_per_split = int((len(self.commands) + split_count - 1) /
@@ -46,24 +48,33 @@ class FastQCJob(Job):
         self._generate_trim_files(self.commands, lines_per_split)
         self.script_path = self._generate_job_script()
 
+        for project_name in self.project_names:
+            p_path = partial(join, self.products_dir, 'FastQC', project_name)
+            makedirs(p_path('bclconvert'), exist_ok=True)
+            makedirs(p_path('filtered_sequences'), exist_ok=True)
+
     def _get_commands(self):
         results = []
 
         # gather the parameters for processing all relevant raw fastq files.
         params = self._scan_fastq_files(True)
 
-        for number_of_threads, file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                       file_path, '-o', output_path]
+        for fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(self.nthreads),
+                       fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
         # next, do the same for the trimmed/filtered fastq files.
         params = self._scan_fastq_files(False)
 
-        for number_of_threads, file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(number_of_threads),
-                       file_path, '-o', output_path]
+        for fwd_file_path, rev_file_path, output_path in params:
+            command = ['fastqc', '--noextract', '-t', str(self.nthreads),
+                       fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
+
+        # remove duplicate project names from the list, now that
+        # processing is complete.
+        self.project_names = list(set(self.project_names))
 
         return results
 
@@ -76,8 +87,22 @@ class FastQCJob(Job):
             # extract only fastq files from the list
             files = [x for x in files if x.endswith('.fastq.gz')]
 
-            if files:
-                tmp = ' '.join(files)
+            # break files up into R1, R2, I1, I2
+            # assume _R1_ does not occur in the path as well.
+            r1_only = [x for x in files if '_R1_' in x]
+            r2_only = [x for x in files if '_R2_' in x]
+
+            if len(r1_only) != len(r2_only):
+                raise PipelineError('counts of R1 and R2 files do not match')
+
+            i1_only = [x for x in files if '_I1_' in x]
+            i2_only = [x for x in files if '_I2_' in x]
+
+            if len(i1_only) != len(i2_only):
+                raise PipelineError('counts of I1 and I2 files do not match')
+
+            if r1_only:
+                tmp = ' '.join(r1_only)
                 if 'trimmed_sequences' in tmp:
                     # a_trim = True, h_filter= = False
                     filter_type = 'trimmed_sequences'
@@ -94,10 +119,17 @@ class FastQCJob(Job):
                     else:
                         raise ValueError("indeterminate type")
 
-                if filter_type != 'amplicon':
-                    # filter out index '_In_' files
-                    files = [x for x in files if '_R1_' in x or '_R2_' in x]
-                results.append((directory, filter_type, project_dir, files))
+                r1_only.sort()
+                r2_only.sort()
+
+                if filter_type == 'amplicon':
+                    i1_only.sort()
+                    i2_only.sort()
+                    results.append((directory, filter_type, project_dir,
+                                    r1_only + i1_only, r2_only + i2_only))
+
+                results.append(
+                    (directory, filter_type, project_dir, r1_only, r2_only))
 
         return results
 
@@ -109,12 +141,13 @@ class FastQCJob(Job):
 
         fastqc_results = []
 
-        for project_name, filter_type, fastq_path, files in projects:
-            base_path = join(self.fastqc_output_path, project_name)
-            dir_name = 'bclconvert' if is_raw_input else filter_type
+        for proj_name, fltr_type, fastq_fp, fwd_files, rev_files in projects:
+            self.project_names.append(proj_name)
+            base_path = join(self.fastqc_output_path, proj_name)
+            dir_name = 'bclconvert' if is_raw_input else fltr_type
 
-            for some_file in files:
-                fastqc_results.append((self.nthreads, some_file,
+            for some_fwd_file, some_rev_file in zip(fwd_files, rev_files):
+                fastqc_results.append((some_fwd_file, some_rev_file,
                                        join(base_path, dir_name)))
 
         return fastqc_results
@@ -152,6 +185,29 @@ class FastQCJob(Job):
         pbs_job_id = self.qsub(self.script_path, None, None)
         logging.debug(pbs_job_id)
 
+        for project in self.project_names:
+            logging.debug('PROJECT: %s' % project)
+            fastp_reports = join(self.run_dir, self.run_id, project,
+                                 'fastp_reports_dir', 'json')
+            fastqc_reports = join(self.run_dir, self.run_id, 'FastQC',
+                                  project)
+            # filtered_reports may be redundant, as multiqc  can use
+            # fastqc_reports as a root to search
+            filtered_reports = join(fastqc_reports, 'filtered_sequences')
+            cmd = ['multiqc', '-c', self.multiqc_config_file_path,
+                   '--fullnames', '--force', fastp_reports, fastqc_reports,
+                   filtered_reports, '-o', join(self.fastqc_output_path,
+                                                'multiqc'), '--interactive']
+            logging.debug(cmd)
+
+            results = self._system_call(' '.join(cmd))
+            logging.debug(f"_stdout: {results['stdout']}")
+            logging.debug(f"_stderr: {results['stderr']}")
+            logging.debug(f"return code: {results['return_code']}")
+
+            if results['return_code'] != 0:
+                raise PipelineError("multiqc encountered an error")
+
     def _generate_job_script(self):
         lines = []
 
@@ -176,10 +232,8 @@ class FastQCJob(Job):
         lines.append('hostname')
         lines.append('echo ${PBS_JOBID} ${PBS_ARRAYID}')
         lines.append("cd %s" % self.run_dir)
-        tmp = "module load " + ' '.join(self.modules_to_load)
-        logging.debug(f"QCJob Modules to load: {tmp}")
-        lines.append(tmp)
-
+        if self.modules_to_load:
+            lines.append("module load " + ' '.join(self.modules_to_load))
         lines.append('offset=${PBS_ARRAYID}')
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
@@ -192,3 +246,8 @@ class FastQCJob(Job):
             f.write('\n'.join(self.commands))
 
         return job_script_path
+
+
+'''
+
+'''

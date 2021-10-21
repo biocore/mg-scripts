@@ -13,7 +13,7 @@ from time import time as epoch_time
 import logging
 import shutil
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class Pipeline:
@@ -79,6 +79,12 @@ class Pipeline:
         self.sentinel_file = "RTAComplete.txt"
 
     def _search_for_run_dir(self):
+        # this method will catch a run directory as well as its products
+        # directory, which also has the same name. Hence, return the
+        # shortest matching path as that will at least return the right
+        # path between the two.
+        results = []
+
         for search_path in self.search_paths:
             logging.debug(f'Searching {search_path} for {self.run_id}')
             for entry in listdir(search_path):
@@ -87,14 +93,21 @@ class Pipeline:
                 some_path = some_path.rstrip('/')
                 if isdir(some_path) and some_path.endswith(self.run_id):
                     logging.debug(f'Found {some_path}')
-                    return some_path
+                    results.append(some_path)
+
+        if results:
+            results.sort(key=lambda s: len(s))
+            return results[0]
+
         raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
                             "found")
 
     def copy_results_to_archive(self):
         # hack an empty Job() object to use job._system_call().
         job = Job('', '', [])
-        job._system_call('rsync -avp %s %s' % (self.products_dir,
+
+        fastqc_dir = join(self.products_dir, 'FastQC')
+        job._system_call('rsync -avp %s %s' % (fastqc_dir,
                                                self.final_output_dir))
 
     def directory_check(self, directory_path, create=False):
@@ -197,9 +210,7 @@ if __name__ == '__main__':
                              config['modules_to_load'],
                              qiita_job_id)
 
-    logging.debug("Starting ConvertJob")
     convert_job.run()
-    logging.debug("ConvertJob Finished")
 
     # Currently this is performed outside a Job as it's not the
     # resposibility of ConvertJob() to see that this file is copied for
@@ -231,9 +242,7 @@ if __name__ == '__main__':
                    config['job_pool_size'],
                    pipeline.products_dir, )
 
-    logging.debug("Starting QCJob")
     qc_job.run()
-    logging.debug("QCJob Finished")
 
     config = pipeline.configuration['fastqc']
     output_directory = join(pipeline.products_dir, 'FastQC')
@@ -248,11 +257,10 @@ if __name__ == '__main__':
                            config['nodes'],
                            config['wallclock_time_in_hours'],
                            config['job_total_memory_limit'],
-                           config['job_pool_size'])
+                           config['job_pool_size'],
+                           config['multiqc_config_file_path'])
 
-    logging.debug("Starting FastQCJob")
     fastqc_job.run()
-    logging.debug("FastQCJob Finished")
 
     gpf_output_path = join(pipeline.products_dir, 'prep-files')
     makedirs(gpf_output_path, exist_ok=True)
@@ -265,13 +273,6 @@ if __name__ == '__main__':
                              config['modules_to_load'],
                              qiita_job_id)
 
-    try:
-        logging.debug("Starting GenPrepFileJob")
-        gpf_job.run()
-        logging.debug("GenPrepFileJob Finished")
-    except PipelineError as e:
-        print(f"Caught known seqpro error: {str(e)}")
+    gpf_job.run()
 
-    logging.debug("Starting rsync")
     pipeline.copy_results_to_archive()
-    logging.debug("Rsync Finished")

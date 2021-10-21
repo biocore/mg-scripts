@@ -14,24 +14,21 @@ class TestConvertJob(unittest.TestCase):
         path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
         run_dir = path('sample-sequence-directory')
         sample_sheet_path = path('good-sample-sheet.csv')
-        output_directory = path('output_directory')
         inv_input_directory = path('inv_input_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.maxDiff = None
 
         # ConvertJob should assert due to invalid_input_directory.
         with self.assertRaises(PipelineError) as e:
-            ConvertJob(inv_input_directory, sample_sheet_path,
-                       output_directory, 'qiita', 1, 16, 24, '10gb',
-                       'tests/bin/bcl-convert', [], qiita_id)
+            ConvertJob(inv_input_directory, sample_sheet_path, 'qiita', 1, 16,
+                       24, '10gb', 'tests/bin/bcl-convert', [], qiita_id)
 
         self.assertEqual(str(e.exception), ("directory_path '"
                                             f"{path('inv_input_directory')}' "
                                             "does not exist."))
 
-        job = ConvertJob(run_dir, sample_sheet_path, output_directory, 'qiita',
-                         1, 16, 24, '10gb', 'tests/bin/bcl-convert', [],
-                         qiita_id)
+        job = ConvertJob(run_dir, sample_sheet_path, 'qiita', 1, 16, 24,
+                         '10gb', 'tests/bin/bcl-convert', [], qiita_id)
         with open(job._generate_job_script()) as f:
             obs = ''.join(f.readlines())
 
@@ -55,8 +52,8 @@ SCRIPT_EXP = ''.join([
     'module load \n',
     'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
     'data/good-sample-sheet.csv --output-directory '
-    'sequence_processing_pipeline/tests/data/output_directory '
-    '--bcl-input-directory . --bcl-num-decompression-threads 16 '
+    'sequence_processing_pipeline/tests/data/sample-sequence-directory/Data/'
+    'Fastq --bcl-input-directory . --bcl-num-decompression-threads 16 '
     '--bcl-num-conversion-threads 16 --bcl-num-compression-threads 16 '
     '--bcl-num-parallel-tiles 16 --bcl-sampleproject-subdirectories '
     'true --force\n'])

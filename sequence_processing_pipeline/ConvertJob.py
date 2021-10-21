@@ -1,6 +1,5 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os import walk
-from os.path import join, exists, basename
+from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -8,15 +7,14 @@ import re
 
 
 class ConvertJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 queue_name, node_count, nprocs, wall_time_limit, pmem,
-                 bcl_tool_path, modules_to_load, qiita_job_id):
+    def __init__(self, run_dir, sample_sheet_path, queue_name, node_count,
+                 nprocs, wall_time_limit, pmem, bcl_tool_path, modules_to_load,
+                 qiita_job_id):
         '''
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
         :param run_dir: The 'run' directory that contains BCL files.
         :param sample_sheet_path: The path to a sample-sheet.
-        :param output_directory: The path to store Fastq output.
         :param queue_name: The name of the Torque queue to use for processing.
         :param node_count: The number of nodes to request.
         :param nprocs: The maximum number of parallel processes to use.
@@ -31,12 +29,11 @@ class ConvertJob(Job):
                          [bcl_tool_path],
                          modules_to_load)
         self._directory_check(self.run_dir, create=False)
-        self._validate_bcl_directory()
         self.modules_to_load = modules_to_load
 
-        tmp = join(self.run_dir, 'Data', 'Fastq')
+        output_dir = join(self.run_dir, 'Data', 'Fastq')
         # create the directory to store fastq files
-        self._directory_check(tmp, create=True)
+        self._directory_check(output_dir, create=True)
         # generate_job_script_path() also generates numbered logs for stdout
         # and stderr, but we won't need these. ConvertJob() just needs one
         # pair of logs.
@@ -45,7 +42,7 @@ class ConvertJob(Job):
         self.run_id = basename(self.run_dir)
         self.job_name = f"{qiita_job_id}_ConvertJob"
         self.sample_sheet_path = sample_sheet_path
-        self.output_directory = output_directory
+        self.output_directory = output_dir
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
@@ -80,29 +77,6 @@ class ConvertJob(Job):
         for some_file in required_files:
             s = join(self.run_dir, some_file)
             self._file_check(s)
-
-    def _validate_bcl_directory(self):
-        '''
-
-        :return:
-        '''
-        bcl_directory = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
-        bcl_count = 0
-        if exists(bcl_directory):
-            for root, dirs, files in walk(bcl_directory):
-                for some_file in files:
-                    # subdirectories and files other than '.bcl' files from
-                    # bcl_directory are to be expected.
-                    if some_file.endswith(('.bcl', '.cbcl')):
-                        bcl_count += 1
-        else:
-            raise PipelineError(f"input_directory '{self.run_dir}' does not "
-                                "contain subdirectory "
-                                "Data/Intensities/BaseCalls.")
-
-        if bcl_count == 0:
-            raise PipelineError(f"input_directory '{bcl_directory}' does not "
-                                f"contain bcl files ({bcl_count}).")
 
     def _generate_job_script(self):
         '''
