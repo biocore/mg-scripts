@@ -162,8 +162,8 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value younger than 1 hour ago.
             older_than = current_time - 3300
-            utime(join(self.path, 'sample-sequence-directory'),
-                  (older_than, older_than))
+            utime(self.path('sample-sequence-directory'), (older_than,
+                                                           older_than))
 
             obs = pipeline.is_within_time_range(tp)
             self.assertEqual(obs, False)

@@ -22,7 +22,7 @@ class TestJob(unittest.TestCase):
         self.assertRegex(str(e.exception),
                          r"^file '/does/not/exist' does not exist.")
 
-        self.assertIn('QCJob.py', job._find_files(''))
+        self.assertIn('QCJob.py', job._find_files(package_root))
 
         obs = job._system_call('ls tests/bin')
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
