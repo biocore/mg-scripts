@@ -32,7 +32,6 @@ max_table_rows: 10000
 # Overwrite the defaults of which table columns are visible by default
 table_columns_visible:
     # "Base Calling": False # total: True
-    # TODO: re-enable this once we have the split of Stats.json
     "Sequence Quality (bclconvert raw)":
         percent_fails: False
         percent_duplicates: False
@@ -40,7 +39,6 @@ table_columns_visible:
         avg_sequence_length: True
         total_sequences: True
     Trimming:
-        # TODO: re-enable if we can figure out what to do about
         #  R1 and R2 being stored in the same file
         input_format: False
         avg_sequence_length: False

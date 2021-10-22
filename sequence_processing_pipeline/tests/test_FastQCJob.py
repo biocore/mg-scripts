@@ -1,24 +1,39 @@
 import unittest
-from os.path import join
+from os.path import join, exists
 from functools import partial
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
+from os import makedirs
+import shutil
 
 
 class TestFastQCJob(unittest.TestCase):
     def setUp(self):
-        self.maxDiff = None
-        self.path = partial(join, 'sequence_processing_pipeline', 'tests',
-                            'data')
-        self.run_dir = self.path('sample-sequence-directory')
-        self.output_directory = self.path('output_directory')
+        package_root = 'sequence_processing_pipeline'
+        self.path = partial(join, package_root, 'tests', 'data')
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+        self.maxDiff = None
+        self.output_path = self.path('output_dir')
+        self.raw_fastq_files_path = ('sequence_processing_pipeline/tests/data'
+                                     '/sample-sequence-directory/Data/Fastq/p'
+                                     'roject1')
+        self.processed_fastq_files_path = ('sequence_processing_pipeline/tests'
+                                           '/data/sample-sequence-directory/sa'
+                                           'mple-sequence-directory')
+        self.config_yml = join(package_root, 'multiqc-bclconvert-config.yaml')
+        self.qc_root_path = join(self.output_path, 'QCJob')
+        makedirs(self.qc_root_path, exist_ok=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.qc_root_path)
 
     def test_config_file_not_found(self):
         with self.assertRaises(PipelineError) as e:
-            FastQCJob(self.run_dir, self.output_directory, 16, 16,
-                      'sequence_processing_pipeline/tests/bin/fastqc',
-                      [], self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+            FastQCJob(self.qc_root_path, self.output_path,
+                      self.raw_fastq_files_path,
+                      self.processed_fastq_files_path, 16, 16,
+                      'sequence_processing_pipeline/tests/bin/fastqc', [],
+                      self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
                       ('sequence_processing_pipeline/'
                        'not-multiqc-bclconvert-config.yaml'))
 
@@ -26,18 +41,18 @@ class TestFastQCJob(unittest.TestCase):
                                            "/not-multiqc-bclconvert-config."
                                            "yaml' does not exist.")
 
-    def test_generate_job_script_path(self):
-        job = FastQCJob(self.run_dir, self.output_directory, 16, 16,
-                        'sequence_processing_pipeline/tests/bin/fastqc',
-                        [], self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        'sequence_processing_pipeline/'
-                        'multiqc-bclconvert-config.yaml')
+    def test_generate_job_scripts(self):
+        job = FastQCJob(self.qc_root_path, self.output_path,
+                        self.raw_fastq_files_path,
+                        self.processed_fastq_files_path,
+                        16, 16,
+                        'sequence_processing_pipeline/tests/bin/fastqc', [],
+                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                        self.config_yml)
 
-        exp = (f'{self.run_dir}/FastQCJob_2.sh',
-               f'localhost:/{self.run_dir}/FastQCJob_2.out.log',
-               f'localhost:/{self.run_dir}/FastQCJob_2.err.log')
-
-        self.assertEqual(job.generate_job_script_path(), exp)
+        self.assertEqual(exists(join(job.output_path, 'FastQCJob.sh')), True)
+        self.assertEqual(exists(join(job.output_path,
+                                     'FastQCJob.array-details')), True)
 
 
 if __name__ == '__main__':
