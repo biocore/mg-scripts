@@ -28,7 +28,7 @@ class TestJob(unittest.TestCase):
                       r'sequence_processing_pipeline', x) for x in obs]
         self.assertIn('sequence_processing_pipeline/QCJob.py', obs)
 
-        obs = job._system_call('ls tests/bin')
+        obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'))
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
                'stderr': '',
                'return_code': 0}
