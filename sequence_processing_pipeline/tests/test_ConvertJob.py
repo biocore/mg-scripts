@@ -61,8 +61,8 @@ SCRIPT_EXP = ''.join([
     'hostname\n',
     'cd {run_dir}\n',
     'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
-    'data/good-sample-sheet.csv --output-directory sequence_processing_pipeli'
-    'ne/tests/data/{gop}/ConvertJob --bcl-input-directory . '
+    'data/good-sample-sheet.csv --output-directory {gop}/ConvertJob '
+    '--bcl-input-directory . '
     '--bcl-num-decompression-threads 16 --bcl-num-conversion-threads 16 '
     '--bcl-num-compression-threads 16 --bcl-num-parallel-tiles 16 '
     '--bcl-sampleproject-subdirectories true --force\n'])

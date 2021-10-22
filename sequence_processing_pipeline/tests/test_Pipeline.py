@@ -133,7 +133,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 1 hour ago + 5 min.
             older_than = current_time - (3600 + (5 * 60))
-            tp = join(self.path, 'sample-sequence-directory')
+            tp = self.path('sample-sequence-directory')
             utime(tp, (older_than, older_than))
 
             pipeline = Pipeline(self.good_config_file, self.good_run_id,

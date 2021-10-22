@@ -1,13 +1,18 @@
 import unittest
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
+from os.path import abspath, join
+from functools import partial
 
 
 class TestJob(unittest.TestCase):
     def test_system_call(self):
-        job = Job('tests/data/sample-sequence-directory',
-                  'tests/data/my_output_dir',
-                  '200nnn_xnnnnn_nnnn_xxxxxxxxxx', ['ls'], None)
+        package_root = abspath('./sequence_processing_pipeline')
+        self.path = partial(join, package_root, 'tests', 'data')
+
+        job = Job(self.path('sample-sequence-directory'),
+                  self.path('my_output_dir'), '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
+                  ['ls'], None)
 
         self.assertTrue(job._which('ls') in ['/bin/ls', '/usr/bin/ls'])
 
