@@ -7,6 +7,7 @@ from os.path import join, abspath
 from copy import deepcopy
 from time import time
 from functools import partial
+import re
 
 
 class TestPipeline(unittest.TestCase):
@@ -31,9 +32,12 @@ class TestPipeline(unittest.TestCase):
                      'my_qiita_id',
                      None)
 
-        self.assertEqual(str(e.exception), "'search_paths' is not a key in "
-                                           "sequence_processing_pipeline/tests"
-                                           "/data/bad_configuration.json")
+        msg = re.sub(r'not a key in .*?/sequence_processing_pipeline',
+                     r'not a key in sequence_processing_pipeline',
+                     str(e.exception))
+        self.assertEqual(msg, "'search_paths' is not a key in "
+                              "sequence_processing_pipeline/tests"
+                              "/data/bad_configuration.json")
 
         # Pipeline should assert due to an invalid config file path.
         with self.assertRaises(PipelineError) as e:
