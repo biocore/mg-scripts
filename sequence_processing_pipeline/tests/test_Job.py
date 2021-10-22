@@ -5,13 +5,9 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 
 class TestJob(unittest.TestCase):
     def test_system_call(self):
-        job = Job('/path/to/run_dir', '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
-                  ['ls'], None)
-
-        exp = ('/path/to/run_dir/200nnn_xnnnnn_nnnn_xxxxxxxxxx_1.sh',
-               '/path/to/run_dir/200nnn_xnnnnn_nnnn_xxxxxxxxxx_1.out.log',
-               '/path/to/run_dir/200nnn_xnnnnn_nnnn_xxxxxxxxxx_1.err.log')
-        self.assertEqual(job.generate_job_script_path(), exp)
+        job = Job('tests/data/sample-sequence-directory',
+                  'tests/data/my_output_dir',
+                  '200nnn_xnnnnn_nnnn_xxxxxxxxxx', ['ls'], None)
 
         self.assertTrue(job._which('ls') in ['/bin/ls', '/usr/bin/ls'])
 
@@ -21,12 +17,9 @@ class TestJob(unittest.TestCase):
         self.assertRegex(str(e.exception),
                          r"^file '/does/not/exist' does not exist.")
 
-        self.assertIn(
-            './sequence_processing_pipeline/QCCmdGenerator.py',
-            job._find_files('./sequence_processing_pipeline'))
+        self.assertIn('QCJob.py', job._find_files(''))
 
-        obs = job._system_call('ls sequence_processing_pipeline/'
-                               'tests/bin')
+        obs = job._system_call('ls tests/bin')
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
                'stderr': '',
                'return_code': 0}

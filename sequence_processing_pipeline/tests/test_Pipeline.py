@@ -22,11 +22,17 @@ class TestPipeline(unittest.TestCase):
         self.invalid_run_id = 'not-sample-sequence-directory'
         self.data_directory = 'sequence_processing_pipeline/tests/data'
         self.maxDiff = None
+        self.good_output_file_path = ('sequence_processing_pipeline/'
+                                     'my_output_file_path')
 
     def test_creation(self):
         # Pipeline should assert due to config_file
         with self.assertRaises(PipelineError) as e:
-            Pipeline(self.bad_config_file, self.good_run_id, None)
+            Pipeline(self.bad_config_file,
+                     self.good_run_id,
+                     self.good_output_file_path,
+                     'my_qiita_id',
+                     None)
 
         self.assertEqual(str(e.exception), "'search_paths' is not a key in "
                                            "sequence_processing_pipeline/tests"
@@ -34,28 +40,44 @@ class TestPipeline(unittest.TestCase):
 
         # Pipeline should assert due to an invalid config file path.
         with self.assertRaises(PipelineError) as e:
-            Pipeline(self.invalid_config_file, self.good_run_id, None)
+            Pipeline(self.invalid_config_file,
+                     self.good_run_id,
+                     self.good_output_file_path,
+                     'my_qiita_id',
+                     None)
 
         self.assertEqual(str(e.exception), 'does/not/exist/configuration.json '
                                            'does not exist.')
 
         # Pipeline should assert on config_file = None
         with self.assertRaises(PipelineError) as e:
-            Pipeline(None, self.good_run_id, None)
+            Pipeline(None,
+                     self.good_run_id,
+                     self.good_output_file_path,
+                     'my_qiita_id',
+                     None)
 
         self.assertEqual(str(e.exception), 'configuration_file_path cannot be '
                                            'None')
 
         # Pipeline should assert due to invalid_run_id
         with self.assertRaises(PipelineError) as e:
-            Pipeline(self.good_config_file, self.invalid_run_id, None)
+            Pipeline(self.good_config_file,
+                     self.invalid_run_id,
+                     self.good_output_file_path,
+                     'my_qiita_id',
+                     None)
 
         self.assertEqual(str(e.exception), "A run-dir for 'not-sample-sequence"
                                            "-directory' could not be found")
 
         # Pipeline should assert on run_id = None
         with self.assertRaises(PipelineError) as e:
-            Pipeline(self.good_config_file, None, None)
+            Pipeline(self.good_config_file,
+                     None,
+                     self.good_output_file_path,
+                     'my_qiita_id',
+                     None)
 
         with open(join('sequence_processing_pipeline', 'configuration.json'),
                   'r') as f:
@@ -63,32 +85,35 @@ class TestPipeline(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['younger_than'] = -1
-                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+                Pipeline(self.good_config_file,
+                         self.good_run_id,
+                         self.good_output_file_path,
+                         'my_qiita_id',
+                         cpy_cfg)
+
             self.assertEqual(str(e.exception), 'older_than and younger_than '
                                                'cannot be less than zero.')
             with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['older_than'] = -1
-                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+                Pipeline(self.good_config_file,
+                         self.good_run_id,
+                         self.good_output_file_path,
+                         'my_qiita_id',
+                         cpy_cfg)
             self.assertEqual(str(e.exception), 'older_than and younger_than '
                                                'cannot be less than zero.')
             with self.assertRaises(PipelineError) as e:
                 cpy_cfg = deepcopy(cfg)
                 cpy_cfg['configuration']['pipeline']['younger_than'] = 20
                 cpy_cfg['configuration']['pipeline']['older_than'] = 30
-                Pipeline(self.good_config_file, self.good_run_id, cpy_cfg)
+                Pipeline(self.good_config_file,
+                         self.good_run_id,
+                         self.good_output_file_path,
+                         'my_qiita_id',
+                         cpy_cfg)
             self.assertEqual(str(e.exception), 'older_than cannot be equal to '
                                                'or less than younger_than.')
-
-    def test_find_bcl_directories(self):
-        pipeline = Pipeline(self.good_config_file, self.good_run_id, None)
-        obs = pipeline.find_bcl_directories(self.data_directory)
-        # there are a number of directories under 'data'. Only
-        # 'sample-sequence-directory' has the layout expected of a
-        # run-directory, however.
-        exp = ["sequence_processing_pipeline/tests/data/"
-               "sample-sequence-directory"]
-        self.assertEqual(obs, exp)
 
     def test_filter_directories_for_time(self):
         # get a good configuration dict from file.
@@ -107,17 +132,15 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 1 hour ago + 5 min.
             older_than = current_time - (3600 + (5 * 60))
-            utime(join(self.data_directory, 'sample-sequence-directory'),
-                  (older_than, older_than))
+            tp = join(self.data_directory, 'sample-sequence-directory')
+            utime(tp, (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
-            # there should be only sample-sequence-directory in the results.
-            results = pipeline.find_bcl_directories(self.data_directory)
+            pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                                self.good_output_file_path, 'my_qiita_id',
+                                cfg)
 
-            obs = pipeline.filter_directories_for_time(results)
-            exp = ["sequence_processing_pipeline/tests/data/"
-                   "sample-sequence-directory"]
-            self.assertEqual(obs, exp)
+            obs = pipeline.is_within_time_range(tp)
+            self.assertEqual(obs, True)
 
             # Set directory's timestamp to just older than two hours and
             # verify it is not returned by filter_directories_for_time().
@@ -126,16 +149,10 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 2 hour ago + 5 min.
             older_than = current_time - (7200 + (5 * 60))
-            utime(join(self.data_directory, 'sample-sequence-directory'),
-                  (older_than, older_than))
+            utime(tp, (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
-            # there should be only sample-sequence-directory in the results.
-            results = pipeline.find_bcl_directories(self.data_directory)
-
-            obs = pipeline.filter_directories_for_time(results)
-            exp = []
-            self.assertEqual(obs, exp)
+            obs = pipeline.is_within_time_range(tp)
+            self.assertEqual(obs, False)
 
             # Set directory's timestamp to just under one hour and
             # verify it is not returned by filter_directories_for_time().
@@ -147,13 +164,8 @@ class TestPipeline(unittest.TestCase):
             utime(join(self.data_directory, 'sample-sequence-directory'),
                   (older_than, older_than))
 
-            pipeline = Pipeline(self.good_config_file, self.good_run_id, cfg)
-            # there should be only sample-sequence-directory in the results.
-            results = pipeline.find_bcl_directories(self.data_directory)
-
-            obs = pipeline.filter_directories_for_time(results)
-            exp = []
-            self.assertEqual(obs, exp)
+            obs = pipeline.is_within_time_range(tp)
+            self.assertEqual(obs, False)
 
 
 if __name__ == '__main__':

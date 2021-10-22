@@ -1,5 +1,5 @@
 from os import makedirs, walk
-from os.path import exists, split, join
+from os.path import exists, split, join, basename
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
@@ -9,21 +9,27 @@ from inspect import stack
 
 
 class Job:
-    def __init__(self, run_dir, job_name, executable_paths,
+    def __init__(self, root_dir, output_path, job_name, executable_paths,
                  modules_to_load=None):
         '''
         Base-class to implement Jobs from.
-        :param run_dir: The path to a lab run_dir.
         :param job_name: A name for the job. Used to create log files.
+        :param root_dir: The path to a Job's root input directory.
+        :param output_path: The root path to store all job products.
         :param executable_paths: A list of executables to validate.
         :param modules_to_load: A list of modules to load before validation.
         '''
-        self.run_dir = run_dir
         self.job_name = job_name
-        self.stdout_log_path = 'localhost:' + join(self.run_dir,
-                                                   f'{self.job_name}.out.log')
-        self.stderr_log_path = 'localhost:' + join(self.run_dir,
-                                                   f'{self.job_name}.err.log')
+        self.root_dir = root_dir
+        self._directory_check(self.root_dir, create=False)
+
+        self.output_path = join(output_path, self.job_name)
+        self._directory_check(self.output_path, create=True)
+
+        self.log_path = join(self.output_path, 'logs')
+        self._directory_check(self.log_path, create=True)
+
+        self.modules_to_load = modules_to_load
 
         self.script_count = 0
 
@@ -43,31 +49,7 @@ class Job:
             # file_name is a path and the path found does not match. It will
             # also raise a PipelineError if the file could not be found.
             if not self.is_test:
-                self._which(file_name, modules_to_load=modules_to_load)
-
-    def generate_job_script_path(self):
-        '''
-        Generate unique paths and filenames to create a Torque job-script with.
-        :return: A triplet of strings for job_script_path, out, and err logs.
-        '''
-        # Note: Not all Job sub-classes will submit jobs to Torque, and not
-        # all sub-classes will submit just one job to Torque. This method can
-        # be used to generate as many unique paths as is needed for your Job,
-        # following a standard convention.
-        self.script_count += 1
-
-        job_script_path = join(self.run_dir,
-                               f'{self.job_name}_{self.script_count}.sh')
-
-        output_log_path = join('localhost:',
-                               self.run_dir,
-                               f'{self.job_name}_{self.script_count}.out.log')
-
-        error_log_path = join('localhost:',
-                              self.run_dir,
-                              f'{self.job_name}_{self.script_count}.err.log')
-
-        return (job_script_path, output_log_path, error_log_path)
+                self._which(file_name, modules_to_load=self.modules_to_load)
 
     def run(self):
         '''
@@ -206,7 +188,7 @@ class Job:
         if script_parameters:
             cmd += ' %s' % script_parameters
 
-        logging.debug("QSUB call: %s" % cmd)
+        logging.debug("qsub call: %s" % cmd)
         # if system_call does not raise a PipelineError(), then the qsub
         # successfully submitted the job. In this case, qsub should return
         # the id of the job in stdout.

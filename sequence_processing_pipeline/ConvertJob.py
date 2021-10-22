@@ -1,5 +1,5 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os.path import join, basename
+from os.path import join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -7,13 +7,14 @@ import re
 
 
 class ConvertJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, queue_name, node_count,
-                 nprocs, wall_time_limit, pmem, bcl_tool_path, modules_to_load,
-                 qiita_job_id):
+    def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
+                 node_count, nprocs, wall_time_limit, pmem, bcl_tool_path,
+                 modules_to_load, qiita_job_id):
         '''
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
         :param run_dir: The 'run' directory that contains BCL files.
+        :param output_path: Path where all pipeline-generated files live.
         :param sample_sheet_path: The path to a sample-sheet.
         :param queue_name: The name of the Torque queue to use for processing.
         :param node_count: The number of nodes to request.
@@ -23,32 +24,21 @@ class ConvertJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         '''
-        self.job_name = 'ConvertJob'
         super().__init__(run_dir,
-                         self.job_name,
+                         output_path,
+                         'ConvertJob',
                          [bcl_tool_path],
                          modules_to_load)
-        self._directory_check(self.run_dir, create=False)
-        self.modules_to_load = modules_to_load
 
-        output_dir = join(self.run_dir, 'Data', 'Fastq')
-        # create the directory to store fastq files
-        self._directory_check(output_dir, create=True)
-        # generate_job_script_path() also generates numbered logs for stdout
-        # and stderr, but we won't need these. ConvertJob() just needs one
-        # pair of logs.
-        self.job_script_path, tmp1, tmp2 = self.generate_job_script_path()
-        # self.run_id is of the form 210518_A00953_0305_AHCJT7DSX2
-        self.run_id = basename(self.run_dir)
-        self.job_name = f"{qiita_job_id}_ConvertJob"
         self.sample_sheet_path = sample_sheet_path
-        self.output_directory = output_dir
         self.queue_name = queue_name
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
         self.pmem = pmem
         self.bcl_tool = bcl_tool_path
+        self.qiita_job_id = qiita_job_id
+        self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
 
         tmp = False
         for executable_name in ['bcl2fastq', 'bcl-convert']:
@@ -70,47 +60,27 @@ class ConvertJob(Job):
             raise PipelineError(
                 f"Sample sheet {self.sample_sheet_path} is not valid.")
 
-        self._directory_check(self.output_directory, create=True)
-
         # required files for successful operation
         required_files = ['RTAComplete.txt', 'RunInfo.xml']
         for some_file in required_files:
-            s = join(self.run_dir, some_file)
+            s = join(self.root_dir, some_file)
             self._file_check(s)
+
+        self._generate_job_script()
 
     def _generate_job_script(self):
         '''
-        Generate a Torque job script for processing the supplied run_directory.
+        Generate a Torque job script for processing the supplied root_directory.
         :return: The path to the newly-created job-script.
         '''
         lines = []
 
         lines.append("#!/bin/bash")
-        # The Torque equiv for calling SBATCH on this script and supplying
-        # params w/environment variables is to do the same on QSUB but with -v
-        # instead of --export. The syntax of the values are otherwise the same.
-        # -v <variable[=value][,variable2=value2[,...]]>
-
-        # declare a name for this job to be sample_job
-        lines.append(f"#PBS -N {self.job_name}")
-
-        # what torque calls a queue, slurm calls a partition
-        # SBATCH -p SOMETHING -> PBS -q SOMETHING
-        # (Torque doesn't appear to have a quality of service (-q) option. so
-        # this will go unused in translation.)
+        lines.append(f"#PBS -N {self.qiita_job_id}_{self.job_name}")
         lines.append(f"#PBS -q {self.queue_name}")
-
-        # request one node
-        # Slurm --ntasks-per-node=<count> -> -l ppn=<count>	in Torque
         lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,
                                                   self.nprocs))
-
-        # Slurm --export=ALL -> Torque's -V
         lines.append("#PBS -V")
-
-        # Slurm
-        # walltime limit --time=24:00:00 -> Torque's -l walltime=<hh:mm:ss>
-        # using the larger value found in the two scripts (36 vs 24 hours)
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
 
         # send an email to the list of users defined below when a job starts,
@@ -122,22 +92,18 @@ class ConvertJob(Job):
         # notification system, when a job starts, terminates, or gets aborted.
         lines.append("#PBS -M qiita.help@gmail.com")
 
-        # min mem per CPU: --mem-per-cpu=<memory> -> -l pmem=<limit>
-        # taking the larger of both values (10G > 6G)
         lines.append(f"#PBS -l pmem={self.pmem}")
 
-        # --output -> -o
-        lines.append(f"#PBS -o {self.stdout_log_path}")
-        lines.append(f"#PBS -e {self.stderr_log_path}")
+        lines.append(f"#PBS -o localhost:{self.log_path}/qsub_stdout.log")
+        lines.append(f"#PBS -e localhost:{self.log_path}/qsub_stderr.log")
 
-        # there is no equivalent for this in Torque, I believe
-        # --cpus-per-task 1
-        # By default, PBS scripts execute in your home directory, not the
-        # directory from which they were submitted. Use run_dir instead.
         lines.append("set -x")
-        lines.append(f'cd {self.run_dir}')
-        tmp = "module load " + ' '.join(self.modules_to_load)
-        lines.append(tmp)
+        lines.append('date')
+        lines.append('hostname')
+        lines.append(f'cd {self.root_dir}')
+
+        if self.modules_to_load:
+            lines.append("module load " + ' '.join(self.modules_to_load))
 
         # Assume that the bcl-convert tool is named 'bcl-convert' and choose
         # accordingly.
@@ -153,7 +119,7 @@ class ConvertJob(Job):
                           '--bcl-sampleproject-subdirectories true '
                           '--force') % (self.bcl_tool,
                                         self.sample_sheet_path,
-                                        self.output_directory))
+                                        self.output_path))
 
             # equivalent cp for bcl-conversion (see below) needed.
         else:
@@ -170,12 +136,7 @@ class ConvertJob(Job):
                           '--ignore-missing-positions ') %
                          (self.bcl_tool,
                           self.sample_sheet_path,
-                          self.output_directory))
-
-            # Stats directory is needed downstream.
-            # It's a small directory (~64k)
-            # Copy here instead of pulling it downstream.
-            lines.append(f'cp -r ./Data/Fastq/Stats ./{self.run_id}')
+                          self.output_path))
 
         with open(self.job_script_path, 'w') as f:
             for line in lines:
@@ -183,18 +144,10 @@ class ConvertJob(Job):
                 line = re.sub(r'\s+', ' ', line)
                 f.write(f"{line}\n")
 
-        # for convenience
-        return self.job_script_path
-
     def run(self):
         '''
-        Run BCL2Fastq conversion on data in root directory.
-        Job-related parameters are specified here for easy adjustment and
-        job restart.
-        :return:
+        Run BCL2Fastq/BCLConvert conversion
+        :return: None
         '''
-        script_path = self._generate_job_script()
-        logging.debug(script_path)
-
         job_info = self.qsub(self.job_script_path, None, None)
         logging.info(f'Successful job: {job_info}')

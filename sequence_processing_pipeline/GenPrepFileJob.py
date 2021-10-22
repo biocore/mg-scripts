@@ -1,23 +1,18 @@
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join
-import logging
 
 
 class GenPrepFileJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, output_directory,
-                 seqpro_path, modules_to_load, qiita_job_id):
-        # for now, keep this run_dir instead of abspath(run_dir)
-        self.job_name = 'GenPrepFileJob'
+    def __init__(self, run_dir, output_path, sample_sheet_path, seqpro_path,
+                 modules_to_load, qiita_job_id):
         super().__init__(run_dir,
-                         self.job_name,
+                         output_path,
+                         'GenPrepFileJob',
                          [seqpro_path],
                          modules_to_load)
 
         self.sample_sheet_path = sample_sheet_path
         self.seqpro_path = seqpro_path
-        self.modules_to_load = modules_to_load
-        self.output_directory = output_directory
         self.qiita_job_id = qiita_job_id
 
         # seqpro usage:
@@ -29,9 +24,8 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        self.command = [
-            self.seqpro_path, self.run_dir, self.sample_sheet_path,
-            join(self.output_directory, 'prep_files')]
+        self.command = [self.seqpro_path, self.run_dir, self.sample_sheet_path,
+                        self.output_path]
 
     def run(self):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
@@ -40,10 +34,6 @@ class GenPrepFileJob(Job):
         # it's done. Hence, self.output_directory and the path to run_dir
         # might be different locations than the others.
         results = self._system_call(' '.join(self.command))
-
-        logging.debug(f"Seqpro stdout: {results['stdout']}")
-        logging.debug(f"Seqpro stderr: {results['stderr']}")
-        logging.debug(f"Seqpro return code: {results['return_code']}")
 
         if results['return_code'] != 0:
             raise PipelineError("Seqpro encountered an error")
