@@ -6,7 +6,6 @@ from os import walk, stat, listdir, makedirs
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
-import re
 
 
 logging.basicConfig(level=logging.DEBUG)

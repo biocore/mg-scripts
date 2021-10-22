@@ -70,7 +70,7 @@ class ConvertJob(Job):
 
     def _generate_job_script(self):
         '''
-        Generate a Torque job script for processing the supplied root_directory.
+        Generate a Torque job script for processing supplied root_directory.
         :return: The path to the newly-created job-script.
         '''
         lines = []

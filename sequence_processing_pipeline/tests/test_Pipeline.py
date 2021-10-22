@@ -23,7 +23,7 @@ class TestPipeline(unittest.TestCase):
         self.data_directory = 'sequence_processing_pipeline/tests/data'
         self.maxDiff = None
         self.good_output_file_path = ('sequence_processing_pipeline/'
-                                     'my_output_file_path')
+                                      'my_output_file_path')
 
     def test_creation(self):
         # Pipeline should assert due to config_file

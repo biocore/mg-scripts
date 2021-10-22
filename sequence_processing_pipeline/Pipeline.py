@@ -178,36 +178,36 @@ if __name__ == '__main__':
     config = pipeline.configuration['bcl-convert']
 
     pipeline.add(ConvertJob(pipeline.run_dir,
-                             pipeline.output_path,
-                             sdo.sample_sheet_path,
-                             config['queue'],
-                             config['nodes'],
-                             config['nprocs'],
-                             config['wallclock_time_in_hours'],
-                             config['per_process_memory_limit'],
-                             config['executable_path'],
-                             config['modules_to_load'],
-                             pipeline.qiita_job_id))
+                            pipeline.output_path,
+                            sdo.sample_sheet_path,
+                            config['queue'],
+                            config['nodes'],
+                            config['nprocs'],
+                            config['wallclock_time_in_hours'],
+                            config['per_process_memory_limit'],
+                            config['executable_path'],
+                            config['modules_to_load'],
+                            pipeline.qiita_job_id))
 
     config = pipeline.configuration['qc']
 
     raw_fastq_files_path = join(pipeline.output_path, 'ConvertJob')
 
     pipeline.add(QCJob(raw_fastq_files_path,
-                   pipeline.output_path,
-                   sdo.sample_sheet_path,
-                   config['mmi_db'],
-                   config['queue'],
-                   config['nodes'],
-                   config['nprocs'],
-                   config['wallclock_time_in_hours'],
-                   config['job_total_memory_limit'],
-                   config['fastp_executable_path'],
-                   config['minimap2_executable_path'],
-                   config['samtools_executable_path'],
-                   config['modules_to_load'],
-                   qiita_job_id,
-                   config['job_pool_size']))
+                       pipeline.output_path,
+                       sdo.sample_sheet_path,
+                       config['mmi_db'],
+                       config['queue'],
+                       config['nodes'],
+                       config['nprocs'],
+                       config['wallclock_time_in_hours'],
+                       config['job_total_memory_limit'],
+                       config['fastp_executable_path'],
+                       config['minimap2_executable_path'],
+                       config['samtools_executable_path'],
+                       config['modules_to_load'],
+                       qiita_job_id,
+                       config['job_pool_size']))
 
     config = pipeline.configuration['fastqc']
 

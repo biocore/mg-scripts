@@ -1,5 +1,5 @@
 from os import makedirs, walk
-from os.path import exists, split, join, basename
+from os.path import exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep

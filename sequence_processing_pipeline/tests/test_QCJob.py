@@ -352,7 +352,7 @@ class TestQCJob(unittest.TestCase):
                                  "R2_001.fastp.fastq.gz -R "
                                  "lp127896a01_R1_001_report",
                    'count': 384}
-            }
+               }
 
 
 if __name__ == '__main__':
