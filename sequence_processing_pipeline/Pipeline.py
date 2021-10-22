@@ -100,11 +100,6 @@ class Pipeline:
                     logging.debug(f'Found {some_path}')
                     results.append(some_path)
 
-'''
-' File "/home/qiita_test/qiita-spots/mg-scripts/sequence_processing_pipeline/Pipeline.py", line 95, in _search_for_run_dir\n for entry in listdir(search_path):\n',
-"FileNotFoundError: [Errno 2] No such file or directory: 'sequence_processing_pipeline/tests/data'\n"]
-'''
-
         if results:
             results.sort(key=lambda s: len(s))
             return results[0]
