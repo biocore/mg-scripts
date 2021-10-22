@@ -3,6 +3,7 @@ from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os.path import abspath, join
 from functools import partial
+import re
 
 
 class TestJob(unittest.TestCase):
@@ -22,7 +23,10 @@ class TestJob(unittest.TestCase):
         self.assertRegex(str(e.exception),
                          r"^file '/does/not/exist' does not exist.")
 
-        self.assertIn('QCJob.py', job._find_files(package_root))
+        obs = job._find_files(package_root)
+        obs = [re.sub(r'^.*?/sequence_processing_pipeline',
+                      r'sequence_processing_pipeline', x) for x in obs]
+        self.assertIn('sequence_processing_pipeline/QCJob.py', obs)
 
         obs = job._system_call('ls tests/bin')
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
