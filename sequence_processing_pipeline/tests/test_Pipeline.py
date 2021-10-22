@@ -3,27 +3,24 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
 from os import utime, makedirs
-from os.path import join
+from os.path import join, abspath
 from copy import deepcopy
 from time import time
+from functools import partial
 
 
 class TestPipeline(unittest.TestCase):
     def setUp(self):
-        makedirs('sequence_processing_pipeline/tests/data/sequencing'
-                 '/knight_lab_completed_runs', exist_ok=True)
-
-        self.good_config_file = ('sequence_processing_pipeline/'
-                                 'configuration.json')
-        self.bad_config_file = ('sequence_processing_pipeline/tests/data/'
-                                'bad_configuration.json')
+        package_root = abspath('./sequence_processing_pipeline')
+        self.path = partial(join, package_root, 'tests', 'data')
+        self.good_config_file = join(package_root, 'configuration.json')
+        self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
         self.good_run_id = 'sample-sequence-directory'
         self.invalid_run_id = 'not-sample-sequence-directory'
-        self.data_directory = 'sequence_processing_pipeline/tests/data'
+        self.good_output_file_path = self.path('output_dir')
+        makedirs(self.good_output_file_path, exist_ok=True)
         self.maxDiff = None
-        self.good_output_file_path = ('sequence_processing_pipeline/'
-                                      'my_output_file_path')
 
     def test_creation(self):
         # Pipeline should assert due to config_file
@@ -132,7 +129,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 1 hour ago + 5 min.
             older_than = current_time - (3600 + (5 * 60))
-            tp = join(self.data_directory, 'sample-sequence-directory')
+            tp = join(self.path, 'sample-sequence-directory')
             utime(tp, (older_than, older_than))
 
             pipeline = Pipeline(self.good_config_file, self.good_run_id,
@@ -161,7 +158,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value younger than 1 hour ago.
             older_than = current_time - 3300
-            utime(join(self.data_directory, 'sample-sequence-directory'),
+            utime(join(self.path, 'sample-sequence-directory'),
                   (older_than, older_than))
 
             obs = pipeline.is_within_time_range(tp)
