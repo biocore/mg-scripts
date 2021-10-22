@@ -182,14 +182,13 @@ class QCJob(Job):
 
         for some_file in files_found:
             file_path, file_name = split(some_file)
-            # TODO: Replace this with run-day fix?
-            m = re.match(r'(.*)_R\d_\d\d\d.fastq.gz', file_name)
-            if m:
-                sample_id = m.group(1)
-                if sample_id in sample_ids:
-                    # this Fastq file is one we should process.
-                    # Save the full path.
+            # for now, include a file if any part of its name matches any
+            # sample_id w/the idea that including too many files is better
+            # than silently omitting one.
+            for sample_id in sample_ids:
+                if sample_id in file_name:
                     lst.append(some_file)
+                    break
 
         return lst
 

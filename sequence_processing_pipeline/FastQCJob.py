@@ -214,7 +214,7 @@ class FastQCJob(Job):
         lines.append('date')
         lines.append('hostname')
         lines.append('echo ${PBS_JOBID} ${PBS_ARRAYID}')
-        lines.append(f'cd {self.run_dir}')
+        lines.append(f'cd {self.output_path}')
 
         if self.modules_to_load:
             lines.append("module load " + ' '.join(self.modules_to_load))

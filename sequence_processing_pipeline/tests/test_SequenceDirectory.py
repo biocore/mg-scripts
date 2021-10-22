@@ -27,11 +27,6 @@ class TestSequenceDirectory(unittest.TestCase):
         # verify 'Data/Fastq' subdirectory is created.
         sdo = SequenceDirectory(join(base_path, 'sample-sequence-directory'),
                                 join(base_path, 'good-sample-sheet.csv'))
-        # s = os.path.exists(join(base_path,
-        #                         'sample-sequence-directory',
-        #                         'Data',
-        #                         'Fastq'))
-        # self.assertTrue(s)
 
         # assert should not raise for directory 'Data/Fastq' already existing
         # when creating a new object.

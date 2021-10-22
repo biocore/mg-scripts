@@ -6,16 +6,12 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-import logging
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestQCJob(unittest.TestCase):
     def setUp(self):
         # adjustable test_root helps w/testing in different environments.
-        package_root = abspath('/Users/ccowart/Development/mg-scripts/charlie/sequence_processing_pipeline')
+        package_root = abspath('sequence_processing_pipeline')
         self.path = partial(join, package_root, 'tests', 'data')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
         self.mmi_db_path = self.path('mmi.db')
@@ -25,6 +21,7 @@ class TestQCJob(unittest.TestCase):
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.maxDiff = None
         self.output_path = self.path('output_dir')
+        self.fastq_root_path = join(self.output_path, 'ConvertJob')
 
         try:
             shutil.rmtree(self.output_path)
@@ -63,9 +60,7 @@ class TestQCJob(unittest.TestCase):
         shutil.rmtree(self.output_path)
 
     def test_split_file_creation(self):
-        fastq_root_path = join(self.output_path, 'ConvertJob')
-
-        qc_job = QCJob(fastq_root_path, self.output_path,
+        qc_job = QCJob(self.fastq_root_path, self.output_path,
                        self.sample_sheet_path, self.mmi_db_path, 'queue_name',
                        1, 16, 24, '8gb', 'fastp', 'minimap2', 'samtools', [],
                        self.qiita_job_id, 30)
@@ -134,11 +129,12 @@ class TestQCJob(unittest.TestCase):
                 self.assertEqual(lines_obs[-1], config['last_line'])
                 self.assertEqual(len(lines_obs), config['count'])
 
-    def atest_qcjob_creation(self):
+    def test_qcjob_creation(self):
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.sample_run_dir, self.output_dir, 'not/path/to/sample/sheet',
-                  self.mmi_db_path, 'queue_name', 1, 16, 24, '8gb', 'fastp',
-                  'minimap2', 'samtools', [], self.qiita_job_id, 30)
+            QCJob(self.fastq_root_path, self.output_path,
+                  'not/path/to/sample/sheet', self.mmi_db_path,
+                  'queue_name', 1, 16, 24, '8gb', 'fastp', 'minimap2',
+                  'samtools', [], self.qiita_job_id, 30)
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")

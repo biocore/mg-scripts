@@ -11,7 +11,6 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from time import time as epoch_time
 import logging
-import shutil
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -192,7 +191,9 @@ if __name__ == '__main__':
 
     config = pipeline.configuration['qc']
 
-    pipeline.add(QCJob(pipeline.run_dir,
+    raw_fastq_files_path = join(pipeline.output_path, 'ConvertJob')
+
+    pipeline.add(QCJob(raw_fastq_files_path,
                    pipeline.output_path,
                    sdo.sample_sheet_path,
                    config['mmi_db'],
@@ -210,6 +211,10 @@ if __name__ == '__main__':
 
     config = pipeline.configuration['fastqc']
 
+    processed_fastq_files_path = join(pipeline.output_path, 'QCJob')
+
+    # TODO: run_dir as it is isn't used by FastQCJob.
+    #  Inputs are raw_fastq_files_path and processed_fastq_files_path.
     pipeline.add(FastQCJob(pipeline.run_dir,
                            pipeline.output_path,
                            raw_fastq_files_path,
@@ -237,17 +242,4 @@ if __name__ == '__main__':
 
     pipeline.run()
 
-    # Currently this is performed outside a Job as it's not the
-    # responsibility of ConvertJob() to see that this file is copied for
-    # GenPrepFileJob(), and GenPrepFileJob() shouldn't have to know where
-    # this information is located.
-    src1 = join(pipeline.run_dir, 'Data/Fastq/Reports')
-    src2 = join(pipeline.run_dir, 'Data/Fastq/Stats')
-    if exists(src1):
-        shutil.copytree(src1, join(pipeline.products_dir, 'Reports'))
-    elif exists(src2):
-        shutil.copytree(src2, join(pipeline.products_dir, 'Stats'))
-    else:
-        raise PipelineError("Cannot locate Fastq metadata directory.")
-
-    # TODO: copy the results
+    # TODO: copy/move results

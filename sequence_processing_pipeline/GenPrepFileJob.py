@@ -24,8 +24,8 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        self.command = [self.seqpro_path, self.run_dir, self.sample_sheet_path,
-                        self.output_path]
+        self.command = [self.seqpro_path, self.root_dir,
+                        self.sample_sheet_path, self.output_path]
 
     def run(self):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
