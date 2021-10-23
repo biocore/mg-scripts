@@ -1,27 +1,27 @@
 from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, split, basename
-from os import walk, remove, stat, listdir, makedirs
+from os.path import join, split
+from os import walk, stat, listdir, makedirs
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
-import re
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 class QCJob(Job):
-    def __init__(self, run_dir, sample_sheet_path, mmi_db_path, queue_name,
-                 node_count, nprocs, wall_time_limit, jmem, fastp_path,
-                 minimap2_path, samtools_path, modules_to_load, qiita_job_id,
-                 pool_size, products_dir):
+    def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
+                 mmi_db_path, queue_name, node_count, nprocs, wall_time_limit,
+                 jmem, fastp_path, minimap2_path, samtools_path,
+                 modules_to_load, qiita_job_id, pool_size):
         '''
-        Submit a Torque job where the contents of run_dir are processed using
-        fastp, minimap, and samtools. Human-genome sequences will be filtered
-        out if needed.
-        :param run_dir: Path to a run directory.
+        Submit a Torque job where the contents of fastq_root_dir are processed
+        using fastp, minimap, and samtools. Human-genome sequences will be
+        filtered out, if needed.
+        :param fastq_root_dir: Path to a dir of Fastq files, org. by project.
+        :param output_path: Path where all pipeline-generated files live.
         :param sample_sheet_path: Path to a sample sheet file.
         :param mmi_db_path: Path to human genome database in running env.
         :param queue_name: Torque queue name to use in running env.
@@ -35,12 +35,10 @@ class QCJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param pool_size: The number of jobs to process concurrently.
-        :param products_dir: The path to the products directory
         '''
-        # for now, keep this run_dir instead of abspath(run_dir)
-        self.job_name = 'QCJob'
-        super().__init__(run_dir,
-                         self.job_name,
+        super().__init__(fastq_root_dir,
+                         output_path,
+                         'QCJob',
                          [fastp_path, minimap2_path, samtools_path],
                          modules_to_load)
         self.sample_sheet_path = sample_sheet_path
@@ -48,7 +46,7 @@ class QCJob(Job):
         metadata = self._process_sample_sheet()
         self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
-        self.needs_a_trimming = metadata['needs_adapter_trimming']
+        self.needs_trimming = metadata['needs_adapter_trimming']
         self.nprocs = nprocs
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
@@ -56,16 +54,12 @@ class QCJob(Job):
         self.node_count = node_count
         self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
-        self.run_id = basename(self.run_dir)
-        self.products_dir = products_dir
         self.jmem = jmem
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
-        self.modules_to_load = modules_to_load
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
-        self.split_file_prefix = 'split_file_'
 
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
@@ -120,16 +114,6 @@ class QCJob(Job):
             self._filter(filtered_directory, empty_files_directory,
                          self.minimum_bytes)
 
-    def _clear_trim_files(self):
-        # remove all files with a name beginning in self.trim_file.
-        # assume cleaning the entire run_dir is overkill, but won't
-        # hurt anything.
-        for root, dirs, files in walk(self.run_dir):
-            for some_file in files:
-                if self.split_file_prefix in some_file:
-                    some_path = join(root, some_file)
-                    remove(some_path)
-
     def _process_sample_sheet(self):
         sheet = KLSampleSheet(self.sample_sheet_path)
         valid_sheet = validate_and_scrub_sample_sheet(sheet)
@@ -170,8 +154,8 @@ class QCJob(Job):
                 'needs_adapter_trimming': needs_adapter_trimming
                 }
 
-    def _find_fastq_files_in_run_dir(self, project_name):
-        search_path = join(self.run_dir, 'Data', 'Fastq', project_name)
+    def _find_fastq_files_in_root_dir(self, project_name):
+        search_path = join(self.root_dir, project_name)
         lst = []
         for root, dirs, files in walk(search_path):
             for some_file in files:
@@ -191,19 +175,19 @@ class QCJob(Job):
         # Sample-sheet contains sample IDs, but not actual filenames.
         # Generate a list of possible fastq files to process.
         # Filter out ones that don't contain samples mentioned in sample-sheet.
-        files_found = self._find_fastq_files_in_run_dir(project_name)
+        files_found = self._find_fastq_files_in_root_dir(project_name)
 
         lst = []
 
         for some_file in files_found:
             file_path, file_name = split(some_file)
-            m = re.match(r'(.*)_R\d_\d\d\d.fastq.gz', file_name)
-            if m:
-                sample_id = m.group(1)
-                if sample_id in sample_ids:
-                    # this Fastq file is one we should process.
-                    # Save the full path.
+            # for now, include a file if any part of its name matches any
+            # sample_id w/the idea that including too many files is better
+            # than silently omitting one.
+            for sample_id in sample_ids:
+                if sample_id in file_name:
                     lst.append(some_file)
+                    break
 
         return lst
 
@@ -211,60 +195,52 @@ class QCJob(Job):
                              h_filter, fastq_file_paths):
         lines = []
 
-        # Unlike w/ConvertBCL2FastqJob, multiple job scripts are generated,
-        # one for each project defined in the sample sheet.
-        # This Job() class does not use Job.stdout_log_path and
-        # Job.stderr_log_path. Instead, it uses numbered paths provided by
-        # generate_job_script_path().
-        job_script_path, output_log_path, error_log_path = \
-            self.generate_job_script_path()
+        project_dir = join(self.output_path, project_name)
 
-        project_products_dir = join(self.products_dir, project_name)
-
-        sh_details_fp = join(self.run_dir, (f'{self.split_file_prefix}'
-                                            f'{project_name}.array-details'))
+        details_file_name = f'{self.job_name}_{project_name}.array-details'
+        sh_details_fp = join(self.output_path, details_file_name)
 
         qc = QCHelper(self.nprocs, fastq_file_paths, project_name,
-                      project_products_dir, self.mmi_db_path, adapter_a,
-                      adapter_A, self.needs_a_trimming, h_filter,
+                      project_dir, self.mmi_db_path, adapter_a,
+                      adapter_A, self.needs_trimming, h_filter,
                       self.chemistry, self.fastp_path, self.minimap2_path,
                       self.samtools_path)
 
         cmds = qc.generate_commands()
 
         lines.append("#!/bin/bash")
-        # declare a name for this job
-        lines.append("#PBS -N %s" %
-                     f"{self.qiita_job_id}_QCJob_{project_name}")
 
-        # what torque calls a queue, slurm calls a partition
+        job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'
+        lines.append(f"#PBS -N {job_name}")
         lines.append("#PBS -q %s" % self.queue_name)
-
-        # request a single node, and n processes for this job.
         lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,
                                                   self.nprocs))
         lines.append("#PBS -V")
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
         lines.append(f"#PBS -l mem={self.jmem}")
 
-        # Generate output files
-        lines.append("#PBS -o localhost:%s.${PBS_ARRAYID}" % output_log_path)
-        lines.append("#PBS -e localhost:%s.${PBS_ARRAYID}" % error_log_path)
+        log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
+        lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
+        lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
 
-        # Configure array size, and the size of the pool of concurrent jobs.
         lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
 
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
         lines.append('echo ${PBS_JOBID} ${PBS_ARRAYID}')
-        lines.append("cd %s" % self.run_dir)
+        lines.append(f'cd {self.output_path}')
+
         if self.modules_to_load:
             lines.append("module load " + ' '.join(self.modules_to_load))
+
         lines.append('offset=${PBS_ARRAYID}')
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
+
+        job_script_path = join(self.output_path,
+                               f'{self.job_name}_{project_name}.sh')
 
         with open(job_script_path, 'w') as f:
             f.write('\n'.join(lines))

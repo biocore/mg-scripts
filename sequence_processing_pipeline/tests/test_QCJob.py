@@ -6,26 +6,24 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestQCJob(unittest.TestCase):
     def setUp(self):
         # adjustable test_root helps w/testing in different environments.
-        test_root = abspath('sequence_processing_pipeline')
-        self.path = partial(join, test_root, 'tests', 'data')
+        package_root = abspath('sequence_processing_pipeline')
+        self.path = partial(join, package_root, 'tests', 'data')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
         self.mmi_db_path = self.path('mmi.db')
-        self.sample_run_dir = self.path('MyRunDir')
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.maxDiff = None
+        self.output_path = self.path('output_dir')
+        self.fastq_root_path = join(self.output_path, 'ConvertJob')
 
         try:
-            shutil.rmtree(self.sample_run_dir)
+            shutil.rmtree(self.output_path)
         except FileNotFoundError:
             # sample_run_dir is created during testing. we don't mind if it
             # doesn't already exist, but any leftovers from previous runs
@@ -40,9 +38,9 @@ class TestQCJob(unittest.TestCase):
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
         self.sample_paths = []
-        fastq_path = partial(join, self.sample_run_dir, 'Data', 'Fastq')
+        self.fastq_path = partial(join, self.output_path, 'ConvertJob')
         for project_name in self.project_list:
-            sample_path = fastq_path(project_name)
+            sample_path = self.fastq_path(project_name)
             makedirs(sample_path, exist_ok=True)
             self.sample_paths.append(sample_path)
 
@@ -57,26 +55,32 @@ class TestQCJob(unittest.TestCase):
                 with open(rr_fp, 'w') as f:
                     f.write('This is a reverse-read file.')
 
+    def tearDown(self):
+        shutil.rmtree(self.output_path)
+
     def test_split_file_creation(self):
-        for sample_path in self.sample_paths:
-            qc_job = QCJob(self.sample_run_dir, self.sample_sheet_path,
-                           self.mmi_db_path, 'queue_name', 1, 16, 24, '8gb',
-                           'fastp', 'minimap2', 'samtools', [],
-                           self.qiita_job_id, 30, sample_path)
+        qc_job = QCJob(self.fastq_root_path, self.output_path,
+                       self.sample_sheet_path, self.mmi_db_path, 'queue_name',
+                       1, 16, 24, '8gb', 'fastp', 'minimap2', 'samtools', [],
+                       self.qiita_job_id, 30)
 
         # assert that the Torque job files were created and are in the
         # proper location.
-        exp = ['QCJob_1.sh', 'QCJob_2.sh', 'QCJob_3.sh']
-        exp = set([join(self.sample_run_dir, x) for x in exp])
+        exp = ['QCJob_Feist_11661.sh', 'QCJob_Gerwick_6123.sh',
+               'QCJob_NYU_BMS_Melanoma_13059.sh']
+        exp = set([join(qc_job.output_path, x) for x in exp])
         obs = set([qc_job.script_paths[proj] for proj in qc_job.script_paths])
         self.assertEqual(obs, exp)
 
         # compare the expected content for QCJob_1-3.sh with the observed
         # results.
         remove_this = None
-        for shell_file, lines_exp in [('QCJob_1.sh', self.exp_QCJob_1),
-                                      ('QCJob_2.sh', self.exp_QCJob_2),
-                                      ('QCJob_3.sh', self.exp_QCJob_3)]:
+        for shell_file, lines_exp in [('QCJob_NYU_BMS_Melanoma_13059.sh',
+                                       self.exp_QCJob_1),
+                                      ('QCJob_Feist_11661.sh',
+                                       self.exp_QCJob_2),
+                                      ('QCJob_Gerwick_6123.sh',
+                                       self.exp_QCJob_3)]:
             obs_fp = [x for x in list(exp) if shell_file in x][0]
             with open(obs_fp, 'r') as f_obs:
                 lines_obs = f_obs.readlines()
@@ -101,11 +105,11 @@ class TestQCJob(unittest.TestCase):
 
         # assert that the array-details files were created and are in the
         # proper location.
-        exp = ['split_file_Feist_11661.array-details',
-               'split_file_Gerwick_6123.array-details',
-               'split_file_NYU_BMS_Melanoma_13059.array-details']
+        exp = ['QCJob_Feist_11661.array-details',
+               'QCJob_Gerwick_6123.array-details',
+               'QCJob_NYU_BMS_Melanoma_13059.array-details']
 
-        exp = set([join(self.sample_run_dir, x) for x in exp])
+        exp = set([join(qc_job.output_path, x) for x in exp])
 
         for some_path in exp:
             # assert files are in the proper location
@@ -126,15 +130,10 @@ class TestQCJob(unittest.TestCase):
 
     def test_qcjob_creation(self):
         with self.assertRaises(PipelineError) as e:
-            # Pick the first project in the list and generate the path to the
-            # Fastq directory.
-            fastq_path = partial(join, self.sample_run_dir, 'Data', 'Fastq')
-            sample_path = fastq_path(self.project_list[0])
-
-            QCJob(self.sample_run_dir, 'not/path/to/sample/sheet',
-                  self.mmi_db_path, 'queue_name', 1, 16, 24, '8gb', 'fastp',
-                  'minimap2', 'samtools', [], self.qiita_job_id, 30,
-                  sample_path)
+            QCJob(self.fastq_root_path, self.output_path,
+                  'not/path/to/sample/sheet', self.mmi_db_path,
+                  'queue_name', 1, 16, 24, '8gb', 'fastp', 'minimap2',
+                  'samtools', [], self.qiita_job_id, 30)
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
@@ -148,20 +147,22 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        ('#PBS -o localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_1.out.log.${PBS_ARRAYID}'),
-        ('#PBS -e localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_1.err.log.${PBS_ARRAYID}'),
+        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_13'
+        '059_${PBS_ARRAYID}__stdout.log',
+        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_13'
+        '059_${PBS_ARRAYID}__stderr.log',
         '#PBS -t 1-384%30',
         'set -x',
         'date',
         'hostname',
         'echo ${PBS_JOBID} ${PBS_ARRAYID}',
-        'cd sequence_processing_pipeline/tests/data/MyRunDir',
+        'cd sequence_processing_pipeline/tests/data/output_dir/QCJob',
         'offset=${PBS_ARRAYID}',
         'step=$(( $offset - 0 ))',
-        ('cmd0=$(head -n $step sequence_processing_pipeline/tests/data/MyRunDi'
-         'r/split_file_NYU_BMS_Melanoma_13059.array-details | tail -n 1)'),
+        'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
+        'ir/QCJob/QCJob_NYU_BMS_Melanoma_13059.array-details | tail -n 1)',
         'eval $cmd0']
 
     exp_QCJob_2 = [
@@ -172,20 +173,22 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        ('#PBS -o localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_2.out.log.${PBS_ARRAYID}'),
-        ('#PBS -e localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_2.err.log.${PBS_ARRAYID}'),
+        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Feist_11661_${PBS_A'
+        'RRAYID}__stdout.log',
+        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Feist_11661_${PBS_A'
+        'RRAYID}__stderr.log',
         '#PBS -t 1-432%30',
         'set -x',
         'date',
         'hostname',
         'echo ${PBS_JOBID} ${PBS_ARRAYID}',
-        'cd sequence_processing_pipeline/tests/data/MyRunDir',
+        'cd sequence_processing_pipeline/tests/data/output_dir/QCJob',
         'offset=${PBS_ARRAYID}',
         'step=$(( $offset - 0 ))',
-        ('cmd0=$(head -n $step sequence_processing_pipeline/tests/data/MyRunDi'
-         'r/split_file_Feist_11661.array-details | tail -n 1)'),
+        'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
+        'ir/QCJob/QCJob_Feist_11661.array-details | tail -n 1)',
         'eval $cmd0']
 
     exp_QCJob_3 = [
@@ -196,160 +199,157 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        ('#PBS -o localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_3.out.log.${PBS_ARRAYID}'),
-        ('#PBS -e localhost:sequence_processing_pipeline/tests/data/MyRunDir/Q'
-         'CJob_3.err.log.${PBS_ARRAYID}'),
+        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Gerwick_6123_${PBS_'
+        'ARRAYID}__stdout.log',
+        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
+        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Gerwick_6123_${PBS_'
+        'ARRAYID}__stderr.log',
         '#PBS -t 1-9%30',
         'set -x',
         'date',
         'hostname',
         'echo ${PBS_JOBID} ${PBS_ARRAYID}',
-        'cd sequence_processing_pipeline/tests/data/MyRunDir',
+        'cd sequence_processing_pipeline/tests/data/output_dir/QCJob',
         'offset=${PBS_ARRAYID}',
         'step=$(( $offset - 0 ))',
-        ('cmd0=$(head -n $step sequence_processing_pipeline/tests/data/MyRunDi'
-         'r/split_file_Gerwick_6123.array-details | tail -n 1)'),
+        'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
+        'ir/QCJob/QCJob_Gerwick_6123.array-details | tail -n 1)',
         'eval $cmd0']
 
-    exp_map = {'split_file_Feist_11661.array-details': {
-                   'first_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                 'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                 'ipeline/tests/data/MyRunDir/Data/Fastq/Feist'
-                                 '_11661/AB5075_AZM_TALE_in_MHB_A_baumannii_AB'
-                                 '5075_WT_17_25_R1_001.fastq.gz -I sequence_pr'
-                                 'ocessing_pipeline/tests/data/MyRunDir/Data/F'
-                                 'astq/Feist_11661/AB5075_AZM_TALE_in_MHB_A_ba'
-                                 'umannii_AB5075_WT_17_25_R2_001.fastq.gz -w 1'
-                                 '6 -j sequence_processing_pipeline/tests/data'
-                                 '/MyRunDir/Data/Fastq/Gerwick_6123/Feist_1166'
-                                 '1/Feist_11661/json/AB5075_AZM_TALE_in_MHB_A_'
-                                 'baumannii_AB5075_WT_17_25_R1_001.json -h seq'
-                                 'uence_processing_pipeline/tests/data/MyRunDi'
-                                 'r/Data/Fastq/Gerwick_6123/Feist_11661/Feist_'
-                                 '11661/html/AB5075_AZM_TALE_in_MHB_A_baumanni'
-                                 'i_AB5075_WT_17_25_R1_001.html -o sequence_pr'
-                                 'ocessing_pipeline/tests/data/MyRunDir/Data/F'
-                                 'astq/Gerwick_6123/Feist_11661/Feist_11661/tr'
-                                 'immed_sequences/AB5075_AZM_TALE_in_MHB_A_bau'
-                                 'mannii_AB5075_WT_17_25_R1_001.fastp.fastq.gz'
-                                 ' -O sequence_processing_pipeline/tests/data/'
-                                 'MyRunDir/Data/Fastq/Gerwick_6123/Feist_11661'
-                                 '/Feist_11661/trimmed_sequences/AB5075_AZM_TA'
-                                 'LE_in_MHB_A_baumannii_AB5075_WT_17_25_R2_001'
-                                 '.fastp.fastq.gz -R AB5075_AZM_TALE_in_MHB_A_'
-                                 'baumannii_AB5075_WT_17_25_R1_001_report',
-                   'last_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                'ipeline/tests/data/MyRunDir/Data/Fastq/Feist'
-                                '_11661/stALE_E_coli_A9_F44_I1_R1_R2_001.fast'
-                                'q.gz -I sequence_processing_pipeline/tests/d'
-                                'ata/MyRunDir/Data/Fastq/Feist_11661/stALE_E_'
-                                'coli_A9_F44_I1_R1_R2_001.fastq.gz -w 16 -j s'
-                                'equence_processing_pipeline/tests/data/MyRun'
-                                'Dir/Data/Fastq/Gerwick_6123/Feist_11661/Feis'
-                                't_11661/json/stALE_E_coli_A9_F44_I1_R1_R2_00'
-                                '1.json -h sequence_processing_pipeline/tests'
-                                '/data/MyRunDir/Data/Fastq/Gerwick_6123/Feist'
-                                '_11661/Feist_11661/html/stALE_E_coli_A9_F44_'
-                                'I1_R1_R2_001.html -o sequence_processing_pip'
-                                'eline/tests/data/MyRunDir/Data/Fastq/Gerwick'
-                                '_6123/Feist_11661/Feist_11661/trimmed_sequen'
-                                'ces/stALE_E_coli_A9_F44_I1_R1_R2_001.fastp.f'
-                                'astq.gz -O sequence_processing_pipeline/test'
-                                's/data/MyRunDir/Data/Fastq/Gerwick_6123/Feis'
-                                't_11661/Feist_11661/trimmed_sequences/stALE_'
-                                'E_coli_A9_F44_I1_R1_R2_001.fastp.fastq.gz -R'
-                                ' stALE_E_coli_A9_F44_I1_R1_R2_001_report',
+    exp_map = {'QCJob_Feist_11661.array-details': {
+                   'first_line': "fastp --adapter_sequence AACC "
+                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                 "e_processing_pipeline/tests/data/output_dir/"
+                                 "ConvertJob/Feist_11661/AB5075_AZM_TALE_in_MH"
+                                 "B_A_baumannii_AB5075_WT_17_25_R1_001.fastq.g"
+                                 "z -I sequence_processing_pipeline/tests/data"
+                                 "/output_dir/ConvertJob/Feist_11661/AB5075_AZ"
+                                 "M_TALE_in_MHB_A_baumannii_AB5075_WT_17_25_R2"
+                                 "_001.fastq.gz -w 16 -j sequence_processing_p"
+                                 "ipeline/tests/data/output_dir/QCJob/Feist_11"
+                                 "661/Feist_11661/json/AB5075_AZM_TALE_in_MHB_"
+                                 "A_baumannii_AB5075_WT_17_25_R1_001.json -h s"
+                                 "equence_processing_pipeline/tests/data/outpu"
+                                 "t_dir/QCJob/Feist_11661/Feist_11661/html/AB5"
+                                 "075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_17"
+                                 "_25_R1_001.html -o sequence_processing_pipel"
+                                 "ine/tests/data/output_dir/QCJob/Feist_11661/"
+                                 "Feist_11661/trimmed_sequences/AB5075_AZM_TAL"
+                                 "E_in_MHB_A_baumannii_AB5075_WT_17_25_R1_001."
+                                 "fastp.fastq.gz -O sequence_processing_pipeli"
+                                 "ne/tests/data/output_dir/QCJob/Feist_11661/F"
+                                 "eist_11661/trimmed_sequences/AB5075_AZM_TALE"
+                                 "_in_MHB_A_baumannii_AB5075_WT_17_25_R2_001.f"
+                                 "astp.fastq.gz -R AB5075_AZM_TALE_in_MHB_A_ba"
+                                 "umannii_AB5075_WT_17_25_R1_001_report",
+                   'last_line':  "fastp --adapter_sequence AACC "
+                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                 "e_processing_pipeline/tests/data/output_dir/"
+                                 "ConvertJob/Feist_11661/stALE_E_coli_A9_F44_I"
+                                 "1_R1_R2_001.fastq.gz -I sequence_processing_"
+                                 "pipeline/tests/data/output_dir/ConvertJob/Fe"
+                                 "ist_11661/stALE_E_coli_A9_F44_I1_R1_R2_001.f"
+                                 "astq.gz -w 16 -j sequence_processing_pipelin"
+                                 "e/tests/data/output_dir/QCJob/Feist_11661/Fe"
+                                 "ist_11661/json/stALE_E_coli_A9_F44_I1_R1_R2_"
+                                 "001.json -h sequence_processing_pipeline/tes"
+                                 "ts/data/output_dir/QCJob/Feist_11661/Feist_1"
+                                 "1661/html/stALE_E_coli_A9_F44_I1_R1_R2_001.h"
+                                 "tml -o sequence_processing_pipeline/tests/da"
+                                 "ta/output_dir/QCJob/Feist_11661/Feist_11661/"
+                                 "trimmed_sequences/stALE_E_coli_A9_F44_I1_R1_"
+                                 "R2_001.fastp.fastq.gz -O sequence_processing"
+                                 "_pipeline/tests/data/output_dir/QCJob/Feist_"
+                                 "11661/Feist_11661/trimmed_sequences/stALE_E_"
+                                 "coli_A9_F44_I1_R1_R2_001.fastp.fastq.gz -R "
+                                 "stALE_E_coli_A9_F44_I1_R1_R2_001_report",
                    'count': 432},
-               'split_file_Gerwick_6123.array-details': {
-                   'first_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                 'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                 'ipeline/tests/data/MyRunDir/Data/Fastq/Gerwi'
-                                 'ck_6123/3A_R1_001.fastq.gz -I sequence_proce'
-                                 'ssing_pipeline/tests/data/MyRunDir/Data/Fast'
-                                 'q/Gerwick_6123/3A_R2_001.fastq.gz -w 16 -j s'
-                                 'equence_processing_pipeline/tests/data/MyRun'
-                                 'Dir/Data/Fastq/Gerwick_6123/Gerwick_6123/Ger'
-                                 'wick_6123/json/3A_R1_001.json -h sequence_pr'
-                                 'ocessing_pipeline/tests/data/MyRunDir/Data/F'
-                                 'astq/Gerwick_6123/Gerwick_6123/Gerwick_6123/'
-                                 'html/3A_R1_001.html -o sequence_processing_p'
-                                 'ipeline/tests/data/MyRunDir/Data/Fastq/Gerwi'
-                                 'ck_6123/Gerwick_6123/Gerwick_6123/trimmed_se'
-                                 'quences/3A_R1_001.fastp.fastq.gz -O sequence'
-                                 '_processing_pipeline/tests/data/MyRunDir/Dat'
-                                 'a/Fastq/Gerwick_6123/Gerwick_6123/Gerwick_61'
-                                 '23/trimmed_sequences/3A_R2_001.fastp.fastq.g'
-                                 'z -R 3A_R1_001_report',
-                   'last_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                'ipeline/tests/data/MyRunDir/Data/Fastq/Gerwi'
-                                'ck_6123/ISB_R1_001.fastq.gz -I sequence_proc'
-                                'essing_pipeline/tests/data/MyRunDir/Data/Fas'
-                                'tq/Gerwick_6123/ISB_R2_001.fastq.gz -w 16 -j'
-                                ' sequence_processing_pipeline/tests/data/MyR'
-                                'unDir/Data/Fastq/Gerwick_6123/Gerwick_6123/G'
-                                'erwick_6123/json/ISB_R1_001.json -h sequence'
-                                '_processing_pipeline/tests/data/MyRunDir/Dat'
-                                'a/Fastq/Gerwick_6123/Gerwick_6123/Gerwick_61'
-                                '23/html/ISB_R1_001.html -o sequence_processi'
-                                'ng_pipeline/tests/data/MyRunDir/Data/Fastq/G'
-                                'erwick_6123/Gerwick_6123/Gerwick_6123/trimme'
-                                'd_sequences/ISB_R1_001.fastp.fastq.gz -O seq'
-                                'uence_processing_pipeline/tests/data/MyRunDi'
-                                'r/Data/Fastq/Gerwick_6123/Gerwick_6123/Gerwi'
-                                'ck_6123/trimmed_sequences/ISB_R2_001.fastp.f'
-                                'astq.gz -R ISB_R1_001_report',
+
+               'QCJob_Gerwick_6123.array-details': {
+                   'first_line': "fastp --adapter_sequence AACC "
+                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                 "e_processing_pipeline/tests/data/output_dir/"
+                                 "ConvertJob/Gerwick_6123/3A_R1_001.fastq.gz "
+                                 "-I sequence_processing_pipeline/tests/data/o"
+                                 "utput_dir/ConvertJob/Gerwick_6123/3A_R2_001."
+                                 "fastq.gz -w 16 -j sequence_processing_pipeli"
+                                 "ne/tests/data/output_dir/QCJob/Gerwick_6123/"
+                                 "Gerwick_6123/json/3A_R1_001.json -h sequence"
+                                 "_processing_pipeline/tests/data/output_dir/Q"
+                                 "CJob/Gerwick_6123/Gerwick_6123/html/3A_R1_00"
+                                 "1.html -o sequence_processing_pipeline/tests"
+                                 "/data/output_dir/QCJob/Gerwick_6123/Gerwick_"
+                                 "6123/trimmed_sequences/3A_R1_001.fastp.fastq"
+                                 ".gz -O sequence_processing_pipeline/tests/da"
+                                 "ta/output_dir/QCJob/Gerwick_6123/Gerwick_612"
+                                 "3/trimmed_sequences/3A_R2_001.fastp.fastq.gz"
+                                 " -R 3A_R1_001_report",
+                   'last_line': "fastp --adapter_sequence AACC "
+                                "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                "e_processing_pipeline/tests/data/output_dir/"
+                                "ConvertJob/Gerwick_6123/ISB_R1_001.fastq.gz "
+                                "-I sequence_processing_pipeline/tests/data/o"
+                                "utput_dir/ConvertJob/Gerwick_6123/ISB_R2_001"
+                                ".fastq.gz -w 16 -j sequence_processing_pipel"
+                                "ine/tests/data/output_dir/QCJob/Gerwick_6123"
+                                "/Gerwick_6123/json/ISB_R1_001.json -h sequen"
+                                "ce_processing_pipeline/tests/data/output_dir"
+                                "/QCJob/Gerwick_6123/Gerwick_6123/html/ISB_R1"
+                                "_001.html -o sequence_processing_pipeline/te"
+                                "sts/data/output_dir/QCJob/Gerwick_6123/Gerwi"
+                                "ck_6123/trimmed_sequences/ISB_R1_001.fastp.f"
+                                "astq.gz -O sequence_processing_pipeline/test"
+                                "s/data/output_dir/QCJob/Gerwick_6123/Gerwick"
+                                "_6123/trimmed_sequences/ISB_R2_001.fastp.fas"
+                                "tq.gz -R ISB_R1_001_report",
                    'count': 9},
-               'split_file_NYU_BMS_Melanoma_13059.array-details': {
-                   'first_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                 'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                 'ipeline/tests/data/MyRunDir/Data/Fastq/NYU_B'
-                                 'MS_Melanoma_13059/22_001_710_503_791_00_R1_0'
-                                 '01.fastq.gz -I sequence_processing_pipeline/'
-                                 'tests/data/MyRunDir/Data/Fastq/NYU_BMS_Melan'
-                                 'oma_13059/22_001_710_503_791_00_R2_001.fastq'
-                                 '.gz -w 16 -j sequence_processing_pipeline/te'
-                                 'sts/data/MyRunDir/Data/Fastq/Gerwick_6123/NY'
-                                 'U_BMS_Melanoma_13059/NYU_BMS_Melanoma_13059/'
-                                 'json/22_001_710_503_791_00_R1_001.json -h se'
-                                 'quence_processing_pipeline/tests/data/MyRunD'
-                                 'ir/Data/Fastq/Gerwick_6123/NYU_BMS_Melanoma_'
-                                 '13059/NYU_BMS_Melanoma_13059/html/22_001_710'
-                                 '_503_791_00_R1_001.html -o sequence_processi'
-                                 'ng_pipeline/tests/data/MyRunDir/Data/Fastq/G'
-                                 'erwick_6123/NYU_BMS_Melanoma_13059/NYU_BMS_M'
-                                 'elanoma_13059/trimmed_sequences/22_001_710_5'
-                                 '03_791_00_R1_001.fastp.fastq.gz -O sequence_'
-                                 'processing_pipeline/tests/data/MyRunDir/Data'
-                                 '/Fastq/Gerwick_6123/NYU_BMS_Melanoma_13059/N'
-                                 'YU_BMS_Melanoma_13059/trimmed_sequences/22_0'
-                                 '01_710_503_791_00_R2_001.fastp.fastq.gz -R 2'
-                                 '2_001_710_503_791_00_R1_001_report',
-                   'last_line': 'fastp --adapter_sequence AACC --adapter_sequ'
-                                'ence_r2 GGTT -l 100 -i sequence_processing_p'
-                                'ipeline/tests/data/MyRunDir/Data/Fastq/NYU_B'
-                                'MS_Melanoma_13059/lp127896a01_R1_001.fastq.g'
-                                'z -I sequence_processing_pipeline/tests/data'
-                                '/MyRunDir/Data/Fastq/NYU_BMS_Melanoma_13059/'
-                                'lp127896a01_R2_001.fastq.gz -w 16 -j sequenc'
-                                'e_processing_pipeline/tests/data/MyRunDir/Da'
-                                'ta/Fastq/Gerwick_6123/NYU_BMS_Melanoma_13059'
-                                '/NYU_BMS_Melanoma_13059/json/lp127896a01_R1_'
-                                '001.json -h sequence_processing_pipeline/tes'
-                                'ts/data/MyRunDir/Data/Fastq/Gerwick_6123/NYU'
-                                '_BMS_Melanoma_13059/NYU_BMS_Melanoma_13059/h'
-                                'tml/lp127896a01_R1_001.html -o sequence_proc'
-                                'essing_pipeline/tests/data/MyRunDir/Data/Fas'
-                                'tq/Gerwick_6123/NYU_BMS_Melanoma_13059/NYU_B'
-                                'MS_Melanoma_13059/trimmed_sequences/lp127896'
-                                'a01_R1_001.fastp.fastq.gz -O sequence_proces'
-                                'sing_pipeline/tests/data/MyRunDir/Data/Fastq'
-                                '/Gerwick_6123/NYU_BMS_Melanoma_13059/NYU_BMS'
-                                '_Melanoma_13059/trimmed_sequences/lp127896a0'
-                                '1_R2_001.fastp.fastq.gz -R lp127896a01_R1_00'
-                                '1_report',
+               'QCJob_NYU_BMS_Melanoma_13059.array-details': {
+                   'first_line': "fastp --adapter_sequence AACC "
+                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                 "e_processing_pipeline/tests/data/output_dir/"
+                                 "ConvertJob/NYU_BMS_Melanoma_13059/22_001_710"
+                                 "_503_791_00_R1_001.fastq.gz -I sequence_proc"
+                                 "essing_pipeline/tests/data/output_dir/Conver"
+                                 "tJob/NYU_BMS_Melanoma_13059/22_001_710_503_7"
+                                 "91_00_R2_001.fastq.gz -w 16 -j sequence_proc"
+                                 "essing_pipeline/tests/data/output_dir/QCJob/"
+                                 "NYU_BMS_Melanoma_13059/NYU_BMS_Melanoma_1305"
+                                 "9/json/22_001_710_503_791_00_R1_001.json -h "
+                                 "sequence_processing_pipeline/tests/data/outp"
+                                 "ut_dir/QCJob/NYU_BMS_Melanoma_13059/NYU_BMS_"
+                                 "Melanoma_13059/html/22_001_710_503_791_00_R1"
+                                 "_001.html -o sequence_processing_pipeline/te"
+                                 "sts/data/output_dir/QCJob/NYU_BMS_Melanoma_1"
+                                 "3059/NYU_BMS_Melanoma_13059/trimmed_sequence"
+                                 "s/22_001_710_503_791_00_R1_001.fastp.fastq.g"
+                                 "z -O sequence_processing_pipeline/tests/data"
+                                 "/output_dir/QCJob/NYU_BMS_Melanoma_13059/NYU"
+                                 "_BMS_Melanoma_13059/trimmed_sequences/22_001"
+                                 "_710_503_791_00_R2_001.fastp.fastq.gz -R "
+                                 "22_001_710_503_791_00_R1_001_report",
+                   'last_line': "fastp --adapter_sequence AACC "
+                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
+                                 "e_processing_pipeline/tests/data/output_dir/"
+                                 "ConvertJob/NYU_BMS_Melanoma_13059/lp127896a0"
+                                 "1_R1_001.fastq.gz -I sequence_processing_pip"
+                                 "eline/tests/data/output_dir/ConvertJob/NYU_B"
+                                 "MS_Melanoma_13059/lp127896a01_R2_001.fastq.g"
+                                 "z -w 16 -j sequence_processing_pipeline/test"
+                                 "s/data/output_dir/QCJob/NYU_BMS_Melanoma_130"
+                                 "59/NYU_BMS_Melanoma_13059/json/lp127896a01_R"
+                                 "1_001.json -h sequence_processing_pipeline/t"
+                                 "ests/data/output_dir/QCJob/NYU_BMS_Melanoma_"
+                                 "13059/NYU_BMS_Melanoma_13059/html/lp127896a0"
+                                 "1_R1_001.html -o sequence_processing_pipelin"
+                                 "e/tests/data/output_dir/QCJob/NYU_BMS_Melano"
+                                 "ma_13059/NYU_BMS_Melanoma_13059/trimmed_sequ"
+                                 "ences/lp127896a01_R1_001.fastp.fastq.gz -O s"
+                                 "equence_processing_pipeline/tests/data/outpu"
+                                 "t_dir/QCJob/NYU_BMS_Melanoma_13059/NYU_BMS_M"
+                                 "elanoma_13059/trimmed_sequences/lp127896a01_"
+                                 "R2_001.fastp.fastq.gz -R "
+                                 "lp127896a01_R1_001_report",
                    'count': 384}
                }
 
