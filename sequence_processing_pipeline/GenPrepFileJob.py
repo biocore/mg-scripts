@@ -1,19 +1,45 @@
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
+from os import makedirs, symlink
+from os.path import join, exists, basename
+from shutil import copytree
 
 
 class GenPrepFileJob(Job):
-    def __init__(self, run_dir, output_path, sample_sheet_path, seqpro_path,
-                 modules_to_load, qiita_job_id):
+    def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
+                 sample_sheet_path, seqpro_path, project_list, modules_to_load,
+                 qiita_job_id):
+
         super().__init__(run_dir,
                          output_path,
                          'GenPrepFileJob',
                          [seqpro_path],
                          modules_to_load)
 
+        self.run_id = basename(run_dir)
         self.sample_sheet_path = sample_sheet_path
         self.seqpro_path = seqpro_path
         self.qiita_job_id = qiita_job_id
+
+        # make the 'root' of your run_directory
+        makedirs(join(self.output_path, self.run_id), exist_ok=True)
+        # copy bcl-convert's Stats-equivalent directory to the the
+        # run_directory
+        copytree(join(convert_job_path, 'Reports'),
+                 join(self.output_path, self.run_id, 'Reports'))
+
+        for project in project_list:
+            src1 = join(qc_job_path, project, 'filtered_sequences')
+            src2 = join(qc_job_path, project, 'fastp_reports_dir', 'json')
+            dst = join(self.output_path, self.run_id, project)
+
+            if exists(src1):
+                makedirs(dst, exist_ok=True)
+                symlink(src1, join(dst, 'filtered_sequences'))
+
+            if exists(src2):
+                makedirs(dst, exist_ok=True)
+                symlink(src2, join(dst, 'json'))
 
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir
@@ -24,8 +50,10 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        self.command = [self.seqpro_path, self.root_dir,
-                        self.sample_sheet_path, self.output_path]
+        self.command = [self.seqpro_path,
+                        join(self.output_path, self.run_id),
+                        self.sample_sheet_path,
+                        join(self.output_path, 'PrepFiles')]
 
     def run(self):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,

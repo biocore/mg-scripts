@@ -15,6 +15,7 @@ class TestQCJob(unittest.TestCase):
         self.path = partial(join, package_root, 'tests', 'data')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
         self.mmi_db_path = self.path('mmi.db')
+        # self.sample_run_dir = self.path('MyRunDir')
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
