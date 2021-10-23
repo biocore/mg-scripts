@@ -48,7 +48,7 @@ class TestGenPrepFileJob(unittest.TestCase):
                              'abcdabcdabcdabcdabcdabcdabcdabcd')
         results = job._system_call(f'find {self.run_dir}')
         lines = results['stdout'].split('\n')
-        lines = [re.sub(r'^.*?\/sequence_processing_pipeline\/', '', x)
+        lines = [re.sub(r'^.*?sequence_processing_pipeline\/', '', x)
                  for x in lines]
         obs = [x for x in lines if x]
         obs.sort()
