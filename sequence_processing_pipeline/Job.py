@@ -8,7 +8,6 @@ import logging
 from inspect import stack
 
 
-
 class Job:
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  modules_to_load=None):
