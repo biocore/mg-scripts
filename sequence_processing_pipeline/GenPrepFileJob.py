@@ -26,7 +26,7 @@ class GenPrepFileJob(Job):
         # copy bcl-convert's Stats-equivalent directory to the the
         # run_directory
         move(join(convert_job_path, 'Reports'),
-             join(self.output_path, self.run_id))
+             join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
             src1 = join(qc_job_path, project, 'filtered_sequences')
