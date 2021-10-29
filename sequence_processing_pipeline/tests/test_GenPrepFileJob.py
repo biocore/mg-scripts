@@ -57,8 +57,6 @@ class TestGenPrepFileJob(unittest.TestCase):
                'b197f317-1c06-4619-9af3-65721149c1e8/210518_A00953_0305_TEST/'
                'ConvertJob',
                'b197f317-1c06-4619-9af3-65721149c1e8/210518_A00953_0305_TEST/'
-               'ConvertJob/Reports',
-               'b197f317-1c06-4619-9af3-65721149c1e8/210518_A00953_0305_TEST/'
                'QCJob',
                'b197f317-1c06-4619-9af3-65721149c1e8/210518_A00953_0305_TEST/'
                'QCJob/Project1',
