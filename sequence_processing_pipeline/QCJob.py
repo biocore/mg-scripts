@@ -108,7 +108,7 @@ class QCJob(Job):
             project_name = project['Sample_Project']
             pbs_job_id = self.qsub(self.script_paths[project_name], None, None)
             logging.debug(f'QCJob {pbs_job_id} completed')
-            source_dir = join(self.products_dir, project_name)
+            source_dir = join(self.output_path, project_name)
             filtered_directory = join(source_dir, 'filtered_sequences')
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter(filtered_directory, empty_files_directory,
@@ -209,8 +209,8 @@ class QCJob(Job):
         cmds = qc.generate_commands()
 
         lines.append("#!/bin/bash")
-
         job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'
+
         lines.append(f"#PBS -N {job_name}")
         lines.append("#PBS -q %s" % self.queue_name)
         lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,

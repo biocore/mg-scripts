@@ -37,7 +37,7 @@ class FastQCJob(Job):
 
         self.project_names = []
         self.commands, self.project_names = self._get_commands()
-        self.script_path = self._generate_job_script()
+        self._generate_job_script()
 
     def _get_commands(self):
         '''
@@ -149,7 +149,7 @@ class FastQCJob(Job):
         return fastqc_results, project_names
 
     def run(self):
-        pbs_job_id = self.qsub(self.script_path, None, None)
+        pbs_job_id = self.qsub(self.job_script_path, None, None)
         logging.debug(pbs_job_id)
 
         for project in self.project_names:
