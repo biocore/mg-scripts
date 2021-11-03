@@ -238,9 +238,14 @@ class Job:
                     job_info['job_name'] = tmp.firstChild.nodeValue
                     tmp = some_job.getElementsByTagName("job_state")[0]
                     job_info['job_state'] = tmp.firstChild.nodeValue
-                    # we cannot use exit_status, as it may appear for regular
-                    # jobs but apparently it doesn't appear for job arrays.
-                    # Use status = 'C' instead.
+                    # We cannot rely solely on exit_status as it appears for
+                    # regular jobs but not for job-arrays. We can look for
+                    # it and consider it, if it exists. Otherwise, we'll have
+                    # to rely solely on status = 'C' instead.
+                    tmp = some_job.getElementsByTagName("exit_status")
+                    if tmp:
+                        job_info['exit_status'] = tmp[0]
+
                     tmp = some_job.getElementsByTagName("etime")[0]
                     job_info['elapsed_time'] = tmp.firstChild.nodeValue
                     break
@@ -259,8 +264,16 @@ class Job:
         if job_info['job_id']:
             # job was once in the queue
             if job_info['job_state'] == 'C':
-                # job completed successfully
-                return job_info
+                if 'exit_status' in job_info:
+                    if job_info['exit_status'] == 0:
+                        # job completed successfully
+                        return job_info
+                    else:
+                        raise PipelineError(f"job {job_id} exited with status"
+                                            f" {job_info['exit_status']}")
+                else:
+                    # with no other info, assume job completed successfully
+                    return job_info
             else:
                 # job exited unsuccessfully
                 status = job_info['job_state']

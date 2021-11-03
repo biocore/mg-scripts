@@ -149,5 +149,9 @@ class ConvertJob(Job):
         Run BCL2Fastq/BCLConvert conversion
         :return: None
         '''
-        job_info = self.qsub(self.job_script_path, None, None)
+        try:
+            job_info = self.qsub(self.job_script_path, None, None)
+        except PipelineError as e:
+            raise PipelineError(f"ConvertJob failed: {str(e)}")
+
         logging.info(f'Successful job: {job_info}')
