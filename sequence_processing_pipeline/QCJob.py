@@ -106,8 +106,8 @@ class QCJob(Job):
     def run(self):
         for project in self.project_data:
             project_name = project['Sample_Project']
-            pbs_job_id = self.qsub(self.script_paths[project_name], None, None)
-            logging.debug(f'QCJob {pbs_job_id} completed')
+            job_info = self.qsub(self.script_paths[project_name], None, None, exec_from=self.log_path)
+            logging.debug(f'QCJob {job_info} completed')
             source_dir = join(self.output_path, project_name)
             filtered_directory = join(source_dir, 'filtered_sequences')
             empty_files_directory = join(source_dir, 'zero_files')
@@ -220,8 +220,8 @@ class QCJob(Job):
         lines.append(f"#PBS -l mem={self.jmem}")
 
         log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
-        lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
-        lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
+        # lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
+        # lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
 
         lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
 
