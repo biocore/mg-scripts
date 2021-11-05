@@ -106,7 +106,8 @@ class QCJob(Job):
     def run(self):
         for project in self.project_data:
             project_name = project['Sample_Project']
-            job_info = self.qsub(self.script_paths[project_name], None, None, exec_from=self.log_path)
+            job_info = self.qsub(self.script_paths[project_name], None, None,
+                                 exec_from=self.log_path)
             logging.debug(f'QCJob {job_info} completed')
             source_dir = join(self.output_path, project_name)
             filtered_directory = join(source_dir, 'filtered_sequences')
@@ -219,7 +220,7 @@ class QCJob(Job):
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
         lines.append(f"#PBS -l mem={self.jmem}")
 
-        log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
+        # log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
         # lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
         # lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
 

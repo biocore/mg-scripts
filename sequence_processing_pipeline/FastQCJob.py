@@ -149,7 +149,8 @@ class FastQCJob(Job):
         return fastqc_results, project_names
 
     def run(self):
-        job_info = self.qsub(self.job_script_path, None, None, exec_from=self.log_path)
+        job_info = self.qsub(self.job_script_path, None, None,
+                             exec_from=self.log_path)
         logging.debug(job_info)
 
         for project in self.project_names:
@@ -204,7 +205,7 @@ class FastQCJob(Job):
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
         lines.append(f"#PBS -l mem={self.jmem}")
 
-        log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
+        # log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
         # lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
         # lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
 

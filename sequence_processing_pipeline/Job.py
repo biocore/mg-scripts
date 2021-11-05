@@ -253,7 +253,8 @@ class Job:
                     # to rely solely on status = 'C' instead.
                     tmp = some_job.getElementsByTagName("exit_status")
                     if tmp:
-                        job_info['exit_status'] = int(tmp[0].firstChild.nodeValue)
+                        val = int(tmp[0].firstChild.nodeValue)
+                        job_info['exit_status'] = val
 
                     break
 
