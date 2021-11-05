@@ -220,10 +220,6 @@ class QCJob(Job):
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
         lines.append(f"#PBS -l mem={self.jmem}")
 
-        # log_path = join(self.log_path, job_name + '_${PBS_ARRAYID}_')
-        # lines.append(f"#PBS -o localhost:{log_path}_stdout.log")
-        # lines.append(f"#PBS -e localhost:{log_path}_stderr.log")
-
         lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
 
         lines.append("set -x")
