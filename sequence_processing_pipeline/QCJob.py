@@ -1,11 +1,12 @@
 from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import join, split
+from os.path import exists, join, split
 from os import walk, stat, listdir, makedirs
 import logging
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
+import re
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -70,6 +71,9 @@ class QCJob(Job):
         for project in self.project_data:
             project_name = project['Sample_Project']
             fastq_files = self._find_fastq_files(project_name)
+            if not fastq_files:
+                raise PipelineError("Fastq files could not be found for "
+                                    f"project '{project_name}'")
 
             script_path = self._generate_job_script(project_name,
                                                     project['ForwardAdapter'],
@@ -155,13 +159,25 @@ class QCJob(Job):
                 }
 
     def _find_fastq_files_in_root_dir(self, project_name):
-        search_path = join(self.root_dir, project_name)
+        # project_names defined in sample-sheets must now end in a qiita id.
+        # many legacy run-directories will include sub-directories named for
+        # projects without this requirement. To process legacy run
+        # directories, we'll include in the search-path project_names w/out
+        # an id.
+        search_paths = [join(self.root_dir, project_name),
+                        join(self.root_dir,
+                             re.sub(r'_\d+', r'', project_name))]
         lst = []
-        for root, dirs, files in walk(search_path):
-            for some_file in files:
-                if some_file.endswith('fastq.gz'):
-                    some_path = join(search_path, some_file)
-                    lst.append(some_path)
+        for search_path in search_paths:
+            if exists(search_path):
+                for root, dirs, files in walk(search_path):
+                    for some_file in files:
+                        if some_file.endswith('fastq.gz'):
+                            some_path = join(search_path, some_file)
+                            lst.append(some_path)
+                break
+
+        # caller expects an empty list if no files were found.
         return lst
 
     def _find_fastq_files(self, project_name):
@@ -189,6 +205,7 @@ class QCJob(Job):
                     lst.append(some_file)
                     break
 
+        # caller expects an empty list if no files were found.
         return lst
 
     def _generate_job_script(self, project_name, adapter_a, adapter_A,
