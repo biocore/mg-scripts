@@ -6,6 +6,7 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+import re
 
 
 class TestQCJob(unittest.TestCase):
@@ -39,8 +40,15 @@ class TestQCJob(unittest.TestCase):
 
         self.sample_paths = []
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
+        toggle = True
         for project_name in self.project_list:
-            sample_path = self.fastq_path(project_name)
+            # strip the qiita-id from every other project-name in order to
+            # test QCJob's ability to match project directories both new and
+            # legacy project folders w/in a run-directory.
+            working_name = re.sub(r'_\d+', r'',
+                                  project_name) if toggle else project_name
+            toggle = not toggle
+            sample_path = self.fastq_path(working_name)
             makedirs(sample_path, exist_ok=True)
             self.sample_paths.append(sample_path)
 
