@@ -39,11 +39,11 @@ class TestQCJob(unittest.TestCase):
 
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
         for project_name in self.project_list:
-            # strip qiita-id from a project-name in order to test QCJob's
-            # ability to match project directories with both new and legacy
-            # project folders w/in a run-directory.
-            dir_n = 'Feist' if project_name == 'Feist_11661' else 'Feist_11661'
-            sample_path = self.fastq_path(dir_n)
+            # strip the qiita-id from a project-name in order to test
+            # QCJob's ability to match project directories for both new and
+            # legacy project folders w/in a run-directory.
+            tmp = 'Feist' if project_name == 'Feist_11661' else project_name
+            sample_path = self.fastq_path(tmp)
             makedirs(sample_path, exist_ok=True)
 
             ids = [x[0] for x in
