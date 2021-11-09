@@ -37,12 +37,14 @@ class TestQCJob(unittest.TestCase):
         for sample in valid_sheet.samples:
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
-        self.sample_paths = []
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
         for project_name in self.project_list:
-            sample_path = self.fastq_path(project_name)
+            # strip the qiita-id from a project-name in order to test
+            # QCJob's ability to match project directories for both new and
+            # legacy project folders w/in a run-directory.
+            tmp = 'Feist' if project_name == 'Feist_11661' else project_name
+            sample_path = self.fastq_path(tmp)
             makedirs(sample_path, exist_ok=True)
-            self.sample_paths.append(sample_path)
 
             ids = [x[0] for x in
                    filter(lambda c: c[1] == project_name, sample_ids)]
@@ -221,10 +223,10 @@ class TestQCJob(unittest.TestCase):
                    'first_line': "fastp --adapter_sequence AACC "
                                  "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
                                  "e_processing_pipeline/tests/data/output_dir/"
-                                 "ConvertJob/Feist_11661/AB5075_AZM_TALE_in_MH"
+                                 "ConvertJob/Feist/AB5075_AZM_TALE_in_MH"
                                  "B_A_baumannii_AB5075_WT_17_25_R1_001.fastq.g"
                                  "z -I sequence_processing_pipeline/tests/data"
-                                 "/output_dir/ConvertJob/Feist_11661/AB5075_AZ"
+                                 "/output_dir/ConvertJob/Feist/AB5075_AZ"
                                  "M_TALE_in_MHB_A_baumannii_AB5075_WT_17_25_R2"
                                  "_001.fastq.gz -w 16 -j sequence_processing_p"
                                  "ipeline/tests/data/output_dir/QCJob/Feist_11"
@@ -246,10 +248,10 @@ class TestQCJob(unittest.TestCase):
                    'last_line':  "fastp --adapter_sequence AACC "
                                  "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
                                  "e_processing_pipeline/tests/data/output_dir/"
-                                 "ConvertJob/Feist_11661/stALE_E_coli_A9_F44_I"
+                                 "ConvertJob/Feist/stALE_E_coli_A9_F44_I"
                                  "1_R1_R2_001.fastq.gz -I sequence_processing_"
                                  "pipeline/tests/data/output_dir/ConvertJob/Fe"
-                                 "ist_11661/stALE_E_coli_A9_F44_I1_R1_R2_001.f"
+                                 "ist/stALE_E_coli_A9_F44_I1_R1_R2_001.f"
                                  "astq.gz -w 16 -j sequence_processing_pipelin"
                                  "e/tests/data/output_dir/QCJob/Feist_11661/Fe"
                                  "ist_11661/json/stALE_E_coli_A9_F44_I1_R1_R2_"
