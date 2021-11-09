@@ -149,12 +149,6 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_13'
-        '059_${PBS_ARRAYID}__stdout.log',
-        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_13'
-        '059_${PBS_ARRAYID}__stderr.log',
         '#PBS -t 1-384%30',
         'set -x',
         'date',
@@ -175,12 +169,6 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Feist_11661_${PBS_A'
-        'RRAYID}__stdout.log',
-        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Feist_11661_${PBS_A'
-        'RRAYID}__stderr.log',
         '#PBS -t 1-432%30',
         'set -x',
         'date',
@@ -201,12 +189,6 @@ class TestQCJob(unittest.TestCase):
         '#PBS -V',
         '#PBS -l walltime=24:00:00',
         '#PBS -l mem=8gb',
-        '#PBS -o localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Gerwick_6123_${PBS_'
-        'ARRAYID}__stdout.log',
-        '#PBS -e localhost:sequence_processing_pipeline/tests/data/output_dir/'
-        'QCJob/logs/abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_Gerwick_6123_${PBS_'
-        'ARRAYID}__stderr.log',
         '#PBS -t 1-9%30',
         'set -x',
         'date',

@@ -94,9 +94,6 @@ class ConvertJob(Job):
 
         lines.append(f"#PBS -l pmem={self.pmem}")
 
-        lines.append(f"#PBS -o localhost:{self.log_path}/qsub_stdout.log")
-        lines.append(f"#PBS -e localhost:{self.log_path}/qsub_stderr.log")
-
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
@@ -149,5 +146,7 @@ class ConvertJob(Job):
         Run BCL2Fastq/BCLConvert conversion
         :return: None
         '''
-        job_info = self.qsub(self.job_script_path, None, None)
+        job_info = self.qsub(self.job_script_path, None, None,
+                             exec_from=self.log_path)
+
         logging.info(f'Successful job: {job_info}')

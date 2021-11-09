@@ -2,7 +2,7 @@ from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
 from os.path import join, exists, basename
-from shutil import move
+from shutil import copytree
 
 
 class GenPrepFileJob(Job):
@@ -25,8 +25,8 @@ class GenPrepFileJob(Job):
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
         # copy bcl-convert's Stats-equivalent directory to the the
         # run_directory
-        move(join(convert_job_path, 'Reports'),
-             join(self.output_path, self.run_id, 'Reports'))
+        copytree(join(convert_job_path, 'Reports'),
+                 join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
             src1 = join(qc_job_path, project, 'filtered_sequences')

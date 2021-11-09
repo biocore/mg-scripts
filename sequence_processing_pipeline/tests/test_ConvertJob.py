@@ -54,8 +54,6 @@ SCRIPT_EXP = ''.join([
     '#PBS -m bea\n',
     '#PBS -M qiita.help@gmail.com\n',
     '#PBS -l pmem=10gb\n',
-    '#PBS -o localhost:{gop}/ConvertJob/logs/qsub_stdout.log\n',
-    '#PBS -e localhost:{gop}/ConvertJob/logs/qsub_stderr.log\n',
     'set -x\n',
     'date\n',
     'hostname\n',

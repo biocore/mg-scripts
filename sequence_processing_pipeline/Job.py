@@ -169,7 +169,7 @@ class Job:
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
     def qsub(self, script_path, qsub_parameters=None,
-             script_parameters=None, wait=True):
+             script_parameters=None, wait=True, exec_from=None):
         '''
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
@@ -188,6 +188,9 @@ class Job:
         if script_parameters:
             cmd += ' %s' % script_parameters
 
+        if exec_from:
+            cmd = f'cd {exec_from};' + cmd
+
         logging.debug("qsub call: %s" % cmd)
         # if system_call does not raise a PipelineError(), then the qsub
         # successfully submitted the job. In this case, qsub should return
@@ -205,7 +208,7 @@ class Job:
         # one where the loop is starting and the job has never appeared in
         # qstat yet, and the second where we slept too long in between
         # checking and the job has disappeared from qstat().
-        job_info = {'job_id': None, 'job_name': None, 'status': None,
+        job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
 
         while wait:
@@ -234,15 +237,25 @@ class Job:
                 some_job_id = tmp.firstChild.nodeValue
                 if some_job_id == job_id:
                     job_info['job_id'] = some_job_id
+
                     tmp = some_job.getElementsByTagName("Job_Name")[0]
                     job_info['job_name'] = tmp.firstChild.nodeValue
+
                     tmp = some_job.getElementsByTagName("job_state")[0]
                     job_info['job_state'] = tmp.firstChild.nodeValue
-                    # we cannot use exit_status, as it may appear for regular
-                    # jobs but apparently it doesn't appear for job arrays.
-                    # Use status = 'C' instead.
+
                     tmp = some_job.getElementsByTagName("etime")[0]
                     job_info['elapsed_time'] = tmp.firstChild.nodeValue
+
+                    # We cannot rely solely on exit_status as it appears for
+                    # regular jobs but not for job-arrays. We can look for
+                    # it and consider it, if it exists. Otherwise, we'll have
+                    # to rely solely on status = 'C' instead.
+                    tmp = some_job.getElementsByTagName("exit_status")
+                    if tmp:
+                        val = int(tmp[0].firstChild.nodeValue)
+                        job_info['exit_status'] = val
+
                     break
 
             logging.debug("Job info: %s" % job_info)
@@ -259,13 +272,21 @@ class Job:
         if job_info['job_id']:
             # job was once in the queue
             if job_info['job_state'] == 'C':
-                # job completed successfully
-                return job_info
+                if 'exit_status' in job_info:
+                    if job_info['exit_status'] == 0:
+                        # job completed successfully
+                        return job_info
+                    else:
+                        raise PipelineError(f"job {job_id} exited with exit_"
+                                            f"status {job_info['exit_status']}"
+                                            )
+                else:
+                    # with no other info, assume job completed successfully
+                    return job_info
             else:
                 # job exited unsuccessfully
-                status = job_info['job_state']
-                raise PipelineError("job %s exited with status %s" % (job_id,
-                                                                      status))
+                raise PipelineError(f"job {job_id} exited with status "
+                                    f"{job_info['job_state']}")
         else:
             # job was never in the queue - return an error.
             raise PipelineError("job %s never appeared in the queue." % job_id)
