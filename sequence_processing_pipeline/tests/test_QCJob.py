@@ -270,8 +270,8 @@ class TestQCJob(unittest.TestCase):
                                  "_001.trimmed.fastq.gz -2 sequence_processing"
                                  "_pipeline/tests/data/output_dir/QCJob/Gerwic"
                                  "k_6123/filtered_sequences/3A_R2_001.trimmed."
-                                 "fastq.gz"
-                       
+                                 "fastq.gz",
+
                    'last_line': "fastp --adapter_sequence AACC "
                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
                                 "e_processing_pipeline/tests/data/output_dir/"
