@@ -264,11 +264,11 @@ class TestQCJob(unittest.TestCase):
                                  "CJob/Gerwick_6123/html/3A_R1_00"
                                  "1.html -o sequence_processing_pipeline/tests"
                                  "/data/output_dir/QCJob/Gerwick_"
-                                 "6123/trimmed_sequences/3A_R1_001.fastp.fastq"
-                                 ".gz -O sequence_processing_pipeline/tests/da"
-                                 "ta/output_dir/QCJob/Gerwick_612"
-                                 "3/trimmed_sequences/3A_R2_001.fastp.fastq.gz"
-                                 " -R 3A_R1_001_report",
+                                 "6123/filtered_sequences/3A_R1_001.fastp."
+                                 "fastq.gz -O sequence_processing_pipeline/"
+                                 "tests/data/output_dir/QCJob/Gerwick_612"
+                                 "3/filtered_sequences/3A_R2_001.fastp.fastq."
+                                 "gz -R 3A_R1_001_report",
                    'last_line': "fastp --adapter_sequence AACC "
                                 "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
                                 "e_processing_pipeline/tests/data/output_dir/"
@@ -282,10 +282,10 @@ class TestQCJob(unittest.TestCase):
                                 "/QCJob/Gerwick_6123/html/ISB_R1"
                                 "_001.html -o sequence_processing_pipeline/te"
                                 "sts/data/output_dir/QCJob/Gerwi"
-                                "ck_6123/trimmed_sequences/ISB_R1_001.fastp.f"
+                                "ck_6123/filtered_sequences/ISB_R1_001.fastp.f"
                                 "astq.gz -O sequence_processing_pipeline/test"
                                 "s/data/output_dir/QCJob/Gerwick"
-                                "_6123/trimmed_sequences/ISB_R2_001.fastp.fas"
+                                "_6123/filtered_sequences/ISB_R2_001.fastp.fas"
                                 "tq.gz -R ISB_R1_001_report",
                    'count': 9},
                'QCJob_NYU_BMS_Melanoma_13059.array-details': {
