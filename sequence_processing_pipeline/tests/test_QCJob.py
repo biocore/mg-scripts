@@ -261,7 +261,7 @@ class TestQCJob(unittest.TestCase):
                                  "ne/tests/data/output_dir/QCJob/"
                                  "Gerwick_6123/json/3A_R1_001.json -h sequence"
                                  "_processing_pipeline/tests/data/output_dir/Q"
-                                 "CJob/Gerwick_6123/Gerwick_6123/html/3A_R1_00"
+                                 "CJob/Gerwick_6123/html/3A_R1_00"
                                  "1.html -o sequence_processing_pipeline/tests"
                                  "/data/output_dir/QCJob/Gerwick_"
                                  "6123/trimmed_sequences/3A_R1_001.fastp.fastq"
