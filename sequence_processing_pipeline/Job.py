@@ -1,3 +1,4 @@
+from itertools import zip_longest
 from os import makedirs, walk
 from os.path import exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -30,6 +31,7 @@ class Job:
         self._directory_check(self.log_path, create=True)
 
         self.modules_to_load = modules_to_load
+        self.max_array_length = 1000
 
         self.script_count = 0
 
@@ -290,3 +292,25 @@ class Job:
         else:
             # job was never in the queue - return an error.
             raise PipelineError("job %s never appeared in the queue." % job_id)
+
+    def _group_commands(self, cmds):
+        # break list of commands into chunks of max_array_length (Typically
+        # 1000 for Torque job arrays). To ensure job arrays are never more
+        # than 1000 jobs long, we'll chain additional commands together, and
+        # evenly distribute them amongst the first 1000.
+        chunks = [cmds[i:i + self.max_array_length] for i in
+                  range(0, len(cmds), self.max_array_length)]
+
+        results = []
+
+        # create a chained command by taking one command from each list.
+        # zip_longest() allows us to handle lists of different lengths, as the
+        # last chunk will always be of different length than 1000.
+        for tuple in zip_longest(*chunks):
+            # zip_longest() pads shorter lists with None. In our case, we
+            # don't want an additional command named 'None'.
+            chained_cmd = [x for x in list(tuple) if x is not None]
+            chained_cmd = ';'.join(chained_cmd)
+            results.append(chained_cmd)
+
+        return results

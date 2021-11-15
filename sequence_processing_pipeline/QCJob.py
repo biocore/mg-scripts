@@ -1,13 +1,12 @@
-from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import exists, join, split
 from os import walk, stat, listdir, makedirs
-import logging
+from os.path import exists, join, split
+from sequence_processing_pipeline.Job import Job
+from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
+import logging
 import re
-
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -225,6 +224,7 @@ class QCJob(Job):
                       self.samtools_path)
 
         cmds = qc.generate_commands()
+        cmds = self._group_commands(cmds)
 
         lines.append("#!/bin/bash")
         job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'

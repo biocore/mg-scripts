@@ -37,6 +37,10 @@ class FastQCJob(Job):
 
         self.project_names = []
         self.commands, self.project_names = self._get_commands()
+        # for lists greater than n commands, chain the extra commands,
+        # distributing them evenly throughout the first n commands.
+        self.commands = self._group_commands(self.commands)
+
         self._generate_job_script()
 
     def _get_commands(self):
