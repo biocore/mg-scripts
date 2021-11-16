@@ -263,10 +263,4 @@ class QCJob(Job):
         with open(sh_details_fp, 'w') as f:
             f.write('\n'.join(cmds))
 
-        with open('debug.txt', 'a') as f:
-
-            f.write(f'FIRST: {cmds[0]}\n')
-            f.write(f'LAST: {cmds[-1]}\n')
-            f.write('####################\n')
-
         return job_script_path

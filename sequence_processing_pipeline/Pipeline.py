@@ -208,7 +208,7 @@ if __name__ == '__main__':
                        config['modules_to_load'],
                        qiita_job_id,
                        config['job_pool_size'],
-                       config['job_array_size']))
+                       config['job_max_array_length']))
 
     config = pipeline.configuration['fastqc']
 
@@ -231,7 +231,7 @@ if __name__ == '__main__':
                            config['job_total_memory_limit'],
                            config['job_pool_size'],
                            config['multiqc_config_file_path'],
-                           config['job_array_size']))
+                           config['job_max_array_length']))
 
     config = pipeline.configuration['seqpro']
 
