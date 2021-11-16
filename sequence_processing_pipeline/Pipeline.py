@@ -3,6 +3,7 @@ from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
+from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
@@ -173,9 +174,29 @@ class Pipeline:
         if val_sheet:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
-            # bioinformatics = val_sheet.Bioinformatics
-            # lst = bioinformatics.to_dict('records')
-            # print(lst)
+            bioinformatics = val_sheet.Bioinformatics
+            if 'library_construction_protocol' not in bioinformatics:
+                msgs.append(ErrorMessage("column 'library_construction_protoco"
+                                         "l' not found in Bioinformatics secti"
+                                         "on"))
+            if 'experiment_design_description' not in bioinformatics:
+                msgs.append(ErrorMessage("column 'experiment_design_descriptio"
+                                         "n' not found in Bioinformatics secti"
+                                         "on"))
+
+            # look for duplicate samples. metapool will allow two rows w/the
+            # same lane and sample_id if one or more other columns are
+            # different. However seqpro expects the tuple (lane, sample_id) to
+            # be unique for indexing.
+            unique_indexes = []
+            for item in val_sheet.samples:
+                unique_index = f'{item.lane}_{item.sample_id}'
+                if unique_index in unique_indexes:
+                    msgs.append(ErrorMessage("A sample already exists with la"
+                                             f"ne {item.lane} and sample-id "
+                                             f"{item.sample_id}"))
+                else:
+                    unique_indexes.append(unique_index)
             return msgs, val_sheet
         else:
             # sample-sheet failed metapool's validation function.
@@ -184,6 +205,13 @@ class Pipeline:
 
 
 if __name__ == '__main__':
+    '''
+    pipeline = Pipeline('./configuration.json', 'input', '/tmp/output/', 'qiita-id-1')
+    msgs, val_sheet = pipeline.validate('tests/data/good-sample-sheet.csv')
+    for msg in msgs:
+        print(str(msg))
+    print(val_sheet)
+    '''
     logging.debug("Starting Pipeline")
 
     sample_sheet_path = '/path/to/sample-sheet'
