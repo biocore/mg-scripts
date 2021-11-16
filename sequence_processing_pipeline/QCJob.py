@@ -15,7 +15,7 @@ class QCJob(Job):
     def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
                  mmi_db_path, queue_name, node_count, nprocs, wall_time_limit,
                  jmem, fastp_path, minimap2_path, samtools_path,
-                 modules_to_load, qiita_job_id, pool_size):
+                 modules_to_load, qiita_job_id, pool_size, max_array_length):
         '''
         Submit a Torque job where the contents of fastq_root_dir are processed
         using fastp, minimap, and samtools. Human-genome sequences will be
@@ -40,6 +40,7 @@ class QCJob(Job):
                          output_path,
                          'QCJob',
                          [fastp_path, minimap2_path, samtools_path],
+                         max_array_length,
                          modules_to_load)
         self.sample_sheet_path = sample_sheet_path
         self._file_check(self.sample_sheet_path)
@@ -261,5 +262,11 @@ class QCJob(Job):
 
         with open(sh_details_fp, 'w') as f:
             f.write('\n'.join(cmds))
+
+        with open('debug.txt', 'a') as f:
+
+            f.write(f'FIRST: {cmds[0]}\n')
+            f.write(f'LAST: {cmds[-1]}\n')
+            f.write('####################\n')
 
         return job_script_path

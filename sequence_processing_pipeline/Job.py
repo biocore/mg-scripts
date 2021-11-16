@@ -11,7 +11,7 @@ from inspect import stack
 
 class Job:
     def __init__(self, root_dir, output_path, job_name, executable_paths,
-                 modules_to_load=None):
+                 max_array_length, modules_to_load=None):
         '''
         Base-class to implement Jobs from.
         :param job_name: A name for the job. Used to create log files.
@@ -31,7 +31,7 @@ class Job:
         self._directory_check(self.log_path, create=True)
 
         self.modules_to_load = modules_to_load
-        self.max_array_length = 1000
+        self.max_array_length = max_array_length
 
         self.script_count = 0
 
@@ -298,6 +298,7 @@ class Job:
         # 1000 for Torque job arrays). To ensure job arrays are never more
         # than 1000 jobs long, we'll chain additional commands together, and
         # evenly distribute them amongst the first 1000.
+        cmds.sort()
         chunks = [cmds[i:i + self.max_array_length] for i in
                   range(0, len(cmds), self.max_array_length)]
 

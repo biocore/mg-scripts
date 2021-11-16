@@ -35,7 +35,7 @@ class TestFastQCJob(unittest.TestCase):
                       'sequence_processing_pipeline/tests/bin/fastqc', [],
                       self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
                       ('sequence_processing_pipeline/'
-                       'not-multiqc-bclconvert-config.yaml'))
+                       'not-multiqc-bclconvert-config.yaml'), 1000)
 
         self.assertEqual(str(e.exception), "file 'sequence_processing_pipeline"
                                            "/not-multiqc-bclconvert-config."
@@ -48,7 +48,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml)
+                        self.config_yml, 1000)
 
         self.assertEqual(exists(join(job.output_path, 'FastQCJob.sh')), True)
         self.assertEqual(exists(join(job.output_path,
