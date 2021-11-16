@@ -205,13 +205,6 @@ class Pipeline:
 
 
 if __name__ == '__main__':
-    '''
-    pipeline = Pipeline('./configuration.json', 'input', '/tmp/output/', 'qiita-id-1')
-    msgs, val_sheet = pipeline.validate('tests/data/good-sample-sheet.csv')
-    for msg in msgs:
-        print(str(msg))
-    print(val_sheet)
-    '''
     logging.debug("Starting Pipeline")
 
     sample_sheet_path = '/path/to/sample-sheet'
