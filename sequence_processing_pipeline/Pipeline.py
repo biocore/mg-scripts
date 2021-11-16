@@ -2,6 +2,7 @@ from json import load as json_load
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, getmtime
+from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
@@ -158,6 +159,28 @@ class Pipeline:
         else:
             raise PipelineError("object is not a Job object.")
 
+    def validate(self, sample_sheet_path):
+        '''
+        Performs additional validation for sample-sheet on top of metapool.
+        :param sample_sheet_path: Path to sample-sheet.
+        :return: If successful, an empty list of strings and a valid
+                 sample-sheet. If unsuccessful, a list of warning and error
+                 messages and None.
+        '''
+        # validate the sample-sheet using metapool package.
+        sheet = KLSampleSheet(sample_sheet_path)
+        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+        if val_sheet:
+            # perform extended validation based on required fields for
+            # seqpro, and other issues encountered.
+            bioinformatics = val_sheet.Bioinformatics
+            lst = bioinformatics.to_dict('records')
+            print(lst)
+        else:
+            # sample-sheet failed metapool's validation function.
+            # abort early with helpful error/warning messages.
+            return msgs, None
+
 
 if __name__ == '__main__':
     logging.debug("Starting Pipeline")
@@ -171,6 +194,8 @@ if __name__ == '__main__':
 
     pipeline = Pipeline(config_file_path, run_id, output_path, config_dict,
                         qiita_job_id)
+
+    msgs, val_sheet = pipeline.validate(sample_sheet_path)
 
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)
@@ -241,5 +266,3 @@ if __name__ == '__main__':
                                 qiita_job_id))
 
     pipeline.run()
-
-    # TODO: copy/move results
