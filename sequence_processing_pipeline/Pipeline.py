@@ -173,9 +173,10 @@ class Pipeline:
         if val_sheet:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
-            bioinformatics = val_sheet.Bioinformatics
-            lst = bioinformatics.to_dict('records')
-            print(lst)
+            # bioinformatics = val_sheet.Bioinformatics
+            # lst = bioinformatics.to_dict('records')
+            # print(lst)
+            return msgs, val_sheet
         else:
             # sample-sheet failed metapool's validation function.
             # abort early with helpful error/warning messages.
