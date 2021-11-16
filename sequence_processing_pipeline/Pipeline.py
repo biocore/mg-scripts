@@ -3,7 +3,7 @@ from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
-from metapool.plate import ErrorMessage, WarningMessage
+from metapool.plate import ErrorMessage
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob

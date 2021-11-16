@@ -4,7 +4,7 @@
       "younger_than": 90,
       "older_than": 24,
       "archive_path": "sequence_processing_pipeline/tests/data/sequencing/knight_lab_completed_runs",
-      "search_paths": ["sequence_processing_pipeline/tests/data"]
+      "search_paths": [ "/tmp", "sequence_processing_pipeline/tests/data"]
     },
     "bcl2fastq": {
       "nodes": 1,
