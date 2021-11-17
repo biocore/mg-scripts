@@ -169,8 +169,12 @@ class QCJob(Job):
         # projects without this requirement. To process legacy run
         # directories, we'll include in the search-path project_names w/out
         # an id.
+
         search_paths = [join(self.root_dir, project_name),
                         join(self.root_dir,
+                             re.sub(r'_\d+', r'', project_name)),
+                        join(self.root_dir, 'Data', 'Fastq', project_name),
+                        join(self.root_dir, 'Data', 'Fastq',
                              re.sub(r'_\d+', r'', project_name))]
 
         logging.debug("SEARCH PATHS: %s" % search_paths)
@@ -186,6 +190,8 @@ class QCJob(Job):
                         if some_file.endswith('fastq.gz'):
                             lst.append(some_path)
                 break
+            else:
+                logging.debug("PATH DOES NOT EXIST: %s" % search_path)
 
         # caller expects an empty list if no files were found.
         return lst
