@@ -197,7 +197,11 @@ class Pipeline:
                                              f"{item.sample_id}"))
                 else:
                     unique_indexes.append(unique_index)
-            return msgs, val_sheet
+
+            if msgs:
+                return msgs, None
+            else:
+                return msgs, val_sheet
         else:
             # sample-sheet failed metapool's validation function.
             # abort early with helpful error/warning messages.
