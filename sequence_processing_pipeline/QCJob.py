@@ -110,11 +110,15 @@ class QCJob(Job):
     def run(self):
         for project in self.project_data:
             project_name = project['Sample_Project']
-            job_info = self.qsub(self.script_paths[project_name], None, None,
-                                 exec_from=self.log_path)
-            logging.debug(f'QCJob {job_info} completed')
+            needs_human_filtering = project['HumanFiltering']
+            pbs_job_id = self.qsub(self.script_paths[project_name], None, None,
+                                   exec_from=self.log_path)
+            logging.debug(f'QCJob {pbs_job_id} completed')
             source_dir = join(self.output_path, project_name)
-            filtered_directory = join(source_dir, 'filtered_sequences')
+            if needs_human_filtering is True:
+                filtered_directory = join(source_dir, 'filtered_sequences')
+            else:
+                filtered_directory = join(source_dir, 'trimmed_sequences')
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter(filtered_directory, empty_files_directory,
                          self.minimum_bytes)

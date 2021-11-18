@@ -113,7 +113,7 @@ class QCHelper():
         '''
         logging.debug("Pathway: True/False")
 
-        tmp = join(products_dir, 'filtered_sequences')
+        tmp = join(products_dir, 'trimmed_sequences')
         if not exists(tmp):
             makedirs(tmp, exist_ok=True)
 
