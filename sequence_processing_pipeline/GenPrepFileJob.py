@@ -14,7 +14,8 @@ class GenPrepFileJob(Job):
                          output_path,
                          'GenPrepFileJob',
                          [seqpro_path],
-                         modules_to_load)
+                         1000,
+                         modules_to_load=modules_to_load)
 
         self.run_id = basename(run_dir)
         self.sample_sheet_path = sample_sheet_path
@@ -29,13 +30,18 @@ class GenPrepFileJob(Job):
                  join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
-            src1 = join(qc_job_path, project, 'filtered_sequences')
+            src1a = join(qc_job_path, project, 'filtered_sequences')
+            src1b = join(qc_job_path, project, 'trimmed_sequences')
             src2 = join(qc_job_path, project, 'fastp_reports_dir', 'json')
             dst = join(self.output_path, self.run_id, project)
 
-            if exists(src1):
+            if exists(src1a):
                 makedirs(dst, exist_ok=True)
-                symlink(src1, join(dst, 'filtered_sequences'))
+                symlink(src1a, join(dst, 'filtered_sequences'))
+
+            if exists(src1b):
+                makedirs(dst, exist_ok=True)
+                symlink(src1b, join(dst, 'trimmed_sequences'))
 
             if exists(src2):
                 makedirs(dst, exist_ok=True)

@@ -41,7 +41,7 @@ class QCJob(Job):
                          'QCJob',
                          [fastp_path, minimap2_path, samtools_path],
                          max_array_length,
-                         modules_to_load)
+                         modules_to_load=modules_to_load)
         self.sample_sheet_path = sample_sheet_path
         self._file_check(self.sample_sheet_path)
         metadata = self._process_sample_sheet()

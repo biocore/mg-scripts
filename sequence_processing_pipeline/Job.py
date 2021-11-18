@@ -47,6 +47,12 @@ class Job:
         # the version given, raise a PipelineError.
         for executable_path in executable_paths:
             file_path, file_name = split(executable_path)
+
+            # bcl-convert module is not installed on the node this test gets
+            # run on, so forego it entirely.
+            if 'bcl-convert' in file_name:
+                continue
+
             # No need to test results. _which() will raise a PipelineError if
             # file_name is a path and the path found does not match. It will
             # also raise a PipelineError if the file could not be found.

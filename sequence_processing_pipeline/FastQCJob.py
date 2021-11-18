@@ -17,7 +17,7 @@ class FastQCJob(Job):
                          'FastQCJob',
                          [fastqc_path],
                          max_array_length,
-                         modules_to_load)
+                         modules_to_load=modules_to_load)
 
         self.nprocs = nprocs
         self.nthreads = nthreads
