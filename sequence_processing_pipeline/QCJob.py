@@ -182,11 +182,9 @@ class QCJob(Job):
         lst = []
         for search_path in search_paths:
             if exists(search_path):
-                logging.debug("PATH EXISTS: %s" % search_path)
                 for root, dirs, files in walk(search_path):
                     for some_file in files:
                         some_path = join(search_path, some_file)
-                        logging.debug("FILE FOUND: %s" % some_path)
                         if some_file.endswith('fastq.gz'):
                             lst.append(some_path)
                 break
@@ -204,14 +202,10 @@ class QCJob(Job):
         # strip out the project name from the matching elements.
         sample_ids = [x[0] for x in sample_ids]
 
-        logging.debug("SAMPLE IDS: %s" % sample_ids)
-
         # Sample-sheet contains sample IDs, but not actual filenames.
         # Generate a list of possible fastq files to process.
         # Filter out ones that don't contain samples mentioned in sample-sheet.
         files_found = self._find_fastq_files_in_root_dir(project_name)
-
-        logging.debug("FILES FOUND: %s" % files_found)
 
         lst = []
 
@@ -226,7 +220,6 @@ class QCJob(Job):
                     break
 
         # caller expects an empty list if no files were found.
-        logging.debug("MATCHED: %s" % lst)
         return lst
 
     def _generate_job_script(self, project_name, adapter_a, adapter_A,
