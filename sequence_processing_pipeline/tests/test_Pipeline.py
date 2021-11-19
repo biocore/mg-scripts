@@ -179,6 +179,8 @@ class TestPipeline(unittest.TestCase):
 
         msgs, val_sheet = pipeline.validate(self.good_sample_sheet_path)
 
+        msgs = [str(x) for x in msgs]
+
         # a successful validation should return an empty list of error
         # messages and a sheet object.
         self.assertEqual(msgs, [])
