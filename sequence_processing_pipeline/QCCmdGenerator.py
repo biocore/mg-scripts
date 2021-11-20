@@ -57,8 +57,7 @@ class QCCmdGenerator:
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
-        partial_path = join(self.current_dir, self.products_dir,
-                            self.project_name)
+        partial_path = join(self.current_dir, self.products_dir)
         json_output_path = join(partial_path, 'json',
                                 self.filename1_short + '.json')
         html_output_path = join(partial_path, 'html',
