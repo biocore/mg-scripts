@@ -10,11 +10,13 @@ class FastQCJob(Job):
     def __init__(self, run_dir, output_path, raw_fastq_files_path,
                  processed_fastq_files_path, nprocs, nthreads, fastqc_path,
                  modules_to_load, qiita_job_id, queue_name, node_count,
-                 wall_time_limit, jmem, pool_size, multiqc_config_file_path):
+                 wall_time_limit, jmem, pool_size, multiqc_config_file_path,
+                 max_array_length):
         super().__init__(run_dir,
                          output_path,
                          'FastQCJob',
                          [fastqc_path],
+                         max_array_length,
                          modules_to_load)
 
         self.nprocs = nprocs
@@ -37,6 +39,10 @@ class FastQCJob(Job):
 
         self.project_names = []
         self.commands, self.project_names = self._get_commands()
+        # for lists greater than n commands, chain the extra commands,
+        # distributing them evenly throughout the first n commands.
+        self.commands = self._group_commands(self.commands)
+
         self._generate_job_script()
 
     def _get_commands(self):
