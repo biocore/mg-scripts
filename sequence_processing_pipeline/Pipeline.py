@@ -171,7 +171,8 @@ class Pipeline:
         # validate the sample-sheet using metapool package.
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
-        if val_sheet:
+
+        if val_sheet is not None:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
             bioinformatics = val_sheet.Bioinformatics
@@ -198,14 +199,7 @@ class Pipeline:
                 else:
                     unique_indexes.append(unique_index)
 
-            if msgs:
-                return msgs, None
-            else:
-                return msgs, val_sheet
-        else:
-            # sample-sheet failed metapool's validation function.
-            # abort early with helpful error/warning messages.
-            return msgs, None
+        return msgs, val_sheet
 
 
 if __name__ == '__main__':
