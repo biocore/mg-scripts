@@ -35,6 +35,8 @@ class Job:
 
         self.script_count = 0
 
+        self.bypass_exec_check = ['bcl-convert']
+
         # checking if this is running as part of the unittest
         # https://stackoverflow.com/a/25025987
         self.is_test = True if [
@@ -55,8 +57,9 @@ class Job:
             # servers running this check. However they are still available
             # on Barnacle nodes and this is what's important. For now simply
             # bypass the check for known situations.
-            if 'bcl-convert' in file_name:
-                continue
+            for name in self.bypass_exec_check:
+                if name in file_name:
+                    continue
 
             # No need to test results. _which() will raise a PipelineError if
             # file_name is a path and the path found does not match. It will
