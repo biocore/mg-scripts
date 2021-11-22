@@ -22,6 +22,9 @@ class TestPipeline(unittest.TestCase):
         self.good_output_file_path = self.path('output_dir')
         makedirs(self.good_output_file_path, exist_ok=True)
         self.maxDiff = None
+        self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
+                                               '.csv')
 
     def test_creation(self):
         # Pipeline should assert due to config_file
@@ -167,6 +170,32 @@ class TestPipeline(unittest.TestCase):
 
             obs = pipeline.is_within_time_range(tp)
             self.assertEqual(obs, False)
+
+    def test_sample_sheet_validation(self):
+        # test successful validation of a good sample-sheet
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        msgs, val_sheet = pipeline.validate(self.good_sample_sheet_path)
+
+        # a successful validation should return an empty list of error
+        # messages and a sheet object.
+        self.assertEqual(msgs, [])
+        self.assertIsNotNone(val_sheet)
+
+        # test unsuccessful validation of a bad sample-sheet
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        msgs, val_sheet = pipeline.validate(self.bad_sample_sheet_path)
+
+        # an unsuccessful validation should return a list of one or more
+        # metapool ErrorMessages and a value of None for val_sheet.
+        self.assertIsNotNone(msgs)
+        self.assertEqual(str(msgs[0]), 'ErrorMessage: A sample already exists '
+                                       'with lane 1 and sample-id EP479894B04')
 
 
 if __name__ == '__main__':
