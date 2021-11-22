@@ -50,6 +50,11 @@ class Job:
 
             # bcl-convert module is not installed on the node this test gets
             # run on, so forego it entirely.
+
+            # Some modules such as bcl-convert are not available to the
+            # servers running this check. However they are still available
+            # on Barnacle nodes and this is what's important. For now simply
+            # bypass the check for known situations.
             if 'bcl-convert' in file_name:
                 continue
 

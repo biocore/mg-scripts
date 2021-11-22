@@ -30,22 +30,25 @@ class GenPrepFileJob(Job):
                  join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
-            src1a = join(qc_job_path, project, 'filtered_sequences')
-            src1b = join(qc_job_path, project, 'trimmed_sequences')
-            src2 = join(qc_job_path, project, 'fastp_reports_dir', 'json')
+            filtered_seq_dir = join(qc_job_path, project, 'filtered_sequences')
+            trimmed_seq_dir = join(qc_job_path, project, 'trimmed_sequences')
+            fastp_rept_dir = join(qc_job_path,
+                                  project,
+                                  'fastp_reports_dir',
+                                  'json')
             dst = join(self.output_path, self.run_id, project)
 
-            if exists(src1a):
+            if exists(filtered_seq_dir):
                 makedirs(dst, exist_ok=True)
-                symlink(src1a, join(dst, 'filtered_sequences'))
+                symlink(filtered_seq_dir, join(dst, 'filtered_sequences'))
 
-            if exists(src1b):
+            if exists(trimmed_seq_dir):
                 makedirs(dst, exist_ok=True)
-                symlink(src1b, join(dst, 'trimmed_sequences'))
+                symlink(trimmed_seq_dir, join(dst, 'trimmed_sequences'))
 
-            if exists(src2):
+            if exists(fastp_rept_dir):
                 makedirs(dst, exist_ok=True)
-                symlink(src2, join(dst, 'json'))
+                symlink(fastp_rept_dir, join(dst, 'json'))
 
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir
