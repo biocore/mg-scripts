@@ -1,11 +1,11 @@
-from sequence_processing_pipeline.Job import Job
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import exists, join, split
 from os import walk, stat, listdir, makedirs
-import logging
+from os.path import exists, join, split
+from sequence_processing_pipeline.Job import Job
+from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
+import logging
 import re
 
 
@@ -16,7 +16,7 @@ class QCJob(Job):
     def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
                  mmi_db_path, queue_name, node_count, nprocs, wall_time_limit,
                  jmem, fastp_path, minimap2_path, samtools_path,
-                 modules_to_load, qiita_job_id, pool_size):
+                 modules_to_load, qiita_job_id, pool_size, max_array_length):
         '''
         Submit a Torque job where the contents of fastq_root_dir are processed
         using fastp, minimap, and samtools. Human-genome sequences will be
@@ -41,6 +41,7 @@ class QCJob(Job):
                          output_path,
                          'QCJob',
                          [fastp_path, minimap2_path, samtools_path],
+                         max_array_length,
                          modules_to_load)
         self.sample_sheet_path = sample_sheet_path
         self._file_check(self.sample_sheet_path)
@@ -110,11 +111,15 @@ class QCJob(Job):
     def run(self):
         for project in self.project_data:
             project_name = project['Sample_Project']
-            job_info = self.qsub(self.script_paths[project_name], None, None,
-                                 exec_from=self.log_path)
-            logging.debug(f'QCJob {job_info} completed')
+            needs_human_filtering = project['HumanFiltering']
+            pbs_job_id = self.qsub(self.script_paths[project_name], None, None,
+                                   exec_from=self.log_path)
+            logging.debug(f'QCJob {pbs_job_id} completed')
             source_dir = join(self.output_path, project_name)
-            filtered_directory = join(source_dir, 'filtered_sequences')
+            if needs_human_filtering is True:
+                filtered_directory = join(source_dir, 'filtered_sequences')
+            else:
+                filtered_directory = join(source_dir, 'trimmed_sequences')
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter(filtered_directory, empty_files_directory,
                          self.minimum_bytes)
@@ -225,6 +230,7 @@ class QCJob(Job):
                       self.samtools_path)
 
         cmds = qc.generate_commands()
+        cmds = self._group_commands(cmds)
 
         lines.append("#!/bin/bash")
         job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'

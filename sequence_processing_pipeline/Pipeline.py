@@ -254,7 +254,8 @@ if __name__ == '__main__':
                        config['samtools_executable_path'],
                        config['modules_to_load'],
                        qiita_job_id,
-                       config['job_pool_size']))
+                       config['job_pool_size'],
+                       config['job_max_array_length']))
 
     config = pipeline.configuration['fastqc']
 
@@ -276,7 +277,8 @@ if __name__ == '__main__':
                            config['wallclock_time_in_hours'],
                            config['job_total_memory_limit'],
                            config['job_pool_size'],
-                           config['multiqc_config_file_path']))
+                           config['multiqc_config_file_path'],
+                           config['job_max_array_length']))
 
     config = pipeline.configuration['seqpro']
 
