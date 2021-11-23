@@ -3,6 +3,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
 from os.path import join, exists, basename
 from shutil import copytree
+from functools import partial
 
 
 class GenPrepFileJob(Job):
@@ -30,12 +31,11 @@ class GenPrepFileJob(Job):
                  join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
-            filtered_seq_dir = join(qc_job_path, project, 'filtered_sequences')
-            trimmed_seq_dir = join(qc_job_path, project, 'trimmed_sequences')
-            fastp_rept_dir = join(qc_job_path,
-                                  project,
-                                  'fastp_reports_dir',
-                                  'json')
+            src_path = partial(join, qc_job_path, project)
+            filtered_seq_dir = src_path('filtered_sequences')
+            trimmed_seq_dir = src_path('trimmed_sequences')
+            fastp_rept_dir = src_path('fastp_reports_dir', 'json')
+
             dst = join(self.output_path, self.run_id, project)
 
             if exists(filtered_seq_dir):
