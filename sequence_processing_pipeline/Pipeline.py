@@ -171,6 +171,7 @@ class Pipeline:
         # validate the sample-sheet using metapool package.
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+
         if val_sheet is not None:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.

@@ -28,7 +28,8 @@ class ConvertJob(Job):
                          output_path,
                          'ConvertJob',
                          [bcl_tool_path],
-                         modules_to_load)
+                         1000,
+                         modules_to_load=modules_to_load)
 
         self.sample_sheet_path = sample_sheet_path
         self.queue_name = queue_name

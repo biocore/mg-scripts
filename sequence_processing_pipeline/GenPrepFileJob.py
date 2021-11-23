@@ -3,6 +3,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
 from os.path import join, exists, basename
 from shutil import copytree
+from functools import partial
 
 
 class GenPrepFileJob(Job):
@@ -14,7 +15,8 @@ class GenPrepFileJob(Job):
                          output_path,
                          'GenPrepFileJob',
                          [seqpro_path],
-                         modules_to_load)
+                         1000,
+                         modules_to_load=modules_to_load)
 
         self.run_id = basename(run_dir)
         self.sample_sheet_path = sample_sheet_path
@@ -29,17 +31,24 @@ class GenPrepFileJob(Job):
                  join(self.output_path, self.run_id, 'Reports'))
 
         for project in project_list:
-            src1 = join(qc_job_path, project, 'filtered_sequences')
-            src2 = join(qc_job_path, project, 'fastp_reports_dir', 'json')
+            src_path = partial(join, qc_job_path, project)
+            filtered_seq_dir = src_path('filtered_sequences')
+            trimmed_seq_dir = src_path('trimmed_sequences')
+            fastp_rept_dir = src_path('fastp_reports_dir', 'json')
+
             dst = join(self.output_path, self.run_id, project)
 
-            if exists(src1):
+            if exists(filtered_seq_dir):
                 makedirs(dst, exist_ok=True)
-                symlink(src1, join(dst, 'filtered_sequences'))
+                symlink(filtered_seq_dir, join(dst, 'filtered_sequences'))
 
-            if exists(src2):
+            if exists(trimmed_seq_dir):
                 makedirs(dst, exist_ok=True)
-                symlink(src2, join(dst, 'json'))
+                symlink(trimmed_seq_dir, join(dst, 'trimmed_sequences'))
+
+            if exists(fastp_rept_dir):
+                makedirs(dst, exist_ok=True)
+                symlink(fastp_rept_dir, join(dst, 'json'))
 
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir

@@ -2,7 +2,7 @@
 from setuptools import setup
 
 
-__version__ = "2021.08.24"
+__version__ = "2021.11"
 
 
 classes = """

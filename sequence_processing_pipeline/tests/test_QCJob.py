@@ -333,7 +333,6 @@ class TestQCJob(unittest.TestCase):
                                  "coli_A9_F44_I1_R1_R2_001.fastp.fastq.gz -R "
                                  "stALE_E_coli_A9_F44_I1_R1_R2_001_report",
                    'count': 432},
-
                'QCJob_Gerwick_6123.array-details': {
                    'first_line': "fastp --adapter_sequence AACC --adapter_sequ"
                                  "ence_r2 GGTT -l 100 -i sequence_processing_p"
@@ -375,6 +374,7 @@ class TestQCJob(unittest.TestCase):
                                 "d.fastq.gz -2 sequence_processing_pipeline/te"
                                 "sts/data/output_dir/QCJob/Gerwick_6123/filter"
                                 "ed_sequences/ISB_R2_001.trimmed.fastq.gz",
+
                    'count': 9},
                'QCJob_NYU_BMS_Melanoma_13059.array-details': {
                    'first_line': "fastp --adapter_sequence AACC "

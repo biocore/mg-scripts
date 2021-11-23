@@ -8,7 +8,6 @@ from shutil import move
 import logging
 import re
 
-
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -42,7 +41,7 @@ class QCJob(Job):
                          'QCJob',
                          [fastp_path, minimap2_path, samtools_path],
                          max_array_length,
-                         modules_to_load)
+                         modules_to_load=modules_to_load)
         self.sample_sheet_path = sample_sheet_path
         self._file_check(self.sample_sheet_path)
         metadata = self._process_sample_sheet()
@@ -170,18 +169,27 @@ class QCJob(Job):
         # projects without this requirement. To process legacy run
         # directories, we'll include in the search-path project_names w/out
         # an id.
+
         search_paths = [join(self.root_dir, project_name),
                         join(self.root_dir,
+                             re.sub(r'_\d+', r'', project_name)),
+                        join(self.root_dir, 'Data', 'Fastq', project_name),
+                        join(self.root_dir, 'Data', 'Fastq',
                              re.sub(r'_\d+', r'', project_name))]
+
+        logging.debug("SEARCH PATHS: %s" % search_paths)
+
         lst = []
         for search_path in search_paths:
             if exists(search_path):
                 for root, dirs, files in walk(search_path):
                     for some_file in files:
+                        some_path = join(search_path, some_file)
                         if some_file.endswith('fastq.gz'):
-                            some_path = join(search_path, some_file)
                             lst.append(some_path)
                 break
+            else:
+                logging.debug("PATH DOES NOT EXIST: %s" % search_path)
 
         # caller expects an empty list if no files were found.
         return lst
