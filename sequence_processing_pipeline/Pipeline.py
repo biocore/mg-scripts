@@ -27,6 +27,12 @@ class Pipeline:
                   'dna_extracted', 'physical_specimen_location',
                   'physical_specimen_remaining']
 
+    sif_defaults = [None, None, 193, 'Control', 'Negative',
+                    'Sterile water blank', 'urban biome', 'research facility',
+                    'sterile water', 'misc environment', 'USA:CA:San Diego',
+                    None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
+                    None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
+
     def __init__(self, configuration_file_path, run_id, output_path,
                  qiita_job_id, config_dict=None):
         '''
@@ -242,12 +248,31 @@ class Pipeline:
                 # for now, populate values that can't be derived from the
                 # sample-sheet w/'EMPTY'.
                 for sample in samples_in_proj:
-                    d = {k: '#' for k in Pipeline.sif_header}
-                    # convert 'BLANK14_10F' to 'BLANK14.10F'
-                    d['sample_name'] = sample.replace('_', '.')
-                    d['host_subject_id'] = sample.replace('_', '.')
-                    d['description'] = sample.replace('_', '.')
-                    row = [d[x] for x in Pipeline.sif_header]
+                    row = {}
+                    for column, default_value in zip(Pipeline.sif_header,
+                                                     Pipeline.sif_defaults):
+                        # ensure all defaults are converted to strings.
+                        row[column] = str(default_value)
+
+                    # generate values for the four columns that must be
+                    # determined from sample-sheet information.
+
+                    # convert 'BLANK14_10F' to 'BLANK14.10F', etc.
+                    row['sample_name'] = sample.replace('_', '.')
+                    row['host_subject_id'] = sample.replace('_', '.')
+                    row['description'] = sample.replace('_', '.')
+
+                    # generate collection_timestamp from self.run_id
+                    # assume all run_ids begin with coded datestamp:
+                    # 210518_...
+                    # allow exception if substrings cannot convert to int
+                    # or if array indexes are out of bounds.
+                    year = int(self.run_id[0:2]) + 2000
+                    month = int(self.run_id[2:4])
+                    day = int(self.run_id[4:6])
+                    row['collection_timestamp'] = f'{year}-{month}-{day}'
+
+                    row = [row[x] for x in Pipeline.sif_header]
                     f.write('\t'.join(row) + '\n')
 
         return paths

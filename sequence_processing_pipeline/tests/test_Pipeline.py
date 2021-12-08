@@ -17,7 +17,7 @@ class TestPipeline(unittest.TestCase):
         self.good_config_file = join(package_root, 'configuration.json')
         self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
-        self.good_run_id = 'sample-sequence-directory'
+        self.good_run_id = '211021_A00000_0000_SAMPLE'
         self.invalid_run_id = 'not-sample-sequence-directory'
         self.good_output_file_path = self.path('output_dir')
         makedirs(self.good_output_file_path, exist_ok=True)
@@ -124,7 +124,7 @@ class TestPipeline(unittest.TestCase):
         with open(join('sequence_processing_pipeline', 'configuration.json'),
                   'r') as f:
             cfg = json.load(f)
-            # set a range that sample-sequence-directory's timestamps must
+            # set a range that 211021_A00000_0000_SAMPLE's timestamps must
             # fall within: between 1 and 2 hours.
             cfg['configuration']['pipeline']['younger_than'] = 2
             cfg['configuration']['pipeline']['older_than'] = 1
@@ -136,7 +136,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 1 hour ago + 5 min.
             older_than = current_time - (3600 + (5 * 60))
-            tp = self.path('sample-sequence-directory')
+            tp = self.path('211021_A00000_0000_SAMPLE')
             utime(tp, (older_than, older_than))
 
             pipeline = Pipeline(self.good_config_file, self.good_run_id,
@@ -165,7 +165,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value younger than 1 hour ago.
             older_than = current_time - 3300
-            utime(self.path('sample-sequence-directory'), (older_than,
+            utime(self.path('211021_A00000_0000_SAMPLE'), (older_than,
                                                            older_than))
 
             obs = pipeline.is_within_time_range(tp)
@@ -232,29 +232,58 @@ class TestPipeline(unittest.TestCase):
                      'Gerwick_6123_blanks.tsv': 2}
 
         exp_first_lines = {
-            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK1.1A\t#\t#\t#\t#\t#\t#'
-                                                 '\t#\t#\t#\t#\tBLANK1.1A\t#\t'
-                                                 '#\t#\t#\t#\tBLANK1.1A\t#\t#'
-                                                 '\t#\t#',
-            'Feist_11661_blanks.tsv': 'BLANK.40.12G\t#\t#\t#\t#\t#\t#\t#\t#\t#'
-                                      '\t#\tBLANK.40.12G\t#\t#\t#\t#\t#\tBLANK'
-                                      '.40.12G\t#\t#\t#\t#',
-            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t#\t#\t#\t#\t#\t#\t#\t#\t'
-                                       '#\t#\tBLANK.41.12G\t#\t#\t#\t#\t#\tBLA'
-                                       'NK.41.12G\t#\t#\t#\t#'
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK1.1A\t2021-10-21\t193\t'
+                                                 'Control\tNegative\tSterile w'
+                                                 'ater blank\turban biome\tres'
+                                                 'earch facility\tsterile wate'
+                                                 'r\tmisc environment\tUSA:CA:'
+                                                 'San Diego\tBLANK1.1A\t32.5\t'
+                                                 '-117.25\tcontrol blank\tmeta'
+                                                 'genome\t256318\tBLANK1.1A\ta'
+                                                 'daptation\tTRUE\tUCSD\t'
+                                                 'FALSE',
+            'Feist_11661_blanks.tsv': 'BLANK.40.12G\t2021-10-21\t193\tControl'
+                                      '\tNegative\tSterile water blank\turban '
+                                      'biome\tresearch facility\tsterile water'
+                                      '\tmisc environment\tUSA:CA:San Diego\tB'
+                                      'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
+                                      'nk\tmetagenome\t256318\tBLANK.40.12G\ta'
+                                      'daptation\tTRUE\tUCSD\tFALSE',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tControl'
+                                       '\tNegative\tSterile water blank\turban'
+                                       ' biome\tresearch facility\tsterile wat'
+                                       'er\tmisc environment\tUSA:CA:San Diego'
+                                       '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
+                                       ' blank\tmetagenome\t256318\tBLANK.41.1'
+                                       '2G\tadaptation\tTRUE\tUCSD\tFALSE'
         }
 
         exp_last_lines = {
-            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK4.4H\t#\t#\t#\t#\t#\t#'
-                                                 '\t#\t#\t#\t#\tBLANK4.4H\t#\t'
-                                                 '#\t#\t#\t#\tBLANK4.4H\t#\t#'
-                                                 '\t#\t#',
-            'Feist_11661_blanks.tsv': 'BLANK.43.12H\t#\t#\t#\t#\t#\t#\t#\t#\t#'
-                                      '\t#\tBLANK.43.12H\t#\t#\t#\t#\t#\tBLANK'
-                                      '.43.12H\t#\t#\t#\t#',
-            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t#\t#\t#\t#\t#\t#\t#\t#\t'
-                                       '#\t#\tBLANK.41.12G\t#\t#\t#\t#\t#\tBLA'
-                                       'NK.41.12G\t#\t#\t#\t#'
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK4.4H\t2021-10-21\t193\t'
+                                                 'Control\tNegative\tSterile w'
+                                                 'ater blank\turban biome\tres'
+                                                 'earch facility\tsterile wate'
+                                                 'r\tmisc environment\tUSA:CA:'
+                                                 'San Diego\tBLANK4.4H\t32.5\t'
+                                                 '-117.25\tcontrol blank\tmeta'
+                                                 'genome\t256318\tBLANK4.4H\ta'
+                                                 'daptation\tTRUE\tUCSD\t'
+                                                 'FALSE',
+            'Feist_11661_blanks.tsv': 'BLANK.43.12H\t2021-10-21\t193\tControl'
+                                      '\tNegative\tSterile water blank\turban'
+                                      ' biome\tresearch facility\tsterile wat'
+                                      'er\tmisc environment\tUSA:CA:San Diego'
+                                      '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
+                                      ' blank\tmetagenome\t256318\tBLANK.43.1'
+                                      '2H\tadaptation\tTRUE\tUCSD\tFALSE',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tContro'
+                                       'l\tNegative\tSterile water blank\turb'
+                                       'an biome\tresearch facility\tsterile '
+                                       'water\tmisc environment\tUSA:CA:San D'
+                                       'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
+                                       'ntrol blank\tmetagenome\t256318\tBLAN'
+                                       'K.41.12G\tadaptation\tTRUE\tUCSD\t'
+                                       'FALSE'
         }
 
         for some_path in paths:
