@@ -19,6 +19,20 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class Pipeline:
+    sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
+                  'empo_2', 'empo_3', 'env_biome', 'env_feature',
+                  'env_material', 'env_package', 'geo_loc_name',
+                  'host_subject_id', 'latitude', 'longitude', 'sample_type',
+                  'scientific_name', 'taxon_id', 'description', 'title',
+                  'dna_extracted', 'physical_specimen_location',
+                  'physical_specimen_remaining']
+
+    sif_defaults = [None, None, 193, 'Control', 'Negative',
+                    'Sterile water blank', 'urban biome', 'research facility',
+                    'sterile water', 'misc environment', 'USA:CA:San Diego',
+                    None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
+                    None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
+
     def __init__(self, configuration_file_path, run_id, output_path,
                  qiita_job_id, config_dict=None):
         '''
@@ -201,6 +215,68 @@ class Pipeline:
 
         return msgs, val_sheet
 
+    def generate_sample_information_files(self, sample_sheet_path):
+        '''
+        Using a path to a validated sample-sheet, generate sample-information
+        files in self.output_path.
+        :param sample_sheet_path:
+        :return: A list of paths to sample-information-files.
+        '''
+        sheet = KLSampleSheet(sample_sheet_path)
+        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+
+        if val_sheet is None:
+            raise PipelineError("'%s' is not a valid sample-sheet." %
+                                sample_sheet_path)
+
+        samples = []
+        for sample in val_sheet.samples:
+            if sample['Sample_ID'].startswith('BLANK'):
+                samples.append((sample['Sample_ID'], sample['Sample_Project']))
+
+        projects = list(set([y for x, y in samples]))
+
+        paths = []
+        for project in projects:
+            samples_in_proj = [x for x, y in samples if y == project]
+            some_path = join(self.output_path, f'{project}_blanks.tsv')
+            paths.append(some_path)
+            with open(some_path, 'w') as f:
+                # write out header to disk
+                f.write('\t'.join(Pipeline.sif_header) + '\n')
+
+                # for now, populate values that can't be derived from the
+                # sample-sheet w/'EMPTY'.
+                for sample in samples_in_proj:
+                    row = {}
+                    for column, default_value in zip(Pipeline.sif_header,
+                                                     Pipeline.sif_defaults):
+                        # ensure all defaults are converted to strings.
+                        row[column] = str(default_value)
+
+                    # generate values for the four columns that must be
+                    # determined from sample-sheet information.
+
+                    # convert 'BLANK14_10F' to 'BLANK14.10F', etc.
+                    row['sample_name'] = sample.replace('_', '.')
+                    row['host_subject_id'] = sample.replace('_', '.')
+                    row['description'] = sample.replace('_', '.')
+
+                    # generate collection_timestamp from self.run_id
+                    # assume all run_ids begin with coded datestamp:
+                    # 210518_...
+                    # allow exception if substrings cannot convert to int
+                    # or if array indexes are out of bounds.
+                    year = int(self.run_id[0:2]) + 2000
+                    month = int(self.run_id[2:4])
+                    day = int(self.run_id[4:6])
+                    row['collection_timestamp'] = f'{year}-{month}-{day}'
+
+                    row = [row[x] for x in Pipeline.sif_header]
+                    f.write('\t'.join(row) + '\n')
+
+        return paths
+
 
 if __name__ == '__main__':
     logging.debug("Starting Pipeline")
@@ -212,10 +288,11 @@ if __name__ == '__main__':
     output_path = '/path/to/output_path'
     config_dict = None
 
-    pipeline = Pipeline(config_file_path, run_id, output_path, config_dict,
-                        qiita_job_id)
+    pipeline = Pipeline(config_file_path, run_id, output_path, qiita_job_id,
+                        config_dict)
 
     msgs, val_sheet = pipeline.validate(sample_sheet_path)
+    paths = pipeline.generate_sample_information_files(sample_sheet_path)
 
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)

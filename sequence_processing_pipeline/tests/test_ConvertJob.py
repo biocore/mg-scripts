@@ -13,7 +13,7 @@ class TestConvertJob(unittest.TestCase):
         # input by the user. Later we can re-introduce directories
         # that contain multiple BCL root directories.
         path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
-        run_dir = path('sample-sequence-directory')
+        run_dir = path('211021_A00000_0000_SAMPLE')
         sample_sheet_path = path('good-sample-sheet.csv')
         inv_input_directory = path('inv_input_directory')
         good_output_path = path('output_dir')

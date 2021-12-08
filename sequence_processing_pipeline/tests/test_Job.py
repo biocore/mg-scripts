@@ -21,7 +21,7 @@ class TestJob(unittest.TestCase):
 
         output_dir = self.path('my_output_dir')
 
-        job = Job(self.path('sample-sequence-directory'),
+        job = Job(self.path('211021_A00000_0000_SAMPLE'),
                   output_dir, '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
                   ['ls'], 1000, None)
 
@@ -57,7 +57,7 @@ class TestJob(unittest.TestCase):
         package_root = abspath('./sequence_processing_pipeline')
         self.path = partial(join, package_root, 'tests', 'data')
 
-        job = Job(self.path('sample-sequence-directory'),
+        job = Job(self.path('211021_A00000_0000_SAMPLE'),
                   self.path('my_output_dir'), '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
                   ['ls'], 2, None)
 

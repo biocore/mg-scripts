@@ -3,7 +3,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
 from os import utime, makedirs
-from os.path import join, abspath
+from os.path import basename, join, abspath
 from copy import deepcopy
 from time import time
 from functools import partial
@@ -17,7 +17,7 @@ class TestPipeline(unittest.TestCase):
         self.good_config_file = join(package_root, 'configuration.json')
         self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
-        self.good_run_id = 'sample-sequence-directory'
+        self.good_run_id = '211021_A00000_0000_SAMPLE'
         self.invalid_run_id = 'not-sample-sequence-directory'
         self.good_output_file_path = self.path('output_dir')
         makedirs(self.good_output_file_path, exist_ok=True)
@@ -124,7 +124,7 @@ class TestPipeline(unittest.TestCase):
         with open(join('sequence_processing_pipeline', 'configuration.json'),
                   'r') as f:
             cfg = json.load(f)
-            # set a range that sample-sequence-directory's timestamps must
+            # set a range that 211021_A00000_0000_SAMPLE's timestamps must
             # fall within: between 1 and 2 hours.
             cfg['configuration']['pipeline']['younger_than'] = 2
             cfg['configuration']['pipeline']['older_than'] = 1
@@ -136,7 +136,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value older than 1 hour ago + 5 min.
             older_than = current_time - (3600 + (5 * 60))
-            tp = self.path('sample-sequence-directory')
+            tp = self.path('211021_A00000_0000_SAMPLE')
             utime(tp, (older_than, older_than))
 
             pipeline = Pipeline(self.good_config_file, self.good_run_id,
@@ -165,7 +165,7 @@ class TestPipeline(unittest.TestCase):
             current_time = time()
             # create an epoch time value younger than 1 hour ago.
             older_than = current_time - 3300
-            utime(self.path('sample-sequence-directory'), (older_than,
+            utime(self.path('211021_A00000_0000_SAMPLE'), (older_than,
                                                            older_than))
 
             obs = pipeline.is_within_time_range(tp)
@@ -198,6 +198,110 @@ class TestPipeline(unittest.TestCase):
         self.assertIsNotNone(msgs)
         self.assertEqual(str(msgs[0]), 'ErrorMessage: A sample already exists '
                                        'with lane 1 and sample-id EP479894B04')
+
+    def test_generate_sample_information_files(self):
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        # assume a validated sample-sheet. Also,
+        # generate_sample_information_files calls validate() itself to ensure
+        # proper operation.
+        paths = partial(pipeline.generate_sample_information_files)
+        paths = paths(self.good_sample_sheet_path)
+
+        # confirm files exist in the expected location and with the expected
+        # filenames.
+        obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
+        exp = ['tests/data/output_dir/NYU_BMS_Melanoma_13059_blanks.tsv',
+               'tests/data/output_dir/Feist_11661_blanks.tsv',
+               'tests/data/output_dir/Gerwick_6123_blanks.tsv']
+
+        # sort the lists to ensure both are in a fixed order.
+        obs.sort()
+        exp.sort()
+
+        self.assertEqual(obs, exp)
+
+        # confirm files contain the expected number of lines.
+        # This is going to be based on the number of samples named 'BLANK*'
+        # in good-sample-sheet.csv.
+        exp_lines = {'NYU_BMS_Melanoma_13059_blanks.tsv': 33,
+                     'Feist_11661_blanks.tsv': 8,
+                     'Gerwick_6123_blanks.tsv': 2}
+
+        exp_first_lines = {
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK1.1A\t2021-10-21\t193\t'
+                                                 'Control\tNegative\tSterile w'
+                                                 'ater blank\turban biome\tres'
+                                                 'earch facility\tsterile wate'
+                                                 'r\tmisc environment\tUSA:CA:'
+                                                 'San Diego\tBLANK1.1A\t32.5\t'
+                                                 '-117.25\tcontrol blank\tmeta'
+                                                 'genome\t256318\tBLANK1.1A\ta'
+                                                 'daptation\tTRUE\tUCSD\t'
+                                                 'FALSE',
+            'Feist_11661_blanks.tsv': 'BLANK.40.12G\t2021-10-21\t193\tControl'
+                                      '\tNegative\tSterile water blank\turban '
+                                      'biome\tresearch facility\tsterile water'
+                                      '\tmisc environment\tUSA:CA:San Diego\tB'
+                                      'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
+                                      'nk\tmetagenome\t256318\tBLANK.40.12G\ta'
+                                      'daptation\tTRUE\tUCSD\tFALSE',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tControl'
+                                       '\tNegative\tSterile water blank\turban'
+                                       ' biome\tresearch facility\tsterile wat'
+                                       'er\tmisc environment\tUSA:CA:San Diego'
+                                       '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
+                                       ' blank\tmetagenome\t256318\tBLANK.41.1'
+                                       '2G\tadaptation\tTRUE\tUCSD\tFALSE'
+        }
+
+        exp_last_lines = {
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK4.4H\t2021-10-21\t193\t'
+                                                 'Control\tNegative\tSterile w'
+                                                 'ater blank\turban biome\tres'
+                                                 'earch facility\tsterile wate'
+                                                 'r\tmisc environment\tUSA:CA:'
+                                                 'San Diego\tBLANK4.4H\t32.5\t'
+                                                 '-117.25\tcontrol blank\tmeta'
+                                                 'genome\t256318\tBLANK4.4H\ta'
+                                                 'daptation\tTRUE\tUCSD\t'
+                                                 'FALSE',
+            'Feist_11661_blanks.tsv': 'BLANK.43.12H\t2021-10-21\t193\tControl'
+                                      '\tNegative\tSterile water blank\turban'
+                                      ' biome\tresearch facility\tsterile wat'
+                                      'er\tmisc environment\tUSA:CA:San Diego'
+                                      '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
+                                      ' blank\tmetagenome\t256318\tBLANK.43.1'
+                                      '2H\tadaptation\tTRUE\tUCSD\tFALSE',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tContro'
+                                       'l\tNegative\tSterile water blank\turb'
+                                       'an biome\tresearch facility\tsterile '
+                                       'water\tmisc environment\tUSA:CA:San D'
+                                       'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
+                                       'ntrol blank\tmetagenome\t256318\tBLAN'
+                                       'K.41.12G\tadaptation\tTRUE\tUCSD\t'
+                                       'FALSE'
+        }
+
+        for some_path in paths:
+            some_name = basename(some_path)
+            with open(some_path, 'r') as f:
+                obs_lines = f.readlines()
+                self.assertEqual(len(obs_lines), exp_lines[some_name])
+                # confirm that each file contains the expected header.
+                header = obs_lines[0].strip()
+                self.assertEqual(header, '\t'.join(Pipeline.sif_header))
+                # confirm that the first line of each file is as expected.
+                obs = obs_lines[1].strip()
+                exp = exp_first_lines[some_name]
+                self.assertEqual(obs, exp)
+                # confirm that the last line of each file is as expected.
+                obs = obs_lines[-1].strip()
+                exp = exp_last_lines[some_name]
+                self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':

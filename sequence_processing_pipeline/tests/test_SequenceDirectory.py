@@ -17,7 +17,7 @@ class TestSequenceDirectory(unittest.TestCase):
                           join(base_path, 'good-sample-sheet.csv'))
         # raise PipelineError if sample file does not exist.
         self.assertRaises(PipelineError, SequenceDirectory,
-                          join(base_path, 'sample-sequence-directory'),
+                          join(base_path, '211021_A00000_0000_SAMPLE'),
                           join(base_path, 'file_does_not_exist.txt'))
         # raise PipelineError if both don't exist.
         self.assertRaises(PipelineError, SequenceDirectory,
@@ -25,14 +25,14 @@ class TestSequenceDirectory(unittest.TestCase):
                           join(base_path, 'file_does_not_exist.txt'))
 
         # verify 'Data/Fastq' subdirectory is created.
-        sdo = SequenceDirectory(join(base_path, 'sample-sequence-directory'),
+        sdo = SequenceDirectory(join(base_path, '211021_A00000_0000_SAMPLE'),
                                 join(base_path, 'good-sample-sheet.csv'))
 
         # assert should not raise for directory 'Data/Fastq' already existing
         # when creating a new object.
         success = True
         try:
-            SequenceDirectory(join(base_path, 'sample-sequence-directory'),
+            SequenceDirectory(join(base_path, '211021_A00000_0000_SAMPLE'),
                               join(base_path, 'good-sample-sheet.csv'))
         except PipelineError:
             success = False
@@ -45,13 +45,13 @@ class TestSequenceDirectory(unittest.TestCase):
         self.assertEqual(sdo.chemistry, 'Default')
         self.assertEqual(sdo.experiment_name, 'RKL0042')
         self.assertEqual(sdo.sequence_directory,
-                         join(base_path, 'sample-sequence-directory'))
+                         join(base_path, '211021_A00000_0000_SAMPLE'))
         self.assertEqual(sdo.sample_sheet_path,
                          join(base_path, 'good-sample-sheet.csv'))
 
         # assert that SequenceDirectory object correctly raises an error when
         # initialized with an invalid sample sheet.
-        a = join(base_path, 'sample-sequence-directory')
+        a = join(base_path, '211021_A00000_0000_SAMPLE')
         b = join(base_path, 'no-project-name-sample-sheet.csv')
 
         self.assertRaises(PipelineError, SequenceDirectory, a, b)
