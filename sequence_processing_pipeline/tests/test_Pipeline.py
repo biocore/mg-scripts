@@ -223,5 +223,6 @@ class TestPipeline(unittest.TestCase):
                     results = re.search('^BLANK.*?\tBLANK.*?\tBLANK.*?$', line)
                     self.assertTrue(results is not None)
 
+
 if __name__ == '__main__':
     unittest.main()

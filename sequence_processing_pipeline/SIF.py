@@ -10,4 +10,3 @@ class SampleInformationFile:
                    'physical_specimen_remaining']
 
     short_header = ['sample_name', 'host_subject_id', 'description']
-
