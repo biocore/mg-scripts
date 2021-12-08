@@ -3,7 +3,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
 from os import utime, makedirs
-from os.path import join, abspath
+from os.path import basename, join, abspath
 from copy import deepcopy
 from time import time
 from functools import partial
@@ -211,18 +211,68 @@ class TestPipeline(unittest.TestCase):
         paths = partial(pipeline.generate_sample_information_files)
         paths = paths(self.good_sample_sheet_path)
 
-        # for each file generated, first check that it has the proper header.
-        # then check that all subsequent lines in the file follow the pattern
-        # of entries we expect.
-        for path in paths:
-            with open(path, 'r') as f:
-                lines = f.readlines()
-                lines = [x.strip() for x in lines]
-                self.assertEqual(lines.pop(0),
-                                 'sample_name	host_subject_id	description')
-                for line in lines:
-                    results = re.search('^BLANK.*?\tBLANK.*?\tBLANK.*?$', line)
-                    self.assertTrue(results is not None)
+        # confirm files exist in the expected location and with the expected
+        # filenames.
+        obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
+        exp = ['tests/data/output_dir/NYU_BMS_Melanoma_13059_blanks.tsv',
+               'tests/data/output_dir/Feist_11661_blanks.tsv',
+               'tests/data/output_dir/Gerwick_6123_blanks.tsv']
+
+        # sort the lists to ensure both are in a fixed order.
+        obs.sort()
+        exp.sort()
+
+        self.assertEqual(obs, exp)
+
+        # confirm files contain the expected number of lines.
+        # This is going to be based on the number of samples named 'BLANK*'
+        # in good-sample-sheet.csv.
+        exp_lines = {'NYU_BMS_Melanoma_13059_blanks.tsv': 33,
+                     'Feist_11661_blanks.tsv': 8,
+                     'Gerwick_6123_blanks.tsv': 2}
+
+        exp_first_lines = {
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK1.1A\t#\t#\t#\t#\t#\t#'
+                                                 '\t#\t#\t#\t#\tBLANK1.1A\t#\t'
+                                                 '#\t#\t#\t#\tBLANK1.1A\t#\t#'
+                                                 '\t#\t#',
+            'Feist_11661_blanks.tsv': 'BLANK.40.12G\t#\t#\t#\t#\t#\t#\t#\t#\t#'
+                                      '\t#\tBLANK.40.12G\t#\t#\t#\t#\t#\tBLANK'
+                                      '.40.12G\t#\t#\t#\t#',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t#\t#\t#\t#\t#\t#\t#\t#\t'
+                                       '#\t#\tBLANK.41.12G\t#\t#\t#\t#\t#\tBLA'
+                                       'NK.41.12G\t#\t#\t#\t#'
+        }
+
+        exp_last_lines = {
+            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK4.4H\t#\t#\t#\t#\t#\t#'
+                                                 '\t#\t#\t#\t#\tBLANK4.4H\t#\t'
+                                                 '#\t#\t#\t#\tBLANK4.4H\t#\t#'
+                                                 '\t#\t#',
+            'Feist_11661_blanks.tsv': 'BLANK.43.12H\t#\t#\t#\t#\t#\t#\t#\t#\t#'
+                                      '\t#\tBLANK.43.12H\t#\t#\t#\t#\t#\tBLANK'
+                                      '.43.12H\t#\t#\t#\t#',
+            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t#\t#\t#\t#\t#\t#\t#\t#\t'
+                                       '#\t#\tBLANK.41.12G\t#\t#\t#\t#\t#\tBLA'
+                                       'NK.41.12G\t#\t#\t#\t#'
+        }
+
+        for some_path in paths:
+            some_name = basename(some_path)
+            with open(some_path, 'r') as f:
+                obs_lines = f.readlines()
+                self.assertEqual(len(obs_lines), exp_lines[some_name])
+                # confirm that each file contains the expected header.
+                header = obs_lines[0].strip()
+                self.assertEqual(header, '\t'.join(Pipeline.sif_header))
+                # confirm that the first line of each file is as expected.
+                obs = obs_lines[1].strip()
+                exp = exp_first_lines[some_name]
+                self.assertEqual(obs, exp)
+                # confirm that the last line of each file is as expected.
+                obs = obs_lines[-1].strip()
+                exp = exp_last_lines[some_name]
+                self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':

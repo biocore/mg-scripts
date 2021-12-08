@@ -11,7 +11,6 @@ from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
-from sequence_processing_pipeline.SIF import SampleInformationFile
 from time import time as epoch_time
 import logging
 
@@ -20,6 +19,14 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class Pipeline:
+    sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
+                  'empo_2', 'empo_3', 'env_biome', 'env_feature',
+                  'env_material', 'env_package', 'geo_loc_name',
+                  'host_subject_id', 'latitude', 'longitude', 'sample_type',
+                  'scientific_name', 'taxon_id', 'description', 'title',
+                  'dna_extracted', 'physical_specimen_location',
+                  'physical_specimen_remaining']
+
     def __init__(self, configuration_file_path, run_id, output_path,
                  qiita_job_id, config_dict=None):
         '''
@@ -229,15 +236,19 @@ class Pipeline:
             some_path = join(self.output_path, f'{project}_blanks.tsv')
             paths.append(some_path)
             with open(some_path, 'w') as f:
-                # for now, we'll only include columns we can derive from
-                # the sample-sheet:
-                # ['sample_name', 'host_subject_id', 'description']
-                f.write('\t'.join(SampleInformationFile.short_header) + '\n')
+                # write out header to disk
+                f.write('\t'.join(Pipeline.sif_header) + '\n')
 
+                # for now, populate values that can't be derived from the
+                # sample-sheet w/'EMPTY'.
                 for sample in samples_in_proj:
+                    d = {k: '#' for k in Pipeline.sif_header}
                     # convert 'BLANK14_10F' to 'BLANK14.10F'
-                    sample = sample.replace('_', '.')
-                    f.write(f'{sample}\t{sample}\t{sample}\n')
+                    d['sample_name'] = sample.replace('_', '.')
+                    d['host_subject_id'] = sample.replace('_', '.')
+                    d['description'] = sample.replace('_', '.')
+                    row = [d[x] for x in Pipeline.sif_header]
+                    f.write('\t'.join(row) + '\n')
 
         return paths
 
