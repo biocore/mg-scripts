@@ -208,7 +208,8 @@ class TestPipeline(unittest.TestCase):
         # assume a validated sample-sheet. Also,
         # generate_sample_information_files calls validate() itself to ensure
         # proper operation.
-        paths = pipeline.generate_sifs(self.good_sample_sheet_path)
+        paths = partial(pipeline.generate_sample_information_files)
+        paths = paths(self.good_sample_sheet_path)
 
         # for each file generated, first check that it has the proper header.
         # then check that all subsequent lines in the file follow the pattern

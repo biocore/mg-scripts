@@ -202,7 +202,7 @@ class Pipeline:
 
         return msgs, val_sheet
 
-    def generate_sifs(self, sample_sheet_path):
+    def generate_sample_information_files(self, sample_sheet_path):
         '''
         Using a path to a validated sample-sheet, generate sample-information
         files in self.output_path.
@@ -256,7 +256,7 @@ if __name__ == '__main__':
                         config_dict)
 
     msgs, val_sheet = pipeline.validate(sample_sheet_path)
-    paths = pipeline.generate_sifs(sample_sheet_path)
+    paths = pipeline.generate_sample_information_files(sample_sheet_path)
 
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)
