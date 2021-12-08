@@ -11,6 +11,7 @@ from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
+from sequence_processing_pipeline.SIF import SampleInformationFile
 from time import time as epoch_time
 import logging
 
@@ -201,6 +202,45 @@ class Pipeline:
 
         return msgs, val_sheet
 
+    def generate_sifs(self, sample_sheet_path):
+        '''
+        Using a path to a validated sample-sheet, generate sample-information
+        files in self.output_path.
+        :param sample_sheet_path:
+        :return: A list of paths to sample-information-files.
+        '''
+        sheet = KLSampleSheet(sample_sheet_path)
+        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+
+        if val_sheet is None:
+            raise PipelineError("'%s' is not a valid sample-sheet." %
+                                sample_sheet_path)
+
+        samples = []
+        for sample in val_sheet.samples:
+            if sample['Sample_ID'].startswith('BLANK'):
+                samples.append((sample['Sample_ID'], sample['Sample_Project']))
+
+        projects = list(set([y for x, y in samples]))
+
+        paths = []
+        for project in projects:
+            samples_in_proj = [x for x, y in samples if y == project]
+            some_path = join(self.output_path, f'{project}_blanks.tsv')
+            paths.append(some_path)
+            with open(some_path, 'w') as f:
+                # for now, we'll only include columns we can derive from
+                # the sample-sheet:
+                # ['sample_name', 'host_subject_id', 'description']
+                f.write('\t'.join(SampleInformationFile.short_header) + '\n')
+
+                for sample in samples_in_proj:
+                    # convert 'BLANK14_10F' to 'BLANK14.10F'
+                    sample = sample.replace('_', '.')
+                    f.write(f'{sample}\t{sample}\t{sample}\n')
+
+        return paths
+
 
 if __name__ == '__main__':
     logging.debug("Starting Pipeline")
@@ -212,10 +252,11 @@ if __name__ == '__main__':
     output_path = '/path/to/output_path'
     config_dict = None
 
-    pipeline = Pipeline(config_file_path, run_id, output_path, config_dict,
-                        qiita_job_id)
+    pipeline = Pipeline(config_file_path, run_id, output_path, qiita_job_id,
+                        config_dict)
 
     msgs, val_sheet = pipeline.validate(sample_sheet_path)
+    paths = pipeline.generate_sifs(sample_sheet_path)
 
     sdo = SequenceDirectory(pipeline.run_dir,
                             sample_sheet_path=sample_sheet_path)

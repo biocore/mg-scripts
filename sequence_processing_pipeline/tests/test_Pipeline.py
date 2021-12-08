@@ -199,6 +199,29 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(str(msgs[0]), 'ErrorMessage: A sample already exists '
                                        'with lane 1 and sample-id EP479894B04')
 
+    def test_generate_sample_information_files(self):
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        # assume a validated sample-sheet. Also,
+        # generate_sample_information_files calls validate() itself to ensure
+        # proper operation.
+        paths = pipeline.generate_sifs(self.good_sample_sheet_path)
+
+        # for each file generated, first check that it has the proper header.
+        # then check that all subsequent lines in the file follow the pattern
+        # of entries we expect.
+        for path in paths:
+            with open(path, 'r') as f:
+                lines = f.readlines()
+                lines = [x.strip() for x in lines]
+                self.assertEqual(lines.pop(0),
+                                 'sample_name	host_subject_id	description')
+                for line in lines:
+                    results = re.search('^BLANK.*?\tBLANK.*?\tBLANK.*?$', line)
+                    self.assertTrue(results is not None)
 
 if __name__ == '__main__':
     unittest.main()
