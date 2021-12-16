@@ -186,6 +186,8 @@ class Pipeline:
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
 
+        passes_additional_tests = True
+
         if val_sheet is not None:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
@@ -207,13 +209,17 @@ class Pipeline:
             for item in val_sheet.samples:
                 unique_index = f'{item.lane}_{item.sample_id}'
                 if unique_index in unique_indexes:
+                    passes_additional_tests = False
                     msgs.append(ErrorMessage("A sample already exists with la"
                                              f"ne {item.lane} and sample-id "
                                              f"{item.sample_id}"))
                 else:
                     unique_indexes.append(unique_index)
 
-        return msgs, val_sheet
+        if passes_additional_tests:
+            return msgs, val_sheet
+        else:
+            return msgs, None
 
     def generate_sample_information_files(self, sample_sheet_path):
         '''
