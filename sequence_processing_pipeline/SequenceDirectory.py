@@ -1,7 +1,6 @@
-import os
 from sequence_processing_pipeline.PipelineError import PipelineError
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os.path import join, exists
+from os.path import exists
 
 
 class SequenceDirectory:
@@ -24,17 +23,6 @@ class SequenceDirectory:
                                     "does not exist")
         else:
             raise PipelineError("An sample sheet must be supplied")
-
-        self.fastq_results_directory = join(self.sequence_directory, 'Data',
-                                            'Fastq')
-
-        try:
-            os.makedirs(self.fastq_results_directory, exist_ok=True)
-        except OSError as e:
-            # this is a known potential error. Re-raise it as a
-            # PipelineError, so it gets handled in the same location as the
-            # others.
-            raise PipelineError(str(e))
 
         sheet = KLSampleSheet(sample_sheet_path)
         valid_sheet = validate_and_scrub_sample_sheet(sheet)
