@@ -239,23 +239,23 @@ class TestPipeline(unittest.TestCase):
                                                  'r\tmisc environment\tUSA:CA:'
                                                  'San Diego\tBLANK1.1A\t32.5\t'
                                                  '-117.25\tcontrol blank\tmeta'
-                                                 'genome\t256318\tBLANK1.1A\ta'
-                                                 'daptation\tTRUE\tUCSD\t'
-                                                 'FALSE',
+                                                 'genome\t256318\tBLANK1.1A\tN'
+                                                 'YU_BMS_Melanoma\tTRUE\t'
+                                                 'UCSD\tFALSE',
             'Feist_11661_blanks.tsv': 'BLANK.40.12G\t2021-10-21\t193\tControl'
                                       '\tNegative\tSterile water blank\turban '
                                       'biome\tresearch facility\tsterile water'
                                       '\tmisc environment\tUSA:CA:San Diego\tB'
                                       'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
-                                      'nk\tmetagenome\t256318\tBLANK.40.12G\ta'
-                                      'daptation\tTRUE\tUCSD\tFALSE',
+                                      'nk\tmetagenome\t256318\tBLANK.40.12G\t'
+                                      'Feist\tTRUE\tUCSD\tFALSE',
             'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tControl'
                                        '\tNegative\tSterile water blank\turban'
                                        ' biome\tresearch facility\tsterile wat'
                                        'er\tmisc environment\tUSA:CA:San Diego'
                                        '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
                                        ' blank\tmetagenome\t256318\tBLANK.41.1'
-                                       '2G\tadaptation\tTRUE\tUCSD\tFALSE'
+                                       '2G\tGerwick\tTRUE\tUCSD\tFALSE'
         }
 
         exp_last_lines = {
@@ -266,23 +266,23 @@ class TestPipeline(unittest.TestCase):
                                                  'r\tmisc environment\tUSA:CA:'
                                                  'San Diego\tBLANK4.4H\t32.5\t'
                                                  '-117.25\tcontrol blank\tmeta'
-                                                 'genome\t256318\tBLANK4.4H\ta'
-                                                 'daptation\tTRUE\tUCSD\t'
-                                                 'FALSE',
+                                                 'genome\t256318\tBLANK4.4H\tN'
+                                                 'YU_BMS_Melanoma\tTRUE\t'
+                                                 'UCSD\tFALSE',
             'Feist_11661_blanks.tsv': 'BLANK.43.12H\t2021-10-21\t193\tControl'
                                       '\tNegative\tSterile water blank\turban'
                                       ' biome\tresearch facility\tsterile wat'
                                       'er\tmisc environment\tUSA:CA:San Diego'
                                       '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
                                       ' blank\tmetagenome\t256318\tBLANK.43.1'
-                                      '2H\tadaptation\tTRUE\tUCSD\tFALSE',
+                                      '2H\tFeist\tTRUE\tUCSD\tFALSE',
             'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tContro'
                                        'l\tNegative\tSterile water blank\turb'
                                        'an biome\tresearch facility\tsterile '
                                        'water\tmisc environment\tUSA:CA:San D'
                                        'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
                                        'ntrol blank\tmetagenome\t256318\tBLAN'
-                                       'K.41.12G\tadaptation\tTRUE\tUCSD\t'
+                                       'K.41.12G\tGerwick\tTRUE\tUCSD\t'
                                        'FALSE'
         }
 

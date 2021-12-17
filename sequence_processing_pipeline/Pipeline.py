@@ -13,6 +13,7 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from time import time as epoch_time
 import logging
+import re
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -259,6 +260,10 @@ class Pipeline:
                                                      Pipeline.sif_defaults):
                         # ensure all defaults are converted to strings.
                         row[column] = str(default_value)
+
+                    # overwrite default title w/sample_project name, minus
+                    # Qiita ID.
+                    row['title'] = re.sub(r'_\d+$', r'', project)
 
                     # generate values for the four columns that must be
                     # determined from sample-sheet information.
