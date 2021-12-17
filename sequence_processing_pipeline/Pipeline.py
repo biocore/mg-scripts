@@ -263,7 +263,7 @@ class Pipeline:
 
                     # overwrite default title w/sample_project name, minus
                     # Qiita ID.
-                    row['title'] = re.sub(r'_\d+$', r'', project) 
+                    row['title'] = re.sub(r'_\d+$', r'', project)
 
                     # generate values for the four columns that must be
                     # determined from sample-sheet information.
