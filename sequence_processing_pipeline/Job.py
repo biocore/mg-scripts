@@ -10,6 +10,9 @@ from inspect import stack
 
 
 class Job:
+    job_state_map = {'Q': 'queued', 'R': 'running', 'E': 'Error',
+                     'C': 'completed'}
+
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
         '''
@@ -136,31 +139,25 @@ class Job:
                 raise PipelineError(
                     "directory_path '%s' does not exist." % directory_path)
 
-    def _system_call(self, cmd, allow_return_codes=[]):
-        """Call command and return (stdout, stderr, return_value)
-
-        Parameters
-        ----------
-        cmd : str or iterator of str
-            The string containing the command to be run, or a sequence of
-            strings that are the tokens of the command.
-
-        Returns
-        -------
-        str, str, int
-            - The standard output of the command
-            - The standard error of the command
-            - The exit status of the command
-
-        Notes
-        -----
-        This function is ported from QIIME (http://www.qiime.org), previously
-        named qiime_system_call. QIIME is a GPL project, but we obtained
-        permission from the authors of this function to port it to Qiita and
-        keep it under BSD license.
+    def _system_call(self, cmd, allow_return_codes=[], callback=None):
+        """
+        Call command and return (stdout, stderr, return_value)
+        :param cmd: The string containing the command to be run, or a sequence
+                    of strings that are the tokens of the command.
+        :param allow_return_codes: optional user-defined list of successful
+                    return codes in addition to 0.
+        :param callback: optional function taking two parameters (id, status)
+                         that is called when a running process's status is
+                         changed.
+        :return: a dictionary containing stdout, stderr, and return_code as
+                 key/value pairs.
         """
         proc = Popen(cmd, universal_newlines=True, shell=True,
                      stdout=PIPE, stderr=PIPE)
+
+        if callback:
+            callback(id=proc.pid, status=Job.job_state_map['R'])
+
         # Communicate pulls all stdout/stderr from the PIPEs
         # This call blocks until the command is done
         stdout, stderr = proc.communicate()
@@ -173,6 +170,8 @@ class Job:
         acceptable_return_codes = [0] + allow_return_codes
 
         if return_code not in acceptable_return_codes:
+            if callback:
+                callback(id=proc.pid, status=Job.job_state_map['E'])
             msg = (
                 'Execute command-line statement failure:\n'
                 f'Command: {cmd}\n'
@@ -182,16 +181,21 @@ class Job:
             logging.error(msg)
             raise PipelineError(message=msg)
 
+        if callback:
+            callback(id=proc.pid, status=Job.job_state_map['C'])
+
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def qsub(self, script_path, qsub_parameters=None,
-             script_parameters=None, wait=True, exec_from=None):
+    def qsub(self, script_path, qsub_parameters=None, script_parameters=None,
+             wait=True, exec_from=None, callback=None):
         '''
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
         :param qsub_parameters: Optional parameters for qsub.
         :param script_parameters: Optional parameters for your job script.
         :param wait: Set to False to submit job and not wait.
+        :param exec_from: Set working directory to execute command from.
+        :param callback: Set callback function that receives status updates.
         :return: Dictionary containing the job's id, name, status, and
         elapsed time. Raises PipelineError if job could not be submitted or
         if job was unsuccessful.
@@ -217,6 +221,13 @@ class Job:
         # extract the first line only. This will be the fully-qualified Torque
         # job id.
         job_id = stdout.split('\n')[0]
+
+        if callback:
+            # if a callback function has been supplied to periodically update
+            # the status of the job with, then perform the first callback,
+            # returning the job_id to the user, and assume the job is still
+            # 'queued'.
+            callback(id=job_id, status=Job.job_state_map['Q'])
 
         # job_info acts as a sentinel value, as well as a return value.
         # if job_id is not None, then that means the job has appeared in qstat
@@ -260,6 +271,14 @@ class Job:
                     tmp = some_job.getElementsByTagName("job_state")[0]
                     job_info['job_state'] = tmp.firstChild.nodeValue
 
+                    if callback:
+                        # use the callback to update the user on the current
+                        # status of the running job. Use the qsub_state_map
+                        # to map one letter state codes to human-readable text
+                        # strings.
+                        state = job_info['job_state']
+                        callback(id=job_id, status=Job.job_state_map[state])
+
                     tmp = some_job.getElementsByTagName("etime")[0]
                     job_info['elapsed_time'] = tmp.firstChild.nodeValue
 
@@ -287,6 +306,10 @@ class Job:
 
         if job_info['job_id']:
             # job was once in the queue
+            if callback:
+                state = job_info['job_state']
+                callback(id=job_id, status=Job.job_state_map[state])
+
             if job_info['job_state'] == 'C':
                 if 'exit_status' in job_info:
                     if job_info['exit_status'] == 0:
@@ -305,6 +328,9 @@ class Job:
                                     f"{job_info['job_state']}")
         else:
             # job was never in the queue - return an error.
+            if callback:
+                callback(id=job_id, status=Job.job_state_map['E'])
+
             raise PipelineError("job %s never appeared in the queue." % job_id)
 
     def _group_commands(self, cmds):

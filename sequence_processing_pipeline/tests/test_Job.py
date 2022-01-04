@@ -38,11 +38,20 @@ class TestJob(unittest.TestCase):
                       r'sequence_processing_pipeline', x) for x in obs]
         self.assertIn('sequence_processing_pipeline/QCJob.py', obs)
 
-        obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'))
+        callback_results = []
+
+        def my_callback(id=None, status=None):
+            callback_results.append((id, status))
+
+        obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'), callback=my_callback)
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
                'stderr': '',
                'return_code': 0}
         self.assertDictEqual(obs, exp)
+
+        for item in callback_results:
+            self.assertTrue(isinstance(item[0], int))
+            self.assertIn(item[1], ['running', 'completed'])
 
         with self.assertRaises(PipelineError) as e:
             job._system_call('error')
