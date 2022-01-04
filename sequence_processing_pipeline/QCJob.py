@@ -107,12 +107,12 @@ class QCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
-    def run(self):
+    def run(self, callback=None):
         for project in self.project_data:
             project_name = project['Sample_Project']
             needs_human_filtering = project['HumanFiltering']
             pbs_job_id = self.qsub(self.script_paths[project_name], None, None,
-                                   exec_from=self.log_path)
+                                   exec_from=self.log_path, callback=callback)
             logging.debug(f'QCJob {pbs_job_id} completed')
             source_dir = join(self.output_path, project_name)
             if needs_human_filtering is True:

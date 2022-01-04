@@ -154,9 +154,9 @@ class FastQCJob(Job):
 
         return fastqc_results, project_names
 
-    def run(self):
+    def run(self, callback=None):
         job_info = self.qsub(self.job_script_path, None, None,
-                             exec_from=self.log_path)
+                             exec_from=self.log_path, callback=callback)
         logging.debug(job_info)
 
         for project in self.project_names:
@@ -189,7 +189,8 @@ class FastQCJob(Job):
                         '--interactive']
 
             results = self._system_call(' '.join(cmd_head + input_path_list
-                                                 + cmd_tail))
+                                                 + cmd_tail),
+                                                 callback=callback)
 
             if results['return_code'] != 0:
                 raise PipelineError("multiqc encountered an error")

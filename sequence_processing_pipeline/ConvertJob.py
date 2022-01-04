@@ -142,12 +142,15 @@ class ConvertJob(Job):
                 line = re.sub(r'\s+', ' ', line)
                 f.write(f"{line}\n")
 
-    def run(self):
+    def run(self, callback=None):
         '''
         Run BCL2Fastq/BCLConvert conversion
-        :return: None
+        :param callback: optional function taking two parameters (id, status)
+                         that is called when a running process's status is
+                         changed.
+        :return:
         '''
         job_info = self.qsub(self.job_script_path, None, None,
-                             exec_from=self.log_path)
+                             exec_from=self.log_path, callback=callback)
 
         logging.info(f'Successful job: {job_info}')
