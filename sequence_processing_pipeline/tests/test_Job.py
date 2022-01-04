@@ -43,7 +43,8 @@ class TestJob(unittest.TestCase):
         def my_callback(id=None, status=None):
             callback_results.append((id, status))
 
-        obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'), callback=my_callback)
+        obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'),
+                               callback=my_callback)
         exp = {'stdout': 'bcl-convert\nbcl2fastq\nfastqc\n',
                'stderr': '',
                'return_code': 0}
