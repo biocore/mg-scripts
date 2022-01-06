@@ -155,7 +155,7 @@ class Job:
         proc = Popen(cmd, universal_newlines=True, shell=True,
                      stdout=PIPE, stderr=PIPE)
 
-        if callback:
+        if callback is not None:
             callback(id=proc.pid, status=Job.job_state_map['R'])
 
         # Communicate pulls all stdout/stderr from the PIPEs
@@ -170,7 +170,7 @@ class Job:
         acceptable_return_codes = [0] + allow_return_codes
 
         if return_code not in acceptable_return_codes:
-            if callback:
+            if callback is not None:
                 callback(id=proc.pid, status=Job.job_state_map['E'])
             msg = (
                 'Execute command-line statement failure:\n'
@@ -181,7 +181,7 @@ class Job:
             logging.error(msg)
             raise PipelineError(message=msg)
 
-        if callback:
+        if callback is not None:
             callback(id=proc.pid, status=Job.job_state_map['C'])
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
@@ -222,7 +222,7 @@ class Job:
         # job id.
         job_id = stdout.split('\n')[0]
 
-        if callback:
+        if callback is not None:
             # if a callback function has been supplied to periodically update
             # the status of the job with, then perform the first callback,
             # returning the job_id to the user, and assume the job is still
@@ -271,7 +271,7 @@ class Job:
                     tmp = some_job.getElementsByTagName("job_state")[0]
                     job_info['job_state'] = tmp.firstChild.nodeValue
 
-                    if callback:
+                    if callback is not None:
                         # use the callback to update the user on the current
                         # status of the running job. Use the qsub_state_map
                         # to map one letter state codes to human-readable text
@@ -306,7 +306,7 @@ class Job:
 
         if job_info['job_id']:
             # job was once in the queue
-            if callback:
+            if callback is not None:
                 state = job_info['job_state']
                 callback(id=job_id, status=Job.job_state_map[state])
 
@@ -328,7 +328,7 @@ class Job:
                                     f"{job_info['job_state']}")
         else:
             # job was never in the queue - return an error.
-            if callback:
+            if callback is not None:
                 callback(id=job_id, status=Job.job_state_map['E'])
 
             raise PipelineError("job %s never appeared in the queue." % job_id)
