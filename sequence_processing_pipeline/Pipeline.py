@@ -88,7 +88,6 @@ class Pipeline:
         self.younger_than = config['younger_than']
         self.older_than = config['older_than']
         self.run_id = run_id
-        self.sentinel_file = "RTAComplete.txt"
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
 
@@ -99,6 +98,15 @@ class Pipeline:
         if self.older_than >= self.younger_than:
             raise PipelineError(
                 'older_than cannot be equal to or less than younger_than.')
+
+        # required files for successful operation
+        # both RTAComplete.txt and RunInfo.xml should reside in the root of
+        # the run directory.
+        required_files = ['RTAComplete.txt', 'RunInfo.xml']
+        for some_file in required_files:
+            if not exists(join(self.run_dir, some_file)):
+                raise PipelineError("required file '%s' is not present." %
+                                    some_file)
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
