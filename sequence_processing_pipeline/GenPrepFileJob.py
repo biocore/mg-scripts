@@ -64,13 +64,13 @@ class GenPrepFileJob(Job):
                         self.sample_sheet_path,
                         join(self.output_path, 'PrepFiles')]
 
-    def run(self):
+    def run(self, callback=None):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
         # and QCJob currently moves its products to the final location. It
         # would be cleaner if it did not do this, but currently that is how
         # it's done. Hence, self.output_directory and the path to run_dir
         # might be different locations than the others.
-        results = self._system_call(' '.join(self.command))
+        results = self._system_call(' '.join(self.command), callback=callback)
 
         if results['return_code'] != 0:
             raise PipelineError("Seqpro encountered an error")
