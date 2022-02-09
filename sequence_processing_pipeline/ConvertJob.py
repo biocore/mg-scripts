@@ -61,12 +61,6 @@ class ConvertJob(Job):
             raise PipelineError(
                 f"Sample sheet {self.sample_sheet_path} is not valid.")
 
-        # required files for successful operation
-        required_files = ['RTAComplete.txt', 'RunInfo.xml']
-        for some_file in required_files:
-            s = join(self.root_dir, some_file)
-            self._file_check(s)
-
         self._generate_job_script()
 
     def _generate_job_script(self):
