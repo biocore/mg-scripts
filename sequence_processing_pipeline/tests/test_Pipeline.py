@@ -9,7 +9,6 @@ from os.path import basename, join, abspath
 from copy import deepcopy
 from time import time
 from functools import partial
-import re
 
 
 class TestPipeline(unittest.TestCase):
@@ -67,7 +66,8 @@ class TestPipeline(unittest.TestCase):
         # begin this test by deleting the RunInfo.txt file and verifying that
         # Pipeline object will raise an Error.
         self.delete_runinfo_file()
-        with self.assertRaises(PipelineError):
+        with self.assertRaisesRegex(PipelineError, "required file 'RunInfo.xml"
+                                                   "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_output_file_path, 'my_qiita_id', None)
 
@@ -75,58 +75,52 @@ class TestPipeline(unittest.TestCase):
         # an Error is raised when only RTAComplete.txt is missing.
         self.delete_rtacomplete_file()
         self.create_runinfo_file()
-        with self.assertRaises(PipelineError):
+        with self.assertRaisesRegex(PipelineError, "required file 'RTAComplete"
+                                                   ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_output_file_path, 'my_qiita_id', None)
 
     def test_creation(self):
         # Pipeline should assert due to config_file
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(PipelineError, "'search_paths' is not a ke"
+                                                   "y in /Users/ccowart/Develo"
+                                                   "pment/mg-scripts/sequence_"
+                                                   "processing_pipeline/tests/"
+                                                   "data/bad_configuration.jso"
+                                                   "n"):
             Pipeline(self.bad_config_file,
                      self.good_run_id,
                      self.good_output_file_path,
                      'my_qiita_id',
                      None)
 
-        msg = re.sub(r'not a key in .*?/sequence_processing_pipeline',
-                     r'not a key in sequence_processing_pipeline',
-                     str(e.exception))
-        self.assertEqual(msg, "'search_paths' is not a key in "
-                              "sequence_processing_pipeline/tests"
-                              "/data/bad_configuration.json")
-
         # Pipeline should assert due to an invalid config file path.
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(PipelineError, "does/not/exist/configurati"
+                                                   "on.json does not exist."):
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
                      self.good_output_file_path,
                      'my_qiita_id',
                      None)
 
-        self.assertEqual(str(e.exception), 'does/not/exist/configuration.json '
-                                           'does not exist.')
-
         # Pipeline should assert on config_file = None
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(PipelineError, "configuration_file_path ca"
+                                                   "nnot be None"):
             Pipeline(None,
                      self.good_run_id,
                      self.good_output_file_path,
                      'my_qiita_id',
                      None)
 
-        self.assertEqual(str(e.exception), 'configuration_file_path cannot be '
-                                           'None')
-
         # Pipeline should assert due to invalid_run_id
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(PipelineError, "A run-dir for 'not-sample-"
+                                                   "sequence-directory' could "
+                                                   "not be found"):
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
                      self.good_output_file_path,
                      'my_qiita_id',
                      None)
-
-        self.assertEqual(str(e.exception), "A run-dir for 'not-sample-sequence"
-                                           "-directory' could not be found")
 
         # Pipeline should assert on run_id = None
         with self.assertRaises(PipelineError) as e:
