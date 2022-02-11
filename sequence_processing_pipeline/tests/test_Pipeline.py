@@ -1,4 +1,6 @@
 import json
+import os
+
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
@@ -25,6 +27,75 @@ class TestPipeline(unittest.TestCase):
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
+        self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
+        self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
+
+        # most of the tests here were written with the assumption that these
+        # files already exist.
+        self.create_runinfo_file()
+        self.create_rtacomplete_file()
+
+    def tearDown(self):
+        # Pipeline is now the only class aware of these files, hence they
+        # can be deleted at the end of testing.
+        self.delete_runinfo_file()
+        self.delete_rtacomplete_file()
+
+    def make_runinfo_file_unreadable(self):
+        os.chmod(self.runinfo_file, 0o000)
+
+    def make_runinfo_file_readable(self):
+        os.chmod(self.runinfo_file, 0o777)
+
+    def create_runinfo_file(self):
+        with open(self.runinfo_file, 'w') as f:
+            f.write("")
+
+    def delete_runinfo_file(self):
+        try:
+            os.remove(self.runinfo_file)
+        except FileNotFoundError:
+            # make method idempotent
+            pass
+
+    def create_rtacomplete_file(self):
+        with open(self.rtacomplete_file, 'w') as f:
+            f.write("")
+
+    def delete_rtacomplete_file(self):
+        try:
+            os.remove(self.rtacomplete_file)
+        except FileNotFoundError:
+            # make method idempotent
+            pass
+
+    def test_required_file_checks(self):
+        # begin this test by deleting the RunInfo.txt file and verifying that
+        # Pipeline object will raise an Error.
+        self.delete_runinfo_file()
+        with self.assertRaisesRegex(PipelineError, "required file 'RunInfo.xml"
+                                                   "' is not present."):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.good_output_file_path, 'my_qiita_id', None)
+
+        # delete RTAComplete.txt and recreate RunInfo.txt file to verify that
+        # an Error is raised when only RTAComplete.txt is missing.
+        self.delete_rtacomplete_file()
+        self.create_runinfo_file()
+        with self.assertRaisesRegex(PipelineError, "required file 'RTAComplete"
+                                                   ".txt' is not present."):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.good_output_file_path, 'my_qiita_id', None)
+
+        # make RunInfo.xml file unreadable and verify that Pipeline object
+        # raises the expected Error.
+        self.create_rtacomplete_file()
+        self.make_runinfo_file_unreadable()
+        with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, bu"
+                                                   "t not readable"):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.good_output_file_path, 'my_qiita_id', None)
+        self.make_runinfo_file_readable()
 
     def test_creation(self):
         # Pipeline should assert due to config_file
