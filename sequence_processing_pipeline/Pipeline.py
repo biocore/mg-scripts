@@ -108,6 +108,13 @@ class Pipeline:
                 raise PipelineError("required file '%s' is not present." %
                                     some_file)
 
+        # verify that RunInfo.xml file is readable.
+        try:
+            fp = open(join(self.run_dir, 'RunInfo.xml'))
+            fp.close()
+        except PermissionError:
+            raise PipelineError('RunInfo.xml is present, but not readable')
+
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
         # directory, which also has the same name. Hence, return the

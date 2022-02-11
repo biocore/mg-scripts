@@ -41,6 +41,12 @@ class TestPipeline(unittest.TestCase):
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
 
+    def make_runinfo_file_unreadable(self):
+        os.chmod(self.runinfo_file, 0o000)
+
+    def make_runinfo_file_readable(self):
+        os.chmod(self.runinfo_file, 0o777)
+
     def create_runinfo_file(self):
         with open(self.runinfo_file, 'w') as f:
             f.write("")
@@ -80,6 +86,16 @@ class TestPipeline(unittest.TestCase):
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_output_file_path, 'my_qiita_id', None)
+
+        # make RunInfo.xml file unreadable and verify that Pipeline object
+        # raises the expected Error.
+        self.create_rtacomplete_file()
+        self.make_runinfo_file_unreadable()
+        with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, bu"
+                                                   "t not readable"):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.good_output_file_path, 'my_qiita_id', None)
+        self.make_runinfo_file_readable()
 
     def test_creation(self):
         # Pipeline should assert due to config_file
