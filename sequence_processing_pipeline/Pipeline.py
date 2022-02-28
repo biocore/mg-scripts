@@ -305,9 +305,9 @@ class Pipeline:
 
     def extract_metadata(self, sample_sheet_path):
         '''
-        extract sample ids from the sample-sheet
-        :param sample_sheet_path:
-        :return:
+        Extract sample ids from a given sample-sheet.
+        :param sample_sheet_path: Path to a sample-sheet.
+        :return: A dictionary of various lists of metadata.
         '''
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
@@ -346,22 +346,25 @@ class Pipeline:
                 spro_map[sample.Sample_Project].append(sample.Sample_ID)
                 splate_map[sample.Sample_Plate].append(sample.Sample_ID)
 
-        result = {'unique-values': {}, 'maps': {}}
-        result['unique-values']['project-names'] = projects
-        result['unique-values']['plate-names'] = plates
-        result['unique-values']['sample-ids'] = sample_ids
-
-        result['maps']['blanks-to-plates'] = bp_map
-        result['maps']['samples-to-plates'] = splate_map
-        result['maps']['samples-to-projects'] = spro_map
+        result = {
+            'unique-values': {
+                'project-names': projects,
+                'plate-names': plates,
+                'sample-ids': sample_ids
+            }, 'maps': {
+                'blanks-to-plates': bp_map,
+                'samples-to-plates': splate_map,
+                'samples-to-projects': spro_map
+            }
+        }
 
         return result
 
-    def find_files(self, working_path, suffix):
+    def find_files_ending_in(self, working_path, suffix):
         '''
-        find files ending in 'suffix' in a nested working directory
-        :param working_path: root path of nested directory
-        :param suffix: appended sub-string to filter for
+        Find files ending in 'suffix' in a nested working directory.
+        :param working_path: Root path of nested directory.
+        :param suffix: Sub-string to filter for.
         :return:
         '''
         results = []
@@ -371,20 +374,18 @@ class Pipeline:
 
         return results
 
-    def audit_job(self, sample_ids, working_path, suffix, mod, is_qc_job):
+    def audit_job(self, sample_ids, working_path, suffix, mod):
         '''
-        generalized audit the results of a Job object.
-        :param sample_ids:
-        :param working_path:
-        :param suffix:
-        :param mod:
-        :param is_qc_job:
-        :return:
+        Audit the results of a Job object.
+        :param sample_ids: A list of sample-ids that require results.
+        :param working_path: Root path of the Job object's working directory.
+        :param suffix: The file-type or extension of the files to filter for.
+        :param mod: The substring marking the end of a sample-id.
+        :return: A list of sample-ids found.
         '''
-        files_found = self.find_files(working_path, suffix)
+        files_found = self.find_files_ending_in(working_path, suffix)
         # remove all files found with a 'zero_files' directory in the path
-        if is_qc_job:
-            files_found = [x for x in files_found if not 'zero_files' in x]
+        files_found = [x for x in files_found if 'zero_files' not in x]
         found = []
 
         for sample_id in sample_ids:
@@ -398,45 +399,6 @@ class Pipeline:
                     break
 
         return found
-
-    def audit_results(self):
-        sample_sheet_path = 'sequence_processing_pipeline/tests/data/good-sample-sheet.csv'
-        convert_job_working_path = '/Users/ccowart/Development/mg-scripts/sequence_processing_pipeline/tests/data/MyConvertJob'
-        qc_job_working_path = '/Users/ccowart/Development/mg-scripts/sequence_processing_pipeline/tests/data/MyQCJob'
-        fastqc_job_working_path = '/Users/ccowart/Development/mg-scripts/sequence_processing_pipeline/tests/data/MyFastQCJob'
-
-        results = self.extract_metadata(sample_sheet_path)
-
-        sample_ids = results['unique-values']['sample-ids']
-
-        found = self.audit_job(sample_ids,
-                               convert_job_working_path,
-                               'fastq.gz',
-                               'R',
-                               False)
-
-        not_found = list(set(found) ^ set(sample_ids))
-
-        found = self.audit_job(sample_ids,
-                               qc_job_working_path,
-                               'fastq.gz',
-                               'S',
-                               True)
-
-        not_found = list(set(found) ^ set(sample_ids))
-
-        #print_results({'found': found, 'not-found': not_found})
-
-        # assume for now that a corresponding zip file exists for each html
-        # file found. Assume for now that all html files will be found in a
-        # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
-        found = self.audit_job(sample_ids,
-                               fastqc_job_working_path,
-                               '_fastqc.html',
-                               'S',
-                               False)
-
-        not_found = list(set(found) ^ set(sample_ids))
 
 
 if __name__ == '__main__':

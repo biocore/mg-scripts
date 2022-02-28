@@ -374,6 +374,87 @@ class TestPipeline(unittest.TestCase):
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
 
+    def test_audit(self):
+        sample_sheet_path = ('sequence_processing_pipeline/tests/data/good-sa'
+                             'mple-sheet.csv')
+        convert_job_working_path = ('/Users/ccowart/Development/mg-scripts/se'
+                                    'quence_processing_pipeline/tests/data/My'
+                                    'ConvertJob')
+        qc_job_working_path = ('/Users/ccowart/Development/mg-scripts/sequenc'
+                               'e_processing_pipeline/tests/data/MyQCJob')
+        fastqc_job_working_path = ('/Users/ccowart/Development/mg-scripts/seq'
+                                   'uence_processing_pipeline/tests/data/MyFa'
+                                   'stQCJob')
+
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        # test the proper extraction of metadata from the sample-sheet.
+        results = pipeline.extract_metadata(sample_sheet_path)
+
+        sample_ids = results['unique-values']['sample-ids']
+
+        found = pipeline.audit_job(sample_ids, convert_job_working_path,
+                                   'fastq.gz', 'R')
+
+        not_found = list(set(found) ^ set(sample_ids))
+
+        found.sort()
+        not_found.sort()
+
+        self.assertEqual(found[0], '22_001_710_503_791_00')
+        self.assertEqual(found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(743, len(found))
+
+        # All samples should have been found.
+        self.assertEqual(0, len(not_found))
+
+        # verify that the entire list of sample-ids found match what's
+        # expected. Since the list of expected ids is very small, we'll
+        # perform an exact comparison.
+        found = pipeline.audit_job(sample_ids, qc_job_working_path, 'fastq.gz',
+                                   'S')
+
+        not_found = list(set(found) ^ set(sample_ids))
+
+        found.sort()
+        not_found.sort()
+
+        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
+        self.assertEqual(found, exp)
+
+        # verify that the first and last sample-ids in the sorted list of
+        # sample-ids not found are correct, as well as the number of sample-
+        # ids present in the list (or not present in the results).
+        not_found = list(set(found) ^ set(sample_ids))
+        not_found.sort()
+        self.assertEqual(not_found[0], '22_001_710_503_791_00')
+        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(741, len(not_found))
+
+        # assume for now that a corresponding zip file exists for each html
+        # file found. Assume for now that all html files will be found in a
+        # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
+        #
+        # verify that the entire list of sample-ids found match what's
+        # expected. Since the list of expected ids is very small, we'll
+        # perform an exact comparison.
+        found = pipeline.audit_job(sample_ids, fastqc_job_working_path,
+                                   '_fastqc.html', 'S')
+        found.sort()
+        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
+        self.assertEqual(found, exp)
+
+        # verify that the first and last sample-ids in the sorted list of
+        # sample-ids not found are correct, as well as the number of sample-
+        # ids present in the list (or not present in the results).
+        not_found = list(set(found) ^ set(sample_ids))
+        not_found.sort()
+        self.assertEqual(not_found[0], '22_001_710_503_791_00')
+        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(741, len(not_found))
+
 
 if __name__ == '__main__':
     unittest.main()
