@@ -1,7 +1,7 @@
 from json import load as json_load
 from json.decoder import JSONDecodeError
-from os import makedirs, listdir
-from os.path import join, exists, isdir, getmtime
+from os import makedirs, listdir, walk
+from os.path import basename, join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from metapool.plate import ErrorMessage
 from sequence_processing_pipeline.ConvertJob import ConvertJob
@@ -303,6 +303,103 @@ class Pipeline:
 
         return paths
 
+    def extract_metadata(self, sample_sheet_path):
+        '''
+        Extract sample ids from a given sample-sheet.
+        :param sample_sheet_path: Path to a sample-sheet.
+        :return: A dictionary of various lists of metadata.
+        '''
+        sheet = KLSampleSheet(sample_sheet_path)
+        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+
+        if val_sheet is None:
+            raise PipelineError("'%s' is not a valid sample-sheet." %
+                                sample_sheet_path)
+
+        # generate a list of unique project, plate names, and sample-ids found
+        # in the sample-sheet.
+        projects = list(set([x.Sample_Project for x in val_sheet.samples]))
+        plates = list(set([x.Sample_Plate for x in val_sheet.samples]))
+        sample_ids = list(set([x.Sample_ID for x in val_sheet.samples]))
+
+        # Generate a list of BLANKs defined on each plate. They will be shared
+        # across all projects on that plate. For now, accept '' as a valid
+        # plate-name.
+        blanks = [x for x in sample_ids if 'BLANK' in x]
+
+        # filter out BLANKs from the list of sample-ids.
+        sample_ids = [x for x in sample_ids if 'BLANK' not in x]
+
+        # map blanks to plates
+        bp_map = {plate: [] for plate in plates}
+
+        # map samples to projects
+        spro_map = {project: [] for project in projects}
+
+        # map samples to plates
+        splate_map = {plate: [] for plate in plates}
+
+        for sample in val_sheet.samples:
+            if sample.Sample_ID in blanks:
+                bp_map[sample.Sample_Plate].append(sample.Sample_ID)
+            else:
+                spro_map[sample.Sample_Project].append(sample.Sample_ID)
+                splate_map[sample.Sample_Plate].append(sample.Sample_ID)
+
+        result = {
+            'unique-values': {
+                'project-names': projects,
+                'plate-names': plates,
+                'sample-ids': sample_ids
+            }, 'maps': {
+                'blanks-to-plates': bp_map,
+                'samples-to-plates': splate_map,
+                'samples-to-projects': spro_map
+            }
+        }
+
+        return result
+
+    def find_files_ending_in(self, working_path, suffix):
+        '''
+        Find files ending in 'suffix' in a nested working directory.
+        :param working_path: Root path of nested directory.
+        :param suffix: Sub-string to filter for.
+        :return:
+        '''
+        results = []
+
+        for root, dirs, files in walk(working_path):
+            results += [join(root, x) for x in files if x.endswith(suffix)]
+
+        return results
+
+    def audit_job(self, sample_ids, working_path, suffix, mod):
+        '''
+        Audit the results of a Job object.
+        :param sample_ids: A list of sample-ids that require results.
+        :param working_path: Root path of the Job object's working directory.
+        :param suffix: The file-type or extension of the files to filter for.
+        :param mod: The substring marking the end of a sample-id.
+        :return: A list of sample-ids found.
+        '''
+        files_found = self.find_files_ending_in(working_path, suffix)
+        # remove all files found with a 'zero_files' directory in the path
+        files_found = [x for x in files_found if 'zero_files' not in x]
+        found = []
+
+        for sample_id in sample_ids:
+            for found_file in files_found:
+                # we can append '_R\d' to sample_id if we
+                # can assume _R1 or _R2 will always follow the
+                # sample_id
+                mod_id = '%s_%s' % (sample_id, mod)
+                if basename(found_file).startswith(mod_id):
+                    found.append(sample_id)
+                    break
+
+        return found
+
 
 if __name__ == '__main__':
     logging.debug("Starting Pipeline")
@@ -338,6 +435,10 @@ if __name__ == '__main__':
                             pipeline.qiita_job_id))
 
     config = pipeline.configuration['qc']
+
+    '''
+    the path to the raw fastq_files will be in run_dir/ConvertJob
+    '''
 
     raw_fastq_files_path = join(pipeline.output_path, 'ConvertJob')
 

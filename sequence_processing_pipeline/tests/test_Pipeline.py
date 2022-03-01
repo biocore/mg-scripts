@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -35,11 +36,665 @@ class TestPipeline(unittest.TestCase):
         self.create_runinfo_file()
         self.create_rtacomplete_file()
 
+        self.sample_sheet_path = join(package_root,
+                                      'tests/data/good-sample-sheet.csv')
+        self.convert_job_working_path = join(package_root,
+                                             'tests/data/MyConvertJob')
+        self.qc_job_working_path = join(package_root,
+                                        'tests/data/MyQCJob')
+        self.fastqc_job_working_path = join(package_root,
+                                            'tests/data/MyFastQCJob')
+
+        # create a new instance of the Data/Fastq directory
+        base_path = join(self.convert_job_working_path, 'Data', 'Fastq')
+        makedirs(join(base_path, 'Feist_11661'), exist_ok=True)
+        makedirs(join(base_path, 'Gerwick_6123'), exist_ok=True)
+        makedirs(join(base_path, 'NYU_BMS_Melanoma_13059'), exist_ok=True)
+
+        # generate filenames and paths for dummy fastq files
+        file_names = [
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_17_25_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_17_58_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_17_64_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_19_25_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_19_55_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_19_63_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_1_24_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_1_57_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_1_69_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_21_23_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_21_46_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_21_51_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_29_25_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_29_49_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_29_57_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_31_24_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_31_42_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_31_62_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_33_21_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_33_41_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_33_50_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_3_23_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_3_50_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_3_61_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_5_22_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_5_36_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_5_46_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_7_23_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_7_41_R1.fastq.gz',
+            'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_7_51_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-143_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-144_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-145_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-146_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-147_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-148_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-149_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-150_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-151_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-152_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-153_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-154_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-155_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-156_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-157_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-158_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-159_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-160_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-161_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-162_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-163_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-164_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-165_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-166_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-167_R1.fastq.gz',
+            'CDPH-SAL_Salmonella_Typhi_MDL-168_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_10_13_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_10_28_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_10_51_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_4_14_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_4_23_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_4_48_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_6_21_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_BOP27_6_35_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_18_19_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_18_35_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_18_59_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_20_16_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_20_43_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_20_71_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_22_16_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_22_28_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_22_52_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_24_24_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_24_52_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_24_9_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_26_27_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_26_69_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_26_6_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_28_13_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_28_28_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_28_53_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_30_22_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_30_60_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_30_7_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_32_20_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_32_56_R1.fastq.gz',
+            'Deoxyribose_PALE_ALE__MG1655_Lib4_32_6_R1.fastq.gz',
+            'JBI_KHP_HGL_021_R1.fastq.gz', 'JBI_KHP_HGL_021_R2.fastq.gz',
+            'JBI_KHP_HGL_022_R1.fastq.gz', 'JBI_KHP_HGL_022_R2.fastq.gz',
+            'JBI_KHP_HGL_023_R1.fastq.gz', 'JBI_KHP_HGL_023_R2.fastq.gz',
+            'JBI_KHP_HGL_024_R1.fastq.gz', 'JBI_KHP_HGL_024_R2.fastq.gz',
+            'JBI_KHP_HGL_025_R1.fastq.gz', 'JBI_KHP_HGL_025_R2.fastq.gz',
+            'JBI_KHP_HGL_026_R1.fastq.gz', 'JBI_KHP_HGL_026_R2.fastq.gz',
+            'JBI_KHP_HGL_027_R1.fastq.gz', 'JBI_KHP_HGL_027_R2.fastq.gz',
+            'JBI_KHP_HGL_028_Amitesh_soxR_R1.fastq.gz',
+            'JBI_KHP_HGL_029_Amitesh_oxyR_R1.fastq.gz',
+            'JBI_KHP_HGL_030_Amitesh_soxR_oxyR_R1.fastq.gz',
+            'JBI_KHP_HGL_031_Amitesh_rpoS_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0326_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0327_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0328_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0329_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0330_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0352_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0353_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0354_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0355_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0356_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0357_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0364_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0366_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0367_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0368_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0369_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0370_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0371_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0372_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0373_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0374_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0375_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0376_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0377_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0378_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0380_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0381_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0382_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0383_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0384_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0385_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0386_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0387_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0388_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0389_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0390_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0391_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0392_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0393_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0394_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0395_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0396_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0397_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0398_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0399_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0400_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0401_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0402_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0403_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0404_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0405_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0406_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0407_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0408_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0409_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0417_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0418_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0419_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0420_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0421_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0473_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0474_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0483_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0484_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0485_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0486_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0516_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0517_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0518_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0519_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0520_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0521_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0522_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0523_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0524_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-B0525_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R08624_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R08704_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R10727_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11044_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11078_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11101_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11102_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11103_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11135_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11153_R1.fastq.gz',
+            'JM-MEC__Staphylococcus_aureusstrain_BERTI-R11154_R1.fastq.gz',
+            'JM-Metabolic__GN02424_R1.fastq.gz',
+            'JM-Metabolic__GN02446_R1.fastq.gz',
+            'JM-Metabolic__GN02449_R1.fastq.gz',
+            'JM-Metabolic__GN02487_R1.fastq.gz',
+            'JM-Metabolic__GN02501_R1.fastq.gz',
+            'JM-Metabolic__GN02514_R1.fastq.gz',
+            'JM-Metabolic__GN02529_R1.fastq.gz',
+            'JM-Metabolic__GN02531_R1.fastq.gz',
+            'JM-Metabolic__GN02567_R1.fastq.gz',
+            'JM-Metabolic__GN02590_R1.fastq.gz',
+            'JM-Metabolic__GN02657_R1.fastq.gz',
+            'JM-Metabolic__GN02748_R1.fastq.gz',
+            'JM-Metabolic__GN02766_R1.fastq.gz',
+            'JM-Metabolic__GN02769_R1.fastq.gz',
+            'JM-Metabolic__GN02787_R1.fastq.gz',
+            'JM-Metabolic__GN03132_R1.fastq.gz',
+            'JM-Metabolic__GN03218_R1.fastq.gz',
+            'JM-Metabolic__GN03252_R1.fastq.gz',
+            'JM-Metabolic__GN03409_R1.fastq.gz',
+            'JM-Metabolic__GN04014_R1.fastq.gz',
+            'JM-Metabolic__GN04094_R1.fastq.gz',
+            'JM-Metabolic__GN04255_R1.fastq.gz',
+            'JM-Metabolic__GN04306_R1.fastq.gz',
+            'JM-Metabolic__GN04428_R1.fastq.gz',
+            'JM-Metabolic__GN04488_R1.fastq.gz',
+            'JM-Metabolic__GN04540_R1.fastq.gz',
+            'JM-Metabolic__GN04563_R1.fastq.gz',
+            'JM-Metabolic__GN04612_R1.fastq.gz',
+            'JM-Metabolic__GN04665_R1.fastq.gz',
+            'JM-Metabolic__GN04682_R1.fastq.gz',
+            'JM-Metabolic__GN05002_R1.fastq.gz',
+            'JM-Metabolic__GN05109_R1.fastq.gz',
+            'JM-Metabolic__GN05128_R1.fastq.gz',
+            'JM-Metabolic__GN05367_R1.fastq.gz',
+            'JM-Metabolic__GN05377_R1.fastq.gz',
+            'JM-Metabolic__GN0_2005_R1.fastq.gz',
+            'JM-Metabolic__GN0_2007_R1.fastq.gz',
+            'JM-Metabolic__GN0_2009_R1.fastq.gz',
+            'JM-Metabolic__GN0_2094_R1.fastq.gz',
+            'JM-Metabolic__GN0_2099_R1.fastq.gz',
+            'JM-Metabolic__GN0_2148_R1.fastq.gz',
+            'JM-Metabolic__GN0_2165_R1.fastq.gz',
+            'JM-Metabolic__GN0_2169_R1.fastq.gz',
+            'JM-Metabolic__GN0_2172_R1.fastq.gz',
+            'JM-Metabolic__GN0_2175_R1.fastq.gz',
+            'JM-Metabolic__GN0_2183_R1.fastq.gz',
+            'JM-Metabolic__GN0_2215_R1.fastq.gz',
+            'JM-Metabolic__GN0_2254_R1.fastq.gz',
+            'JM-Metabolic__GN0_2277_R1.fastq.gz',
+            'JM-Metabolic__GN0_2290_R1.fastq.gz',
+            'JM-Metabolic__GN0_2317_R1.fastq.gz',
+            'JM-Metabolic__GN0_2337_R1.fastq.gz',
+            'JM-Metabolic__GN0_2354_R1.fastq.gz',
+            'JM-Metabolic__GN0_2375_R1.fastq.gz',
+            'JM-Metabolic__GN0_2380_R1.fastq.gz',
+            'JM-Metabolic__GN0_2393_R1.fastq.gz',
+            'JM-Metabolic__GN0_2404_R1.fastq.gz',
+            'P21_E_coli_ELI344_R1.fastq.gz', 'P21_E_coli_ELI344_R2.fastq.gz',
+            'P21_E_coli_ELI345_R1.fastq.gz', 'P21_E_coli_ELI345_R2.fastq.gz',
+            'P21_E_coli_ELI347_R1.fastq.gz', 'P21_E_coli_ELI347_R2.fastq.gz',
+            'P21_E_coli_ELI348_R1.fastq.gz', 'P21_E_coli_ELI348_R2.fastq.gz',
+            'P21_E_coli_ELI349_R1.fastq.gz', 'P21_E_coli_ELI349_R2.fastq.gz',
+            'P21_E_coli_ELI350_R1.fastq.gz', 'P21_E_coli_ELI350_R2.fastq.gz',
+            'P21_E_coli_ELI351_R1.fastq.gz', 'P21_E_coli_ELI351_R2.fastq.gz',
+            'P21_E_coli_ELI352_R1.fastq.gz', 'P21_E_coli_ELI352_R2.fastq.gz',
+            'P21_E_coli_ELI353_R1.fastq.gz', 'P21_E_coli_ELI353_R2.fastq.gz',
+            'P21_E_coli_ELI354_R1.fastq.gz', 'P21_E_coli_ELI354_R2.fastq.gz',
+            'P21_E_coli_ELI355_R1.fastq.gz', 'P21_E_coli_ELI355_R2.fastq.gz',
+            'P21_E_coli_ELI357_R1.fastq.gz', 'P21_E_coli_ELI357_R2.fastq.gz',
+            'P21_E_coli_ELI358_R1.fastq.gz', 'P21_E_coli_ELI358_R2.fastq.gz',
+            'P21_E_coli_ELI359_R1.fastq.gz', 'P21_E_coli_ELI359_R2.fastq.gz',
+            'P21_E_coli_ELI361_R1.fastq.gz', 'P21_E_coli_ELI361_R2.fastq.gz',
+            'P21_E_coli_ELI362_R1.fastq.gz', 'P21_E_coli_ELI362_R2.fastq.gz',
+            'P21_E_coli_ELI363_R1.fastq.gz', 'P21_E_coli_ELI363_R2.fastq.gz',
+            'P21_E_coli_ELI364_R1.fastq.gz', 'P21_E_coli_ELI364_R2.fastq.gz',
+            'P21_E_coli_ELI365_R1.fastq.gz', 'P21_E_coli_ELI365_R2.fastq.gz',
+            'P21_E_coli_ELI366_R1.fastq.gz', 'P21_E_coli_ELI366_R2.fastq.gz',
+            'P21_E_coli_ELI367_R1.fastq.gz', 'P21_E_coli_ELI367_R2.fastq.gz',
+            'P21_E_coli_ELI368_R1.fastq.gz', 'P21_E_coli_ELI368_R2.fastq.gz',
+            'P21_E_coli_ELI369_R1.fastq.gz', 'P21_E_coli_ELI369_R2.fastq.gz',
+            'Pputida_JBEI__HGL_Pputida_107_BP6_R1.fastq.gz',
+            'Pputida_JBEI__HGL_Pputida_108_BP7_R1.fastq.gz',
+            'Pputida_JBEI__HGL_Pputida_109_BP8_R1.fastq.gz',
+            'Pputida_JBEI__HGL_Pputida_110_M2_R1.fastq.gz',
+            'Pputida_JBEI__HGL_Pputida_111_M5_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_145_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_146_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_147_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_148_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_149_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_150_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_151_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_152_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_153_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_154_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_155_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_156_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_157_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_158_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_159_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_160_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_161_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_162_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_163_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_164_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_165_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_166_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_167_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_168_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_169_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_170_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_171_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_172_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_173_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_174_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_175_R1.fastq.gz',
+            'Pputida_PALE__HGL_Pputida_176_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_112_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_113_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_114_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_115_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_116_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_117_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_118_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_119_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_120_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_121_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_122_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_123_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_124_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_125_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_126_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_127_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_128_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_129_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_130_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_131_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_132_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_133_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_134_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_135_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_136_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_137_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_138_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_139_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_140_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_141_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_142_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_143_R1.fastq.gz',
+            'Pputida_TALE__HGL_Pputida_144_R1.fastq.gz',
+            'RMA_KHP_rpoS_Mage_Q97D_R1.fastq.gz',
+            'RMA_KHP_rpoS_Mage_Q97E_R1.fastq.gz',
+            'RMA_KHP_rpoS_Mage_Q97L_R1.fastq.gz',
+            'RMA_KHP_rpoS_Mage_Q97N_R1.fastq.gz',
+            'stALE_E_coli_A10_F131_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A10_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A10_F43_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A11_F119_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A11_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A11_F43_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A12_F136_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A12_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A12_F43_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A13_F121_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A13_F20_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A13_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A14_F133_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A14_F20_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A14_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A15_F117_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A15_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A15_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A16_F134_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A16_F20_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A16_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A17_F118_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A17_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A18_F130_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A18_F18_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A18_F39_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A1_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A2_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A3_F18_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A3_F40_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A4_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A4_F21_I1_R2_R1.fastq.gz',
+            'stALE_E_coli_A4_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A5_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A5_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A6_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A6_F43_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A7_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A7_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A8_F20_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A8_F42_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A9_F21_I1_R1_R1.fastq.gz',
+            'stALE_E_coli_A9_F44_I1_R1_R1.fastq.gz']
+        file_names = [join(base_path, 'Feist_11661', x) for x in file_names]
+
+        tmp = ['3A_R1.fastq.gz', '4A_R1.fastq.gz', '5B_R1.fastq.gz',
+               '6A_R1.fastq.gz', '7A_R1.fastq.gz', '8A_R1.fastq.gz',
+               'GFR_R1.fastq.gz', 'ISB_R1.fastq.gz']
+        file_names += [join(base_path, 'Gerwick_6123', x) for x in tmp]
+
+        tmp = ['22_001_710_503_791_00_R1.fastq.gz',
+               '22_001_801_552_503_00_R1.fastq.gz',
+               'AP006367B02_R1.fastq.gz',
+               'AP029018B01_R1.fastq.gz', 'AP032412B04_R1.fastq.gz',
+               'AP032413B04_R1.fastq.gz', 'AP046324B02_R1.fastq.gz',
+               'AP046327B02_R1.fastq.gz', 'AP062219B03_R1.fastq.gz',
+               'AP065292B01_R1.fastq.gz', 'AP103463B01_R1.fastq.gz',
+               'AP173299B04_R1.fastq.gz', 'AP173301B04_R1.fastq.gz',
+               'AP173305B04_R1.fastq.gz', 'AP223470B01_R1.fastq.gz',
+               'AP298002B02_R1.fastq.gz', 'AP309872B03_R1.fastq.gz',
+               'AP324642B04_R1.fastq.gz', 'AP470859B01_R1.fastq.gz',
+               'AP481403B02_R1.fastq.gz', 'AP531397B04_R1.fastq.gz',
+               'AP549678B01_R1.fastq.gz', 'AP549681B02_R1.fastq.gz',
+               'AP568785B04_R1.fastq.gz', 'AP568787B02_R1.fastq.gz',
+               'AP581451B02_R1.fastq.gz', 'AP616837B04_R1.fastq.gz',
+               'AP668628B04_R1.fastq.gz', 'AP668631B04_R1.fastq.gz',
+               'AP687591B04_R1.fastq.gz', 'AP696363B02_R1.fastq.gz',
+               'AP732307B04_R1.fastq.gz', 'AP744361A02_R1.fastq.gz',
+               'AP745799A04_R1.fastq.gz', 'AP771472A04_R1.fastq.gz',
+               'AP780167B02_R1.fastq.gz', 'AP787247B04_R1.fastq.gz',
+               'AP795068B04_R1.fastq.gz', 'AP891020A04_R1.fastq.gz',
+               'AP905750A02_R1.fastq.gz', 'AP911328B01_R1.fastq.gz',
+               'AP953594A02_R1.fastq.gz', 'AP959450A03_R1.fastq.gz',
+               'AP967057A04_R1.fastq.gz', 'C14_R1.fastq.gz',
+               'C18_R1.fastq.gz', 'C20_R1.fastq.gz', 'C3_R1.fastq.gz',
+               'C5_R1.fastq.gz', 'C6_R1.fastq.gz', 'C9_R1.fastq.gz',
+               'EP001624B01_R1.fastq.gz', 'EP001625B01_R1.fastq.gz',
+               'EP012991B03_R1.fastq.gz', 'EP023801B04_R1.fastq.gz',
+               'EP023808B02_R1.fastq.gz', 'EP032410B02_R1.fastq.gz',
+               'EP032412B02_R1.fastq.gz', 'EP043583B01_R1.fastq.gz',
+               'EP054632B01_R1.fastq.gz', 'EP061002B01_R1.fastq.gz',
+               'EP073160B01_R1.fastq.gz', 'EP073209B02_R1.fastq.gz',
+               'EP073216B01_R1.fastq.gz', 'EP087938B02_R1.fastq.gz',
+               'EP090129B04_R1.fastq.gz', 'EP112567B02_R1.fastq.gz',
+               'EP121011B01_R1.fastq.gz', 'EP121013B01_R1.fastq.gz',
+               'EP128904B02_R1.fastq.gz', 'EP128910B01_R1.fastq.gz',
+               'EP159692B04_R1.fastq.gz', 'EP159695B01_R1.fastq.gz',
+               'EP163771B01_R1.fastq.gz', 'EP182060B03_R1.fastq.gz',
+               'EP182065B04_R1.fastq.gz', 'EP182243B02_R1.fastq.gz',
+               'EP182346B04_R1.fastq.gz', 'EP184255B04_R1.fastq.gz',
+               'EP190307B01_R1.fastq.gz', 'EP202095B04_R1.fastq.gz',
+               'EP202452B01_R1.fastq.gz', 'EP207036B01_R1.fastq.gz',
+               'EP207041B01_R1.fastq.gz', 'EP207042B04_R1.fastq.gz',
+               'EP212214B01_R1.fastq.gz', 'EP216516B04_R1.fastq.gz',
+               'EP230245B01_R1.fastq.gz', 'EP238034B01_R1.fastq.gz',
+               'EP244360B01_R1.fastq.gz', 'EP244366B01_R1.fastq.gz',
+               'EP256644B01_R1.fastq.gz', 'EP256645B01_R1.fastq.gz',
+               'EP260543B04_R1.fastq.gz', 'EP260544B04_R1.fastq.gz',
+               'EP273332B04_R1.fastq.gz', 'EP282107B01_R1.fastq.gz',
+               'EP282108B01_R1.fastq.gz', 'EP282276B04_R1.fastq.gz',
+               'EP291979B04_R1.fastq.gz', 'EP291980B04_R1.fastq.gz',
+               'EP305735B04_R1.fastq.gz', 'EP316863B03_R1.fastq.gz',
+               'EP320438B01_R1.fastq.gz', 'EP333541B04_R1.fastq.gz',
+               'EP337325B04_R1.fastq.gz', 'EP337425B01_R1.fastq.gz',
+               'EP339053B02_R1.fastq.gz', 'EP339057B02_R1.fastq.gz',
+               'EP339059B02_R1.fastq.gz', 'EP339061B02_R1.fastq.gz',
+               'EP372981B04_R1.fastq.gz', 'EP379938B01_R1.fastq.gz',
+               'EP385379B01_R1.fastq.gz', 'EP385384B01_R1.fastq.gz',
+               'EP385387B01_R1.fastq.gz', 'EP393712B02_R1.fastq.gz',
+               'EP393714B01_R1.fastq.gz', 'EP393715B01_R1.fastq.gz',
+               'EP393717B01_R1.fastq.gz', 'EP393718B01_R1.fastq.gz',
+               'EP400447B04_R1.fastq.gz', 'EP400448B04_R1.fastq.gz',
+               'EP410041B01_R1.fastq.gz', 'EP410042B01_R1.fastq.gz',
+               'EP410046B01_R1.fastq.gz', 'EP422407B01_R1.fastq.gz',
+               'EP431562B04_R1.fastq.gz', 'EP431570B01_R1.fastq.gz',
+               'EP431575B01_R1.fastq.gz', 'EP446602B01_R1.fastq.gz',
+               'EP446604B03_R1.fastq.gz', 'EP446610B02_R1.fastq.gz',
+               'EP447926B04_R1.fastq.gz', 'EP447927B04_R1.fastq.gz',
+               'EP447928B04_R1.fastq.gz', 'EP447929B04_R1.fastq.gz',
+               'EP447940B04_R1.fastq.gz', 'EP447975B02_R1.fastq.gz',
+               'EP448041B04_R1.fastq.gz', 'EP451428B04_R1.fastq.gz',
+               'EP455757B04_R1.fastq.gz', 'EP455759B04_R1.fastq.gz',
+               'EP455763B04_R1.fastq.gz', 'EP479266B04_R1.fastq.gz',
+               'EP479270B03_R1.fastq.gz', 'EP479794B02_R1.fastq.gz',
+               'EP479894B04_R1.fastq.gz', 'EP483291B04_R1.fastq.gz',
+               'EP484973B04_R1.fastq.gz', 'EP487995B04_R1.fastq.gz',
+               'EP504030B04_R1.fastq.gz', 'EP529635B02_R1.fastq.gz',
+               'EP533388B01_R1.fastq.gz', 'EP533389B03_R1.fastq.gz',
+               'EP533426B03_R1.fastq.gz', 'EP533429B04_R1.fastq.gz',
+               'EP542577B04_R1.fastq.gz', 'EP542578B04_R1.fastq.gz',
+               'EP554501B04_R1.fastq.gz', 'EP554506B04_R1.fastq.gz',
+               'EP554513B02_R1.fastq.gz', 'EP554515B04_R1.fastq.gz',
+               'EP554518B04_R1.fastq.gz', 'EP573296B01_R1.fastq.gz',
+               'EP573310B01_R1.fastq.gz', 'EP573313B01_R1.fastq.gz',
+               'EP584756B04_R1.fastq.gz', 'EP587475B04_R1.fastq.gz',
+               'EP587476B04_R1.fastq.gz', 'EP587477B04_R1.fastq.gz',
+               'EP587478B04_R1.fastq.gz', 'EP606652B04_R1.fastq.gz',
+               'EP606656B03_R1.fastq.gz', 'EP606662B04_R1.fastq.gz',
+               'EP606663B04_R1.fastq.gz', 'EP617440B01_R1.fastq.gz',
+               'EP617441B01_R1.fastq.gz', 'EP617442B01_R1.fastq.gz',
+               'EP617443B01_R1.fastq.gz', 'EP636802A01_R1.fastq.gz',
+               'EP649418A02_R1.fastq.gz', 'EP649623A01_R1.fastq.gz',
+               'EP649653A04_R1.fastq.gz', 'EP649737A03_R1.fastq.gz',
+               'EP656055A04_R1.fastq.gz', 'EP657260A01_R1.fastq.gz',
+               'EP657385A04_R1.fastq.gz', 'EP657386A01_R1.fastq.gz',
+               'EP667743A04_R1.fastq.gz', 'EP675042B01_R1.fastq.gz',
+               'EP675044A01_R1.fastq.gz', 'EP675075A04_R1.fastq.gz',
+               'EP683835A01_R1.fastq.gz', 'EP685640B01_R1.fastq.gz',
+               'EP702221B04_R1.fastq.gz', 'EP718687A04_R1.fastq.gz',
+               'EP718688A01_R1.fastq.gz', 'EP721390A04_R1.fastq.gz',
+               'EP724905B01_R1.fastq.gz', 'EP727972A04_R1.fastq.gz',
+               'EP729433A02_R1.fastq.gz', 'EP729434A01_R1.fastq.gz',
+               'EP738468A01_R1.fastq.gz', 'EP738469A01_R1.fastq.gz',
+               'EP749735A07_R1.fastq.gz', 'EP759450A04_R1.fastq.gz',
+               'EP768164A02_R1.fastq.gz', 'EP768748A04_R1.fastq.gz',
+               'EP772143A02_R1.fastq.gz', 'EP772145A02_R1.fastq.gz',
+               'EP784608A01_R1.fastq.gz', 'EP786631A04_R1.fastq.gz',
+               'EP790019A01_R1.fastq.gz', 'EP790020A02_R1.fastq.gz',
+               'EP790021A04_R1.fastq.gz', 'EP790023A01_R1.fastq.gz',
+               'EP805337A01_R1.fastq.gz', 'EP808104A01_R1.fastq.gz',
+               'EP808105A01_R1.fastq.gz', 'EP808106A01_R1.fastq.gz',
+               'EP808109A01_R1.fastq.gz', 'EP808110A04_R1.fastq.gz',
+               'EP808111A03_R1.fastq.gz', 'EP808112A04_R1.fastq.gz',
+               'EP843906A04_R1.fastq.gz', 'EP846485A01_R1.fastq.gz',
+               'EP868682A01_R1.fastq.gz', 'EP872341A01_R1.fastq.gz',
+               'EP876243A04_R1.fastq.gz', 'EP882752A01_R1.fastq.gz',
+               'EP886422A01_R1.fastq.gz', 'EP890157A02_R1.fastq.gz',
+               'EP890158A02_R1.fastq.gz', 'EP899038A04_R1.fastq.gz',
+               'EP905975A04_R1.fastq.gz', 'EP915769A04_R1.fastq.gz',
+               'EP921593A04_R1.fastq.gz', 'EP921594A04_R1.fastq.gz',
+               'EP927458A04_R1.fastq.gz', 'EP927459A04_R1.fastq.gz',
+               'EP927461A04_R1.fastq.gz', 'EP927462A02_R1.fastq.gz',
+               'EP929277A02_R1.fastq.gz', 'EP940013A01_R1.fastq.gz',
+               'EP944059A02_R1.fastq.gz', 'EP970001A01_R1.fastq.gz',
+               'EP970005A01_R1.fastq.gz', 'EP980752B04_R1.fastq.gz',
+               'EP981129A02_R1.fastq.gz', 'EP987683A01_R1.fastq.gz',
+               'EP996831B04_R1.fastq.gz', 'LP127767A01_R1.fastq.gz',
+               'LP127890A01_R1.fastq.gz', 'LP128476A01_R1.fastq.gz',
+               'LP128479A01_R1.fastq.gz', 'LP128538A01_R1.fastq.gz',
+               'LP128539A01_R1.fastq.gz', 'LP128540A01_R1.fastq.gz',
+               'LP128541A01_R1.fastq.gz', 'LP128543A01_R1.fastq.gz',
+               'LP154981A01_R1.fastq.gz', 'LP154986A01_R1.fastq.gz',
+               'LP166715A01_R1.fastq.gz', 'LP169879A01_R1.fastq.gz',
+               'LP191039A01_R1.fastq.gz', 'LP196272A01_R1.fastq.gz',
+               'SP205732A02_R1.fastq.gz', 'SP205754A01_R1.fastq.gz',
+               'SP229387A04_R1.fastq.gz', 'SP230380A02_R1.fastq.gz',
+               'SP230381A01_R1.fastq.gz', 'SP230382A04_R1.fastq.gz',
+               'SP231628A02_R1.fastq.gz', 'SP231629A02_R1.fastq.gz',
+               'SP231630A02_R1.fastq.gz', 'SP231631A02_R1.fastq.gz',
+               'SP232077A04_R1.fastq.gz', 'SP232079A01_R1.fastq.gz',
+               'SP232114A04_R1.fastq.gz', 'SP232270A02_R1.fastq.gz',
+               'SP232309A01_R1.fastq.gz', 'SP232310A04_R1.fastq.gz',
+               'SP232311A04_R1.fastq.gz', 'SP235186A04_R1.fastq.gz',
+               'SP235189A01_R1.fastq.gz', 'SP246941A01_R1.fastq.gz',
+               'SP247340A04_R1.fastq.gz', 'SP257517A04_R1.fastq.gz',
+               'SP257519A04_R1.fastq.gz', 'SP280481A02_R1.fastq.gz',
+               'SP284095A03_R1.fastq.gz', 'SP284096A02_R1.fastq.gz',
+               'SP317293A02_R1.fastq.gz', 'SP317297A02_R1.fastq.gz',
+               'SP331134A04_R1.fastq.gz', 'SP335002A04_R1.fastq.gz',
+               'SP353893A02_R1.fastq.gz', 'SP365864A04_R1.fastq.gz',
+               'SP388683A02_R1.fastq.gz', 'SP399724A04_R1.fastq.gz',
+               'SP404403A02_R1.fastq.gz', 'SP404405A02_R1.fastq.gz',
+               'SP404409A02_R1.fastq.gz', 'SP404412A02_R1.fastq.gz',
+               'SP408629A01_R1.fastq.gz', 'SP410793A01_R1.fastq.gz',
+               'SP410796A02_R1.fastq.gz', 'SP415021A02_R1.fastq.gz',
+               'SP415023A02_R1.fastq.gz', 'SP415025A01_R1.fastq.gz',
+               'SP415030A01_R1.fastq.gz', 'SP416130A04_R1.fastq.gz',
+               'SP453872A01_R1.fastq.gz', 'SP464350A04_R1.fastq.gz',
+               'SP464352A03_R1.fastq.gz', 'SP471496A04_R1.fastq.gz',
+               'SP478193A02_R1.fastq.gz', 'SP490298A02_R1.fastq.gz',
+               'SP491897A02_R1.fastq.gz', 'SP491898A02_R1.fastq.gz',
+               'SP491900A02_R1.fastq.gz', 'SP491907A02_R1.fastq.gz',
+               'SP503615A02_R1.fastq.gz', 'SP506933A04_R1.fastq.gz',
+               'SP511289A02_R1.fastq.gz', 'SP511294A04_R1.fastq.gz',
+               'SP515443A04_R1.fastq.gz', 'SP515763A04_R1.fastq.gz',
+               'SP531696A04_R1.fastq.gz', 'SP561451A04_R1.fastq.gz',
+               'SP573823A04_R1.fastq.gz', 'SP573824A04_R1.fastq.gz',
+               'SP573843A04_R1.fastq.gz', 'SP573849A04_R1.fastq.gz',
+               'SP573859A04_R1.fastq.gz', 'SP573860A01_R1.fastq.gz',
+               'SP577399A02_R1.fastq.gz', 'SP584547A02_R1.fastq.gz',
+               'SP584551A08_R1.fastq.gz', 'SP612495A04_R1.fastq.gz',
+               'SP612496A01_R1.fastq.gz', 'SP631994A04_R1.fastq.gz',
+               'SP640978A02_R1.fastq.gz', 'SP641029A02_R1.fastq.gz',
+               'SP645141A03_R1.fastq.gz', 'SP681591A04_R1.fastq.gz',
+               'SP683466A02_R1.fastq.gz', 'SP704319A04_R1.fastq.gz',
+               'SP754514A04_R1.fastq.gz', 'ep256643b01_R1.fastq.gz',
+               'lp127896a01_R1.fastq.gz']
+
+        file_names += [join(base_path, 'NYU_BMS_Melanoma_13059', x) for x in
+                       tmp]
+
+        # create dummy fastq files
+        for line in file_names:
+            # create a fake forward-read file.
+            with open(line, 'w') as f2:
+                f2.write("This is a file.")
+            # create a fake reverse-read file.
+            line = line.replace('_R1.fastq', '_R2.fastq')
+            with open(line, 'w') as f2:
+                f2.write("This is a file.")
+
+        # generate dummy FastQCJob and QCJob output
+        file_names = []
+        base_path = join(self.fastqc_job_working_path)
+        makedirs(join(base_path, 'Feist_11661', 'trimmed_sequences'),
+                 exist_ok=True)
+        makedirs(join(base_path, 'Gerwick_6123', 'filtered_sequences'),
+                 exist_ok=True)
+
+        file_names.append(join(base_path,
+                               'Feist_11661',
+                               'trimmed_sequences',
+                               ('CDPH-SAL_Salmonella_Typhi_MDL-143_S1_L003_R1_'
+                                '001.trimmed_fastqc.html')))
+
+        file_names.append(join(base_path,
+                               'Gerwick_6123',
+                               'filtered_sequences',
+                               '3A_S169_L003_R2_001.trimmed_fastqc.html'))
+
+        base_path = join(self.qc_job_working_path)
+        makedirs(join(base_path, 'Feist_11661', 'trimmed_sequences'),
+                 exist_ok=True)
+        makedirs(join(base_path, 'Gerwick_6123', 'filtered_sequences'),
+                 exist_ok=True)
+        makedirs(join(base_path, 'Feist_11661', 'zero_files'), exist_ok=True)
+        makedirs(join(base_path, 'Gerwick_6123', 'zero_files'), exist_ok=True)
+
+        file_names.append(join(base_path,
+                               'Feist_11661',
+                               'trimmed_sequences',
+                               ('CDPH-SAL_Salmonella_Typhi_MDL-143_S1_L003_R1_'
+                                '001.trimmed_fastq.gz')))
+
+        file_names.append(join(base_path,
+                               'Feist_11661',
+                               'zero_files',
+                               ('CDPH-SAL_Salmonella_Typhi_MDL-144_S23_L003_R1'
+                                '_001.trimmed.fastq.gz')))
+
+        file_names.append(join(base_path,
+                               'Gerwick_6123',
+                               'filtered_sequences',
+                               '3A_S169_L003_R2_001.trimmed_fastq.gz'))
+
+        file_names.append(join(base_path,
+                               'Gerwick_6123',
+                               'zero_files',
+                               '4A_S169_L003_R2_001.trimmed.fastq.gz'))
+
+        # write files out to disk
+        for file_name in file_names:
+            with open(file_name, 'w') as f2:
+                f2.write("This is a file.")
+
     def tearDown(self):
         # Pipeline is now the only class aware of these files, hence they
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
+        shutil.rmtree(self.convert_job_working_path)
+        shutil.rmtree(self.fastqc_job_working_path)
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -373,6 +1028,78 @@ class TestPipeline(unittest.TestCase):
                 obs = obs_lines[-1].strip()
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
+
+    def test_audit(self):
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_output_file_path, 'my_qiita_id',
+                            None)
+
+        # test the proper extraction of metadata from the sample-sheet.
+        results = pipeline.extract_metadata(self.sample_sheet_path)
+
+        sample_ids = results['unique-values']['sample-ids']
+
+        found = pipeline.audit_job(sample_ids, self.convert_job_working_path,
+                                   'fastq.gz', 'R')
+
+        not_found = list(set(found) ^ set(sample_ids))
+
+        found.sort()
+        not_found.sort()
+
+        self.assertEqual(found[0], '22_001_710_503_791_00')
+        self.assertEqual(found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(743, len(found))
+
+        # All samples should have been found.
+        self.assertEqual(0, len(not_found))
+
+        # verify that the entire list of sample-ids found match what's
+        # expected. Since the list of expected ids is very small, we'll
+        # perform an exact comparison.
+        found = pipeline.audit_job(sample_ids,
+                                   self.qc_job_working_path,
+                                   'fastq.gz',
+                                   'S')
+
+        not_found = list(set(found) ^ set(sample_ids))
+
+        found.sort()
+        not_found.sort()
+
+        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
+        self.assertEqual(found, exp)
+
+        # verify that the first and last sample-ids in the sorted list of
+        # sample-ids not found are correct, as well as the number of sample-
+        # ids present in the list (or not present in the results).
+        not_found = list(set(found) ^ set(sample_ids))
+        not_found.sort()
+        self.assertEqual(not_found[0], '22_001_710_503_791_00')
+        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(741, len(not_found))
+
+        # assume for now that a corresponding zip file exists for each html
+        # file found. Assume for now that all html files will be found in a
+        # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
+        #
+        # verify that the entire list of sample-ids found match what's
+        # expected. Since the list of expected ids is very small, we'll
+        # perform an exact comparison.
+        found = pipeline.audit_job(sample_ids, self.fastqc_job_working_path,
+                                   '_fastqc.html', 'S')
+        found.sort()
+        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
+        self.assertEqual(found, exp)
+
+        # verify that the first and last sample-ids in the sorted list of
+        # sample-ids not found are correct, as well as the number of sample-
+        # ids present in the list (or not present in the results).
+        not_found = list(set(found) ^ set(sample_ids))
+        not_found.sort()
+        self.assertEqual(not_found[0], '22_001_710_503_791_00')
+        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
+        self.assertEqual(741, len(not_found))
 
 
 if __name__ == '__main__':
