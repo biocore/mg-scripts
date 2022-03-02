@@ -1,5 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os.path import join
+from os.path import basename, join
+from os import walk
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -148,3 +149,29 @@ class ConvertJob(Job):
                              exec_from=self.log_path, callback=callback)
 
         logging.info(f'Successful job: {job_info}')
+
+    def audit(self, sample_ids):
+        '''
+        Audit the results of a run.
+        :param sample_ids: A list of sample-ids that require results.
+        :return: A list of sample-ids that were not found.
+        '''
+        files_found = []
+
+        for root, dirs, files in walk(self.root_dir):
+            files_found += [join(root, x) for x in files if
+                            x.endswith('fastq.gz')]
+
+        # remove all files found with a 'zero_files' directory in the path
+        files_found = [x for x in files_found if 'zero_files' not in x]
+        found = []
+
+        for sample_id in sample_ids:
+            for found_file in files_found:
+                # assume _R1 or _R2 will always follow the sample_id
+                mod_id = '%s_R' % sample_id
+                if basename(found_file).startswith(mod_id):
+                    found.append(sample_id)
+                    break
+
+        return sorted(list(set(found) ^ set(sample_ids)))
