@@ -1,7 +1,5 @@
 import json
 import os
-import shutil
-
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
@@ -36,74 +34,11 @@ class TestPipeline(unittest.TestCase):
         self.create_runinfo_file()
         self.create_rtacomplete_file()
 
-        self.sample_sheet_path = join(package_root,
-                                      'tests/data/good-sample-sheet.csv')
-
-        self.qc_job_working_path = join(package_root,
-                                        'tests/data/MyQCJob')
-        self.fastqc_job_working_path = join(package_root,
-                                            'tests/data/MyFastQCJob')
-
-        # generate dummy FastQCJob and QCJob output
-        file_names = []
-        base_path = join(self.fastqc_job_working_path)
-        makedirs(join(base_path, 'Feist_11661', 'trimmed_sequences'),
-                 exist_ok=True)
-        makedirs(join(base_path, 'Gerwick_6123', 'filtered_sequences'),
-                 exist_ok=True)
-
-        file_names.append(join(base_path,
-                               'Feist_11661',
-                               'trimmed_sequences',
-                               ('CDPH-SAL_Salmonella_Typhi_MDL-143_S1_L003_R1_'
-                                '001.trimmed_fastqc.html')))
-
-        file_names.append(join(base_path,
-                               'Gerwick_6123',
-                               'filtered_sequences',
-                               '3A_S169_L003_R2_001.trimmed_fastqc.html'))
-
-        base_path = join(self.qc_job_working_path)
-        makedirs(join(base_path, 'Feist_11661', 'trimmed_sequences'),
-                 exist_ok=True)
-        makedirs(join(base_path, 'Gerwick_6123', 'filtered_sequences'),
-                 exist_ok=True)
-        makedirs(join(base_path, 'Feist_11661', 'zero_files'), exist_ok=True)
-        makedirs(join(base_path, 'Gerwick_6123', 'zero_files'), exist_ok=True)
-
-        file_names.append(join(base_path,
-                               'Feist_11661',
-                               'trimmed_sequences',
-                               ('CDPH-SAL_Salmonella_Typhi_MDL-143_S1_L003_R1_'
-                                '001.trimmed_fastq.gz')))
-
-        file_names.append(join(base_path,
-                               'Feist_11661',
-                               'zero_files',
-                               ('CDPH-SAL_Salmonella_Typhi_MDL-144_S23_L003_R1'
-                                '_001.trimmed.fastq.gz')))
-
-        file_names.append(join(base_path,
-                               'Gerwick_6123',
-                               'filtered_sequences',
-                               '3A_S169_L003_R2_001.trimmed_fastq.gz'))
-
-        file_names.append(join(base_path,
-                               'Gerwick_6123',
-                               'zero_files',
-                               '4A_S169_L003_R2_001.trimmed.fastq.gz'))
-
-        # write files out to disk
-        for file_name in file_names:
-            with open(file_name, 'w') as f2:
-                f2.write("This is a file.")
-
     def tearDown(self):
         # Pipeline is now the only class aware of these files, hence they
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
-        shutil.rmtree(self.fastqc_job_working_path)
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -437,63 +372,6 @@ class TestPipeline(unittest.TestCase):
                 obs = obs_lines[-1].strip()
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
-
-    def test_audit(self):
-        pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_output_file_path, 'my_qiita_id',
-                            None)
-
-        # test the proper extraction of metadata from the sample-sheet.
-        results = pipeline.extract_metadata(self.sample_sheet_path)
-
-        sample_ids = results['unique-values']['sample-ids']
-
-        # verify that the entire list of sample-ids found match what's
-        # expected. Since the list of expected ids is very small, we'll
-        # perform an exact comparison.
-        found = pipeline.audit_job(sample_ids,
-                                   self.qc_job_working_path,
-                                   'fastq.gz',
-                                   'S')
-
-        not_found = list(set(found) ^ set(sample_ids))
-
-        found.sort()
-        not_found.sort()
-
-        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
-        self.assertEqual(found, exp)
-
-        # verify that the first and last sample-ids in the sorted list of
-        # sample-ids not found are correct, as well as the number of sample-
-        # ids present in the list (or not present in the results).
-        not_found = list(set(found) ^ set(sample_ids))
-        not_found.sort()
-        self.assertEqual(not_found[0], '22_001_710_503_791_00')
-        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
-        self.assertEqual(741, len(not_found))
-
-        # assume for now that a corresponding zip file exists for each html
-        # file found. Assume for now that all html files will be found in a
-        # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
-        #
-        # verify that the entire list of sample-ids found match what's
-        # expected. Since the list of expected ids is very small, we'll
-        # perform an exact comparison.
-        found = pipeline.audit_job(sample_ids, self.fastqc_job_working_path,
-                                   '_fastqc.html', 'S')
-        found.sort()
-        exp = ["3A", "CDPH-SAL_Salmonella_Typhi_MDL-143"]
-        self.assertEqual(found, exp)
-
-        # verify that the first and last sample-ids in the sorted list of
-        # sample-ids not found are correct, as well as the number of sample-
-        # ids present in the list (or not present in the results).
-        not_found = list(set(found) ^ set(sample_ids))
-        not_found.sort()
-        self.assertEqual(not_found[0], '22_001_710_503_791_00')
-        self.assertEqual(not_found[-1], 'stALE_E_coli_A9_F44_I1_R1')
-        self.assertEqual(741, len(not_found))
 
 
 if __name__ == '__main__':

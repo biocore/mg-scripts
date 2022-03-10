@@ -9,6 +9,7 @@ from shutil import rmtree
 
 class TestConvertJob(unittest.TestCase):
     def setUp(self):
+        # A list of sample-ids found within good-sample-sheet.csv.
         self.feist_ids = ['JM-Metabolic__GN04255',
                           'AB5075_AZM_TALE_in_MHB_A_baumannii_AB5075_WT_5_22',
                           'Pputida_PALE__HGL_Pputida_148',
@@ -832,40 +833,51 @@ class TestConvertJob(unittest.TestCase):
                         'SP681591A04', 'SP683466A02', 'SP704319A04',
                         'SP754514A04', 'ep256643b01', 'lp127896a01']
 
+        # the entire list of sample-ids found w/in good-sample-sheet.csv
         self.sample_ids = self.feist_ids + self.gerwick_ids + self.nyu_ids
         package_root = abspath('./sequence_processing_pipeline')
-        self.convert_job_working_path = join(package_root,
-                                             'tests/data/MyConvertJob2')
+        # this base path is used extensively throughout the tests.
+        self.base_path = partial(join, package_root, 'tests', 'data')
+        self.good_output_path = self.base_path('output_dir')
+        self.sample_sheet_path = self.base_path('good-sample-sheet.csv')
 
-        # create a new instance of the Data/Fastq directory
-        base_path = join(self.convert_job_working_path, 'Data', 'Fastq')
-        makedirs(join(base_path, 'Feist_11661'), exist_ok=True)
-        makedirs(join(base_path, 'Gerwick_6123'), exist_ok=True)
-        makedirs(join(base_path, 'NYU_BMS_Melanoma_13059'), exist_ok=True)
+        # because we can't run bcl2fastq/bcl-convert in a unit-test
+        # environment, we need to simulate the file/directory structure of
+        # the output in order to test the audit() method. ConvertJob assumes
+        # the location of the output files to be under the supplied output
+        # path/ConvertJob. Hence, our faked_output_path will follow the same
+        # convention.
+        faked_output_path = join(self.good_output_path, 'ConvertJob')
 
-        # generate filenames and paths for dummy fastq files
-        file_names = [join(base_path,
+        # mimic the Data/Fastq/<Project> hierarchy.
+        fastq_base = join(faked_output_path, 'Data', 'Fastq')
+        makedirs(join(fastq_base, 'Feist_11661'), exist_ok=True)
+        makedirs(join(fastq_base, 'Gerwick_6123'), exist_ok=True)
+        makedirs(join(fastq_base, 'NYU_BMS_Melanoma_13059'), exist_ok=True)
+
+        # generate filenames and paths for the dummy fastq files.
+        file_names = [join(fastq_base,
                            'Feist_11661',
                            '%s_R1.fastq.gz' % x) for x in self.feist_ids]
-        file_names += [join(base_path,
+        file_names += [join(fastq_base,
                             'Feist_11661',
                             '%s_R2.fastq.gz' % x) for x in self.feist_ids]
-        file_names += [join(base_path,
+        file_names += [join(fastq_base,
                             'Gerwick_6123',
                             '%s_R1.fastq.gz' % x) for x in self.gerwick_ids]
-        file_names += [join(base_path,
+        file_names += [join(fastq_base,
                             'Gerwick_6123',
                             '%s_R2.fastq.gz' % x) for x in self.gerwick_ids]
-        file_names += [join(base_path,
+        file_names += [join(fastq_base,
                             'NYU_BMS_Melanoma_13059',
                             '%s_R1.fastq.gz' % x) for
                        x in self.nyu_ids]
-        file_names += [join(base_path,
+        file_names += [join(fastq_base,
                             'NYU_BMS_Melanoma_13059',
                             '%s_R2.fastq.gz' % x) for
                        x in self.nyu_ids]
 
-        # create dummy fastq files
+        # create the dummy fastq files.
         for line in file_names:
             # create a fake forward-read file.
             with open(line, 'w') as f2:
@@ -876,56 +888,49 @@ class TestConvertJob(unittest.TestCase):
                 f2.write("This is a file.")
 
     def tearDown(self):
-        rmtree(self.convert_job_working_path)
+        rmtree(self.good_output_path)
 
     def test_creation(self):
-        # currently, the root directory of a job is going to be the
-        # root directory of the single sequence directory given as
-        # input by the user. Later we can re-introduce directories
-        # that contain multiple BCL root directories.
-        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
-        run_dir = path('211021_A00000_0000_SAMPLE')
-        sample_sheet_path = path('good-sample-sheet.csv')
-        inv_input_directory = path('inv_input_directory')
-        good_output_path = path('output_dir')
-        makedirs(good_output_path, exist_ok=True)
+        run_dir = self.base_path('211021_A00000_0000_SAMPLE')
+        inv_input_directory = self.base_path('inv_input_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
-        self.maxDiff = None
 
         # ConvertJob should assert due to invalid_input_directory.
         with self.assertRaises(PipelineError) as e:
-            ConvertJob(inv_input_directory, good_output_path,
-                       sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+            ConvertJob(inv_input_directory, self.good_output_path,
+                       self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
                        'tests/bin/bcl-convert', [], qiita_id)
 
-        self.assertEqual(str(e.exception), ("directory_path '"
-                                            f"{path('inv_input_directory')}' "
-                                            "does not exist."))
+        self.assertEqual(str(e.exception),
+                         "directory_path '%s' does not exist." %
+                         self.base_path('inv_input_directory'))
 
-        job = ConvertJob(run_dir, good_output_path, sample_sheet_path,
-                         'qiita', 1, 16, 24, '10gb', 'tests/bin/bcl-convert',
-                         [], qiita_id)
+        job = ConvertJob(run_dir, self.good_output_path,
+                         self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+                         'tests/bin/bcl-convert', [], qiita_id)
 
         job._generate_job_script()
 
-        with open(join(good_output_path, 'ConvertJob', 'ConvertJob.sh')) as f:
+        with open(join(self.good_output_path, 'ConvertJob',
+                       'ConvertJob.sh')) as f:
             obs = ''.join(f.readlines())
 
-        self.assertEqual(obs, SCRIPT_EXP.format(gop=good_output_path,
-                                                run_dir=run_dir))
+        # ssp should be just the value of the self.path() partial function by
+        # itself. For readability, SCRIPT_EXP addresses the '/' separator.
+        # Hence, the trailing '/' is redundant and should be removed here.
+        self.assertEqual(obs,
+                         SCRIPT_EXP.format(ssp=self.base_path('').rstrip('/'),
+                                           gop=self.good_output_path,
+                                           run_dir=run_dir))
 
     def test_audit(self):
-        path = partial(join, 'sequence_processing_pipeline', 'tests', 'data')
-        run_dir = path('MyConvertJob2')
-        sample_sheet_path = path('good-sample-sheet.csv')
-        good_output_path = path('output_dir')
-        makedirs(good_output_path, exist_ok=True)
-        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
-        self.maxDiff = None
-
-        job = ConvertJob(run_dir, good_output_path, sample_sheet_path,
-                         'qiita', 1, 16, 24, '10gb', 'tests/bin/bcl-convert',
-                         [], qiita_id)
+        # the faked output should be in self.good_output_path/ConvertJob.
+        # ConvertJob already takes into account 'ConvertJob' and so the
+        # correct path to the faked output is self.good_output_path, rather
+        # than faked_output_path.
+        job = ConvertJob(self.base_path('some_dir'), self.good_output_path,
+                         self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+                         'tests/bin/bcl-convert', [], 'some_qiita_id')
 
         obs = job.audit(self.sample_ids)
         # there shouldn't be any missing samples.
@@ -950,8 +955,8 @@ SCRIPT_EXP = ''.join([
     'date\n',
     'hostname\n',
     'cd {run_dir}\n',
-    'tests/bin/bcl-convert --sample-sheet sequence_processing_pipeline/tests/'
-    'data/good-sample-sheet.csv --output-directory {gop}/ConvertJob '
+    'tests/bin/bcl-convert --sample-sheet {ssp}/good-sample-sheet.csv '
+    '--output-directory {gop}/ConvertJob '
     '--bcl-input-directory . '
     '--bcl-num-decompression-threads 16 --bcl-num-conversion-threads 16 '
     '--bcl-num-compression-threads 16 --bcl-num-parallel-tiles 16 '

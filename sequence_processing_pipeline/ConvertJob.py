@@ -158,7 +158,7 @@ class ConvertJob(Job):
         '''
         files_found = []
 
-        for root, dirs, files in walk(self.root_dir):
+        for root, dirs, files in walk(self.output_path):
             files_found += [join(root, x) for x in files if
                             x.endswith('fastq.gz')]
 
@@ -169,8 +169,7 @@ class ConvertJob(Job):
         for sample_id in sample_ids:
             for found_file in files_found:
                 # assume _R1 or _R2 will always follow the sample_id
-                mod_id = '%s_R' % sample_id
-                if basename(found_file).startswith(mod_id):
+                if basename(found_file).startswith('%s_R' % sample_id):
                     found.append(sample_id)
                     break
 

@@ -1,7 +1,7 @@
 from json import load as json_load
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir, walk
-from os.path import basename, join, exists, isdir, getmtime
+from os.path import join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from metapool.plate import ErrorMessage
 from sequence_processing_pipeline.ConvertJob import ConvertJob
@@ -373,32 +373,6 @@ class Pipeline:
             results += [join(root, x) for x in files if x.endswith(suffix)]
 
         return results
-
-    def audit_job(self, sample_ids, working_path, suffix, mod):
-        '''
-        Audit the results of a Job object.
-        :param sample_ids: A list of sample-ids that require results.
-        :param working_path: Root path of the Job object's working directory.
-        :param suffix: The file-type or extension of the files to filter for.
-        :param mod: The substring marking the end of a sample-id.
-        :return: A list of sample-ids found.
-        '''
-        files_found = self.find_files_ending_in(working_path, suffix)
-        # remove all files found with a 'zero_files' directory in the path
-        files_found = [x for x in files_found if 'zero_files' not in x]
-        found = []
-
-        for sample_id in sample_ids:
-            for found_file in files_found:
-                # we can append '_R\d' to sample_id if we
-                # can assume _R1 or _R2 will always follow the
-                # sample_id
-                mod_id = '%s_%s' % (sample_id, mod)
-                if basename(found_file).startswith(mod_id):
-                    found.append(sample_id)
-                    break
-
-        return found
 
 
 if __name__ == '__main__':
