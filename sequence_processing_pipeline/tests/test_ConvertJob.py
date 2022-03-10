@@ -840,6 +840,12 @@ class TestConvertJob(unittest.TestCase):
         self.base_path = partial(join, package_root, 'tests', 'data')
         self.good_output_path = self.base_path('output_dir')
         self.sample_sheet_path = self.base_path('good-sample-sheet.csv')
+        self.good_input_path = self.base_path('input_dir')
+
+        # self.good_input_path doesn't need to have anything in it for the
+        # purposes of testing, but it does need to exist or else the object
+        # will raise an Error.
+        makedirs(self.good_input_path, exist_ok=True)
 
         # because we can't run bcl2fastq/bcl-convert in a unit-test
         # environment, we need to simulate the file/directory structure of
@@ -888,6 +894,7 @@ class TestConvertJob(unittest.TestCase):
                 f2.write("This is a file.")
 
     def tearDown(self):
+        rmtree(self.good_input_path)
         rmtree(self.good_output_path)
 
     def test_creation(self):
@@ -928,7 +935,7 @@ class TestConvertJob(unittest.TestCase):
         # ConvertJob already takes into account 'ConvertJob' and so the
         # correct path to the faked output is self.good_output_path, rather
         # than faked_output_path.
-        job = ConvertJob(self.base_path('some_dir'), self.good_output_path,
+        job = ConvertJob(self.good_input_path, self.good_output_path,
                          self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
                          'tests/bin/bcl-convert', [], 'some_qiita_id')
 
