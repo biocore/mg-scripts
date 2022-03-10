@@ -1,16 +1,11 @@
 from json import load as json_load
 from json.decoder import JSONDecodeError
-from os import makedirs, listdir, walk
+from os import makedirs, listdir
 from os.path import join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from metapool.plate import ErrorMessage
-from sequence_processing_pipeline.ConvertJob import ConvertJob
-from sequence_processing_pipeline.FastQCJob import FastQCJob
-from sequence_processing_pipeline.GenPrepFileJob import GenPrepFileJob
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from sequence_processing_pipeline.QCJob import QCJob
-from sequence_processing_pipeline.SequenceDirectory import SequenceDirectory
 from time import time as epoch_time
 import logging
 import re
@@ -34,12 +29,13 @@ class Pipeline:
                     None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
-    def __init__(self, configuration_file_path, run_id, output_path,
-                 qiita_job_id, config_dict=None):
+    def __init__(self, configuration_file_path, run_id, sample_sheet_path,
+                 output_path, qiita_job_id, config_dict=None):
         '''
-        Pipeline
+        Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
         :param run_id: Used w/search_paths to locate input run_directory.
+        :param sample_sheet_path: Path to required sample-sheet.
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
@@ -80,17 +76,34 @@ class Pipeline:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
 
+        # The sample-sheet parameter is now supplied to the Pipeline object
+        # at initialization time. This allows the Pipeline to process the
+        # sample-sheet once and retain the metadata for subsequent method
+        # calls.
+        if sample_sheet_path is None:
+            raise PipelineError('sample_sheet_path cannot be None')
+
+        # Note that any warnings and/or Error messages from our extended
+        # validate() method will now be returned w/
+
+        # If our extended validate() method discovers any warnings or
+        # Errors, it will raise a PipelineError and return them w/in the
+        # error message as a single string separated by '\n'.
+        self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
+        self._directory_check(output_path, create=False)
         self.output_path = output_path
-        self.directory_check(output_path, create=False)
         self.search_paths = config['search_paths']
         self.run_id = run_id
         self.run_dir = self._search_for_run_dir()
+        # younger_than and older_than are represented in the configuration
+        # file as hours.
         self.younger_than = config['younger_than']
         self.older_than = config['older_than']
-        self.run_id = run_id
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
 
+        # Timestamp check is now included in initialization, since it is
+        # only ever checked once.
         if self.older_than < 0 or self.younger_than < 0:
             raise PipelineError('older_than and younger_than cannot be '
                                 'less than zero.')
@@ -98,6 +111,18 @@ class Pipeline:
         if self.older_than >= self.younger_than:
             raise PipelineError(
                 'older_than cannot be equal to or less than younger_than.')
+
+        # determine the current age of the run_directory in seconds.
+        d_t = epoch_time() - getmtime(self.run_dir)
+
+        # older_than is not the minimum allowable value, while younger_than
+        # is the maximum allowable value. These values are converted from
+        # hours into seconds.
+        if d_t < (self.older_than * 3600):
+            raise PipelineError(f'{self.run_dir} is too young.')
+
+        if d_t > (self.younger_than * 3600):
+            raise PipelineError(f'{self.run_dir} is too old.')
 
         # required files for successful operation
         # both RTAComplete.txt and RunInfo.xml should reside in the root of
@@ -139,7 +164,7 @@ class Pipeline:
         raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
                             "found")
 
-    def directory_check(self, directory_path, create=False):
+    def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
             logging.debug("directory '%s' exists." % directory_path)
         else:
@@ -154,22 +179,6 @@ class Pipeline:
             else:
                 raise PipelineError("directory_path '%s' does not exist." %
                                     directory_path)
-
-    def is_within_time_range(self, run_directory):
-        """
-        Verify run_directory's timestamp is within Pipeline's window.
-        :return: True if run_directory is w/in window, False otherwise.
-        """
-        if exists(run_directory):
-            ts = getmtime(run_directory)
-            d_t = epoch_time() - ts
-            if d_t < (self.younger_than * 3600):
-                if d_t > (self.older_than * 3600):
-                    return True
-        else:
-            raise PipelineError(f"'{run_directory}' doesn't exist")
-
-        return False
 
     def run(self):
         """
@@ -190,10 +199,9 @@ class Pipeline:
         else:
             raise PipelineError("object is not a Job object.")
 
-    def validate(self, sample_sheet_path):
+    def _validate_sample_sheet(self, sample_sheet_path):
         '''
         Performs additional validation for sample-sheet on top of metapool.
-        :param sample_sheet_path: Path to sample-sheet.
         :return: If successful, an empty list of strings and a valid
                  sample-sheet. If unsuccessful, a list of warning and error
                  messages and None.
@@ -233,26 +241,19 @@ class Pipeline:
                     unique_indexes.append(unique_index)
 
         if passes_additional_tests:
-            return msgs, val_sheet
-        else:
-            return msgs, None
+            return val_sheet
 
-    def generate_sample_information_files(self, sample_sheet_path):
+        # convert msgs from a list of ErrorMessages into a list of strings
+        # before raising the PipelineError.
+        raise PipelineError('\n'.join([str(x) for x in msgs]))
+
+    def generate_sample_information_files(self):
         '''
-        Using a path to a validated sample-sheet, generate sample-information
-        files in self.output_path.
-        :param sample_sheet_path:
+        Generate sample-information files in self.output_path.
         :return: A list of paths to sample-information-files.
         '''
-        sheet = KLSampleSheet(sample_sheet_path)
-        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
-
-        if val_sheet is None:
-            raise PipelineError("'%s' is not a valid sample-sheet." %
-                                sample_sheet_path)
-
         samples = []
-        for sample in val_sheet.samples:
+        for sample in self.sample_sheet.samples:
             if sample['Sample_ID'].startswith('BLANK'):
                 samples.append((sample['Sample_ID'], sample['Sample_Project']))
 
@@ -303,166 +304,6 @@ class Pipeline:
 
         return paths
 
-    def extract_metadata(self, sample_sheet_path):
-        '''
-        Extract sample ids from a given sample-sheet.
-        :param sample_sheet_path: Path to a sample-sheet.
-        :return: A dictionary of various lists of metadata.
-        '''
-        sheet = KLSampleSheet(sample_sheet_path)
-        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
-
-        if val_sheet is None:
-            raise PipelineError("'%s' is not a valid sample-sheet." %
-                                sample_sheet_path)
-
-        # generate a list of unique project, plate names, and sample-ids found
-        # in the sample-sheet.
-        projects = list(set([x.Sample_Project for x in val_sheet.samples]))
-        plates = list(set([x.Sample_Plate for x in val_sheet.samples]))
-        sample_ids = list(set([x.Sample_ID for x in val_sheet.samples]))
-
-        # Generate a list of BLANKs defined on each plate. They will be shared
-        # across all projects on that plate. For now, accept '' as a valid
-        # plate-name.
-        blanks = [x for x in sample_ids if 'BLANK' in x]
-
-        # filter out BLANKs from the list of sample-ids.
-        sample_ids = [x for x in sample_ids if 'BLANK' not in x]
-
-        # map blanks to plates
-        bp_map = {plate: [] for plate in plates}
-
-        # map samples to projects
-        spro_map = {project: [] for project in projects}
-
-        # map samples to plates
-        splate_map = {plate: [] for plate in plates}
-
-        for sample in val_sheet.samples:
-            if sample.Sample_ID in blanks:
-                bp_map[sample.Sample_Plate].append(sample.Sample_ID)
-            else:
-                spro_map[sample.Sample_Project].append(sample.Sample_ID)
-                splate_map[sample.Sample_Plate].append(sample.Sample_ID)
-
-        result = {
-            'unique-values': {
-                'project-names': projects,
-                'plate-names': plates,
-                'sample-ids': sample_ids
-            }, 'maps': {
-                'blanks-to-plates': bp_map,
-                'samples-to-plates': splate_map,
-                'samples-to-projects': spro_map
-            }
-        }
-
-        return result
-
-    def find_files_ending_in(self, working_path, suffix):
-        '''
-        Find files ending in 'suffix' in a nested working directory.
-        :param working_path: Root path of nested directory.
-        :param suffix: Sub-string to filter for.
-        :return:
-        '''
-        results = []
-
-        for root, dirs, files in walk(working_path):
-            results += [join(root, x) for x in files if x.endswith(suffix)]
-
-        return results
-
-
-if __name__ == '__main__':
-    logging.debug("Starting Pipeline")
-
-    sample_sheet_path = '/path/to/sample-sheet'
-    run_id = '210518_A00953_0305_test11'
-    config_file_path = '/path/to/configuration.json'
-    qiita_job_id = 'NOT_A_QIITA_JOB_ID'
-    output_path = '/path/to/output_path'
-    config_dict = None
-
-    pipeline = Pipeline(config_file_path, run_id, output_path, qiita_job_id,
-                        config_dict)
-
-    msgs, val_sheet = pipeline.validate(sample_sheet_path)
-    paths = pipeline.generate_sample_information_files(sample_sheet_path)
-
-    sdo = SequenceDirectory(pipeline.run_dir,
-                            sample_sheet_path=sample_sheet_path)
-
-    config = pipeline.configuration['bcl-convert']
-
-    pipeline.add(ConvertJob(pipeline.run_dir,
-                            pipeline.output_path,
-                            sdo.sample_sheet_path,
-                            config['queue'],
-                            config['nodes'],
-                            config['nprocs'],
-                            config['wallclock_time_in_hours'],
-                            config['per_process_memory_limit'],
-                            config['executable_path'],
-                            config['modules_to_load'],
-                            pipeline.qiita_job_id))
-
-    config = pipeline.configuration['qc']
-
-    '''
-    the path to the raw fastq_files will be in run_dir/ConvertJob
-    '''
-
-    raw_fastq_files_path = join(pipeline.output_path, 'ConvertJob')
-
-    pipeline.add(QCJob(raw_fastq_files_path,
-                       pipeline.output_path,
-                       sdo.sample_sheet_path,
-                       config['mmi_db'],
-                       config['queue'],
-                       config['nodes'],
-                       config['nprocs'],
-                       config['wallclock_time_in_hours'],
-                       config['job_total_memory_limit'],
-                       config['fastp_executable_path'],
-                       config['minimap2_executable_path'],
-                       config['samtools_executable_path'],
-                       config['modules_to_load'],
-                       qiita_job_id,
-                       config['job_pool_size'],
-                       config['job_max_array_length']))
-
-    config = pipeline.configuration['fastqc']
-
-    processed_fastq_files_path = join(pipeline.output_path, 'QCJob')
-
-    # TODO: run_dir as it is isn't used by FastQCJob.
-    #  Inputs are raw_fastq_files_path and processed_fastq_files_path.
-    pipeline.add(FastQCJob(pipeline.run_dir,
-                           pipeline.output_path,
-                           raw_fastq_files_path,
-                           processed_fastq_files_path,
-                           config['nprocs'],
-                           config['nthreads'],
-                           config['fastqc_executable_path'],
-                           config['modules_to_load'],
-                           qiita_job_id,
-                           config['queue'],
-                           config['nodes'],
-                           config['wallclock_time_in_hours'],
-                           config['job_total_memory_limit'],
-                           config['job_pool_size'],
-                           config['multiqc_config_file_path'],
-                           config['job_max_array_length']))
-
-    config = pipeline.configuration['seqpro']
-
-    pipeline.add(GenPrepFileJob(pipeline.run_dir,
-                                pipeline.output_path,
-                                sdo.sample_sheet_path,
-                                config['seqpro_path'],
-                                config['modules_to_load'],
-                                qiita_job_id))
-
-    pipeline.run()
+    def get_sample_ids(self):
+        return [x.Sample_ID for x in self.sample_sheet.samples
+                if 'BLANK' not in x]

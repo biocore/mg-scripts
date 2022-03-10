@@ -1,7 +1,7 @@
 {
   "configuration": {
     "pipeline": {
-      "younger_than": 90,
+      "younger_than": 168,
       "older_than": 24,
       "archive_path": "sequence_processing_pipeline/tests/data/sequencing/knight_lab_completed_runs",
       "search_paths": [ "/tmp", "sequence_processing_pipeline/tests/data"]
