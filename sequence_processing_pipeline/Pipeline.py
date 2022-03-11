@@ -3,7 +3,7 @@ from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, getmtime
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
-from metapool.plate import ErrorMessage
+from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from time import time as epoch_time
@@ -101,6 +101,7 @@ class Pipeline:
         self.older_than = config['older_than']
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
+        self.warnings = []
 
         # Timestamp check is now included in initialization, since it is
         # only ever checked once.
@@ -240,12 +241,22 @@ class Pipeline:
                 else:
                     unique_indexes.append(unique_index)
 
-        if passes_additional_tests:
-            return val_sheet
+            if passes_additional_tests:
+                # return a valid sample-sheet, and preserve any warning
+                # messages
+                self.warnings += [str(x) for x in msgs if
+                                  isinstance(x, WarningMessage)]
+                return val_sheet
 
+        # if we are here, then val_sheet is None and there are msgs or the
+        # sample-sheet failed to pass our additional tests. In either case we
+        # should raise a PipelineError and return the list of ErrorMessages in
+        # the PipelineError's message member.
+        #
         # convert msgs from a list of ErrorMessages into a list of strings
-        # before raising the PipelineError.
-        raise PipelineError('\n'.join([str(x) for x in msgs]))
+        # before raising the PipelineError. (WarningMessages are included).
+        raise PipelineError('Sample-sheet has the following errors:\n'
+                            '\n'.join([str(x) for x in msgs]))
 
     def generate_sample_information_files(self):
         '''
@@ -307,3 +318,21 @@ class Pipeline:
     def get_sample_ids(self):
         return [x.Sample_ID for x in self.sample_sheet.samples
                 if 'BLANK' not in x]
+
+    def get_project_info(self):
+        bioinformatics = self.sample_sheet.Bioinformatics
+        results = []
+
+        for result in bioinformatics.to_dict('records'):
+            results.append({'project_name': result['Sample_Project'],
+                            'qiita_id': result['QiitaID']})
+
+        return results
+
+
+
+
+
+
+
+
