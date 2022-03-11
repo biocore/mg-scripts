@@ -89,6 +89,7 @@ class Pipeline:
         # If our extended validate() method discovers any warnings or
         # Errors, it will raise a PipelineError and return them w/in the
         # error message as a single string separated by '\n'.
+        self.warnings = []
         self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
         self._directory_check(output_path, create=False)
         self.output_path = output_path
@@ -101,7 +102,6 @@ class Pipeline:
         self.older_than = config['older_than']
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
-        self.warnings = []
 
         # Timestamp check is now included in initialization, since it is
         # only ever checked once.
