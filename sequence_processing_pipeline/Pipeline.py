@@ -328,11 +328,3 @@ class Pipeline:
                             'qiita_id': result['QiitaID']})
 
         return results
-
-
-
-
-
-
-
-
