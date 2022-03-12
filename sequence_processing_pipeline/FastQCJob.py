@@ -267,5 +267,3 @@ class FastQCJob(Job):
                     break
 
         return sorted(list(set(found) ^ set(sample_ids)))
-
-
