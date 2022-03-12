@@ -164,12 +164,15 @@ class ConvertJob(Job):
 
         # remove all files found with a 'zero_files' directory in the path
         files_found = [x for x in files_found if 'zero_files' not in x]
-        found = []
 
+        found = []
         for sample_id in sample_ids:
             for found_file in files_found:
-                # assume _R1 or _R2 will always follow the sample_id
-                if basename(found_file).startswith('%s_R' % sample_id):
+                # the trailing underscore is important as it can be assumed
+                # that all fastq.gz files will begin with sample_id followed
+                # by an '_', and then one or more additional parameters
+                # separated by underscores. This substring is unlikely to be
+                if basename(found_file).startswith('%s_' % sample_id):
                     found.append(sample_id)
                     break
 
