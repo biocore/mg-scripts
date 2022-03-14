@@ -16,7 +16,7 @@ class QCJob(Job):
                  mmi_db_path, queue_name, node_count, nprocs, wall_time_limit,
                  jmem, fastp_path, minimap2_path, samtools_path,
                  modules_to_load, qiita_job_id, pool_size, max_array_length):
-        '''
+        """
         Submit a Torque job where the contents of fastq_root_dir are processed
         using fastp, minimap, and samtools. Human-genome sequences will be
         filtered out, if needed.
@@ -35,7 +35,7 @@ class QCJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param pool_size: The number of jobs to process concurrently.
-        '''
+        """
         super().__init__(fastq_root_dir,
                          output_path,
                          'QCJob',

@@ -47,10 +47,10 @@ class FastQCJob(Job):
         self._generate_job_script()
 
     def _get_commands(self):
-        '''
+        """
         Generate a set of commands to execute, based on the input metadata.
         :return: A list of commands to execute w/in a job script
-        '''
+        """
         results = []
 
         # gather the parameters for processing all relevant raw fastq files.
