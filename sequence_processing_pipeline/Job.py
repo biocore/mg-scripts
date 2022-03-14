@@ -378,11 +378,10 @@ class Job:
             raise PipelineError("Audit() method called on base Job object.")
 
         for root, dirs, files in walk(self.output_path):
+            if 'zero_files' in root:
+                continue
             files_found += [join(root, x) for x in files if
                             x.endswith(self.suffix)]
-
-        # remove all files found with a 'zero_files' directory in the path
-        files_found = [x for x in files_found if 'zero_files' not in x]
 
         found = []
         for sample_id in sample_ids:
