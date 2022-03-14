@@ -1,6 +1,5 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os.path import basename, join
-from os import walk
+from os.path import join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
@@ -41,6 +40,7 @@ class ConvertJob(Job):
         self.bcl_tool = bcl_tool_path
         self.qiita_job_id = qiita_job_id
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
+        self.suffix = 'fastq.gz'
 
         tmp = False
         for executable_name in ['bcl2fastq', 'bcl-convert']:
@@ -149,31 +149,3 @@ class ConvertJob(Job):
                              exec_from=self.log_path, callback=callback)
 
         logging.info(f'Successful job: {job_info}')
-
-    def audit(self, sample_ids):
-        '''
-        Audit the results of a run.
-        :param sample_ids: A list of sample-ids that require results.
-        :return: A list of sample-ids that were not found.
-        '''
-        files_found = []
-
-        for root, dirs, files in walk(self.output_path):
-            files_found += [join(root, x) for x in files if
-                            x.endswith('fastq.gz')]
-
-        # remove all files found with a 'zero_files' directory in the path
-        files_found = [x for x in files_found if 'zero_files' not in x]
-
-        found = []
-        for sample_id in sample_ids:
-            for found_file in files_found:
-                # the trailing underscore is important as it can be assumed
-                # that all fastq.gz files will begin with sample_id followed
-                # by an '_', and then one or more additional parameters
-                # separated by underscores. This substring is unlikely to be
-                if basename(found_file).startswith('%s_' % sample_id):
-                    found.append(sample_id)
-                    break
-
-        return sorted(list(set(found) ^ set(sample_ids)))

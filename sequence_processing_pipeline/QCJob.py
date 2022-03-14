@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import walk, stat, listdir, makedirs
-from os.path import basename, exists, join, split
+from os.path import exists, join, split
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.QCHelper import QCHelper
@@ -61,6 +61,7 @@ class QCJob(Job):
         self.samtools_path = samtools_path
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
+        self.suffix = 'fastq.gz'
 
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
@@ -277,37 +278,3 @@ class QCJob(Job):
             f.write('\n'.join(cmds))
 
         return job_script_path
-
-    def audit(self, sample_ids):
-        '''
-        Audit the results of a run.
-        :param sample_ids: A list of sample-ids that require results.
-        :return: A list of sample-ids that were not found.
-        '''
-        files_found = []
-
-        # assume for now that a corresponding zip file exists for each html
-        # file found. Assume for now that all html files will be found in a
-        # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
-        #
-        # verify that the entire list of sample-ids found match what's
-        # expected. Since the list of expected ids is very small, we'll
-        # perform an exact comparison.
-        for root, dirs, files in walk(self.output_path):
-            files_found += [join(root, x) for x in files if
-                            x.endswith('fastq.gz')]
-
-        # remove all files found with a 'zero_files' directory in the path
-        files_found = [x for x in files_found if 'zero_files' not in x]
-        found = []
-        for sample_id in sample_ids:
-            for found_file in files_found:
-                # the trailing underscore is important as it can be assumed
-                # that all fastq.gz files will begin with sample_id followed
-                # by an '_', and then one or more additional parameters
-                # separated by underscores. This substring is unlikely to be
-                if basename(found_file).startswith('%s_' % sample_id):
-                    found.append(sample_id)
-                    break
-
-        return sorted(list(set(found) ^ set(sample_ids)))

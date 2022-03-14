@@ -1,12 +1,11 @@
 from json import load as json_load
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
-from os.path import join, exists, isdir, getmtime
+from os.path import join, exists, isdir
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from time import time as epoch_time
 import logging
 import re
 
@@ -31,7 +30,7 @@ class Pipeline:
 
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
                  output_path, qiita_job_id, config_dict=None):
-        '''
+        """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
         :param run_id: Used w/search_paths to locate input run_directory.
@@ -39,7 +38,7 @@ class Pipeline:
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
-        '''
+        """
         if config_dict:
             if 'configuration' in config_dict:
                 self.configuration = config_dict['configuration']
@@ -70,8 +69,7 @@ class Pipeline:
                                 f"{self.configuration_file_path}")
 
         config = self.configuration['pipeline']
-        for key in ['search_paths', 'archive_path', 'younger_than',
-                    'older_than']:
+        for key in ['search_paths', 'archive_path']:
             if key not in config:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
@@ -96,34 +94,8 @@ class Pipeline:
         self.search_paths = config['search_paths']
         self.run_id = run_id
         self.run_dir = self._search_for_run_dir()
-        # younger_than and older_than are represented in the configuration
-        # file as hours.
-        self.younger_than = config['younger_than']
-        self.older_than = config['older_than']
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
-
-        # Timestamp check is now included in initialization, since it is
-        # only ever checked once.
-        if self.older_than < 0 or self.younger_than < 0:
-            raise PipelineError('older_than and younger_than cannot be '
-                                'less than zero.')
-
-        if self.older_than >= self.younger_than:
-            raise PipelineError(
-                'older_than cannot be equal to or less than younger_than.')
-
-        # determine the current age of the run_directory in seconds.
-        d_t = epoch_time() - getmtime(self.run_dir)
-
-        # older_than is not the minimum allowable value, while younger_than
-        # is the maximum allowable value. These values are converted from
-        # hours into seconds.
-        if d_t < (self.older_than * 3600):
-            raise PipelineError(f'{self.run_dir} is too young.')
-
-        if d_t > (self.younger_than * 3600):
-            raise PipelineError(f'{self.run_dir} is too old.')
 
         # required files for successful operation
         # both RTAComplete.txt and RunInfo.xml should reside in the root of
@@ -201,12 +173,12 @@ class Pipeline:
             raise PipelineError("object is not a Job object.")
 
     def _validate_sample_sheet(self, sample_sheet_path):
-        '''
+        """
         Performs additional validation for sample-sheet on top of metapool.
         :return: If successful, an empty list of strings and a valid
                  sample-sheet. If unsuccessful, a list of warning and error
                  messages and None.
-        '''
+        """
         # validate the sample-sheet using metapool package.
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
@@ -259,10 +231,10 @@ class Pipeline:
                             '\n'.join([str(x) for x in msgs]))
 
     def generate_sample_information_files(self):
-        '''
+        """
         Generate sample-information files in self.output_path.
         :return: A list of paths to sample-information-files.
-        '''
+        """
         samples = []
         for sample in self.sample_sheet.samples:
             if sample['Sample_ID'].startswith('BLANK'):

@@ -1,6 +1,6 @@
 from itertools import zip_longest
 from os import makedirs, walk
-from os.path import exists, split, join
+from os.path import basename, exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
@@ -39,6 +39,8 @@ class Job:
         self.script_count = 0
 
         self.bypass_exec_check = ['bcl-convert']
+
+        self.suffix = None
 
         # checking if this is running as part of the unittest
         # https://stackoverflow.com/a/25025987
@@ -355,3 +357,42 @@ class Job:
             results.append(chained_cmd)
 
         return results
+
+    # assume for now that a corresponding zip file exists for each html
+    # file found. Assume for now that all html files will be found in a
+    # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
+    #
+    # verify that the entire list of sample-ids found match what's
+    # expected. Since the list of expected ids is very small, we'll
+    # perform an exact comparison.
+
+    def audit(self, sample_ids):
+        '''
+        Audit the results of a run.
+        :param sample_ids: A list of sample-ids that require results.
+        :return: A list of sample-ids that were not found.
+        '''
+        files_found = []
+
+        if self.suffix is None:
+            raise PipelineError("Audit() method called on base Job object.")
+
+        for root, dirs, files in walk(self.output_path):
+            files_found += [join(root, x) for x in files if
+                            x.endswith(self.suffix)]
+
+        # remove all files found with a 'zero_files' directory in the path
+        files_found = [x for x in files_found if 'zero_files' not in x]
+
+        found = []
+        for sample_id in sample_ids:
+            for found_file in files_found:
+                # the trailing underscore is important as it can be assumed
+                # that all fastq.gz files will begin with sample_id followed
+                # by an '_', and then one or more additional parameters
+                # separated by underscores. This substring is unlikely to be
+                if basename(found_file).startswith('%s_' % sample_id):
+                    found.append(sample_id)
+                    break
+
+        return sorted(list(set(found) ^ set(sample_ids)))
