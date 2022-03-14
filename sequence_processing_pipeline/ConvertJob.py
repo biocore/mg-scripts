@@ -10,7 +10,7 @@ class ConvertJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, nprocs, wall_time_limit, pmem, bcl_tool_path,
                  modules_to_load, qiita_job_id):
-        '''
+        """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
         :param run_dir: The 'run' directory that contains BCL files.
@@ -23,7 +23,7 @@ class ConvertJob(Job):
         :param bcl_tool_path: The path to either bcl2fastq or bcl-convert.
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
-        '''
+        """
         super().__init__(run_dir,
                          output_path,
                          'ConvertJob',
@@ -40,6 +40,7 @@ class ConvertJob(Job):
         self.bcl_tool = bcl_tool_path
         self.qiita_job_id = qiita_job_id
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
+        self.suffix = 'fastq.gz'
 
         tmp = False
         for executable_name in ['bcl2fastq', 'bcl-convert']:
@@ -64,10 +65,10 @@ class ConvertJob(Job):
         self._generate_job_script()
 
     def _generate_job_script(self):
-        '''
+        """
         Generate a Torque job script for processing supplied root_directory.
         :return: The path to the newly-created job-script.
-        '''
+        """
         lines = []
 
         lines.append("#!/bin/bash")
@@ -137,13 +138,13 @@ class ConvertJob(Job):
                 f.write(f"{line}\n")
 
     def run(self, callback=None):
-        '''
+        """
         Run BCL2Fastq/BCLConvert conversion
         :param callback: optional function taking two parameters (id, status)
                          that is called when a running process's status is
                          changed.
         :return:
-        '''
+        """
         job_info = self.qsub(self.job_script_path, None, None,
                              exec_from=self.log_path, callback=callback)
 

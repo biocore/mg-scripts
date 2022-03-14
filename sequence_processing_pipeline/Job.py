@@ -1,6 +1,6 @@
 from itertools import zip_longest
 from os import makedirs, walk
-from os.path import exists, split, join
+from os.path import basename, exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
@@ -15,14 +15,14 @@ class Job:
 
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
-        '''
+        """
         Base-class to implement Jobs from.
         :param job_name: A name for the job. Used to create log files.
         :param root_dir: The path to a Job's root input directory.
         :param output_path: The root path to store all job products.
         :param executable_paths: A list of executables to validate.
         :param modules_to_load: A list of modules to load before validation.
-        '''
+        """
         self.job_name = job_name
         self.root_dir = root_dir
         self._directory_check(self.root_dir, create=False)
@@ -39,6 +39,8 @@ class Job:
         self.script_count = 0
 
         self.bypass_exec_check = ['bcl-convert']
+
+        self.suffix = None
 
         # checking if this is running as part of the unittest
         # https://stackoverflow.com/a/25025987
@@ -71,22 +73,22 @@ class Job:
                 self._which(file_name, modules_to_load=self.modules_to_load)
 
     def run(self):
-        '''
+        """
         Since a Job object can encapsulate one or more qsub() or system()
         calls, the base run() method remains unimplemented. It is the job of
         each sub-class to define what needs to be run in order to generate the
         expected output.
-        '''
+        """
         raise PipelineError("Base class run() method not implemented.")
 
     def _which(self, file_path, modules_to_load=None):
-        '''
+        """
         Returns file_path if file_path exists and file_path is a full path.
         Otherwise returns the path to a file named 'file_path' found in PATH.
         :param file_path: The path of the executable to find.
         :param modules_to_load: A list of Linux module names to load.
         :return: A path to 'file_name'.
-        '''
+        """
         tmp = split(file_path)
         # remove any elements that are empty string.
         tmp = [x for x in tmp if x]
@@ -188,7 +190,7 @@ class Job:
 
     def qsub(self, script_path, qsub_parameters=None, script_parameters=None,
              wait=True, exec_from=None, callback=None):
-        '''
+        """
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
         :param qsub_parameters: Optional parameters for qsub.
@@ -199,7 +201,7 @@ class Job:
         :return: Dictionary containing the job's id, name, status, and
         elapsed time. Raises PipelineError if job could not be submitted or
         if job was unsuccessful.
-        '''
+        """
         if qsub_parameters:
             cmd = 'qsub %s %s' % (qsub_parameters, script_path)
         else:
@@ -355,3 +357,41 @@ class Job:
             results.append(chained_cmd)
 
         return results
+
+    # assume for now that a corresponding zip file exists for each html
+    # file found. Assume for now that all html files will be found in a
+    # 'filtered_sequences' or 'trimmed_sequences' subdirectory.
+    #
+    # verify that the entire list of sample-ids found match what's
+    # expected. Since the list of expected ids is very small, we'll
+    # perform an exact comparison.
+
+    def audit(self, sample_ids):
+        """
+        Audit the results of a run.
+        :param sample_ids: A list of sample-ids that require results.
+        :return: A list of sample-ids that were not found.
+        """
+        files_found = []
+
+        if self.suffix is None:
+            raise PipelineError("Audit() method called on base Job object.")
+
+        for root, dirs, files in walk(self.output_path):
+            if 'zero_files' in root:
+                continue
+            files_found += [join(root, x) for x in files if
+                            x.endswith(self.suffix)]
+
+        found = []
+        for sample_id in sample_ids:
+            for found_file in files_found:
+                # the trailing underscore is important as it can be assumed
+                # that all fastq.gz files will begin with sample_id followed
+                # by an '_', and then one or more additional parameters
+                # separated by underscores. This substring is unlikely to be
+                if basename(found_file).startswith('%s_' % sample_id):
+                    found.append(sample_id)
+                    break
+
+        return sorted(list(set(found) ^ set(sample_ids)))

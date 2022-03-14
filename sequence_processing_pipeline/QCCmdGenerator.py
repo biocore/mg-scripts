@@ -6,7 +6,7 @@ class QCCmdGenerator:
     def __init__(self, fastq_path, products_dir, project_name,
                  nprocs, adapter_a, adapter_A, fastp_path, minimap2_path,
                  samtools_path):
-        '''
+        """
         An object that generates the appropriate chain of commands, based on
         the parameters given to it.
         :param fastq_path: The path to a Fastq file.
@@ -15,7 +15,7 @@ class QCCmdGenerator:
         :param nprocs: The maximum number of processes/threads to use.
         :param adapter_a: Forward-read
         :param adapter_A: Reverse-read
-        '''
+        """
 
         self.fastq_path = fastq_path
         self.current_dir = split(self.fastq_path)[0]
@@ -41,19 +41,19 @@ class QCCmdGenerator:
                 raise ValueError("adapter_A is declared but not adapter_a.")
 
     def get_short_names(self):
-        '''
+        """
         Return the shortnames for the given Fastq file. Used in a number of
          places so it's preferable to obtain them from a single source.
         :return: a tuple of (filename1_short, filename2_short)
-        '''
+        """
         return (self.filename1_short, self.filename2_short)
 
     def generate_fastp_cmd(self):
-        '''
+        """
         Generates a command-line string for running fastp, based on the
          parameters supplied to the object.
         :return: A string suitable for executing in Popen() and the like.
-        '''
+        """
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)
 
@@ -100,14 +100,14 @@ class QCCmdGenerator:
 
     def generate_full_toolchain_cmd(self, fastp_reports_dir,
                                     human_phix_db_path):
-        '''
+        """
         Generates a command-line string for running fastp piping directly
          into minimap2 piping directly into samtools. The string is based
          on the parameters supplied to the object.
         :param fastp_reports_dir: Path to dir for storing json and html files
         :param human_phix_db_path: Path to the human_phix_db_path.mmi
         :return: A string suitable for executing in Popen() and the like.
-        '''
+        """
 
         read1_input_path = join(self.current_dir, self.filename1)
         read2_input_path = join(self.current_dir, self.filename2)

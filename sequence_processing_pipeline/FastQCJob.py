@@ -1,5 +1,5 @@
 from os import listdir, makedirs
-from os.path import join, exists
+from os.path import exists, join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from functools import partial
@@ -42,14 +42,15 @@ class FastQCJob(Job):
         # for lists greater than n commands, chain the extra commands,
         # distributing them evenly throughout the first n commands.
         self.commands = self._group_commands(self.commands)
+        self.suffix = 'fastqc.html'
 
         self._generate_job_script()
 
     def _get_commands(self):
-        '''
+        """
         Generate a set of commands to execute, based on the input metadata.
         :return: A list of commands to execute w/in a job script
-        '''
+        """
         results = []
 
         # gather the parameters for processing all relevant raw fastq files.
