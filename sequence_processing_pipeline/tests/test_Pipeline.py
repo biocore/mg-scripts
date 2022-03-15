@@ -771,6 +771,34 @@ class TestPipeline(unittest.TestCase):
         obs = pipeline.get_sample_ids()
         self.assertEqual(sorted(obs), sorted(exp_sample_ids))
 
+    def test_get_project_info(self):
+        exp_proj_info = [
+            {'project_name': 'NYU_BMS_Melanoma_13059', 'qiita_id': '13059'},
+            {'project_name': 'Feist_11661', 'qiita_id': '11661'},
+            {'project_name': 'Gerwick_6123', 'qiita_id': '6123'}]
+
+        exp_project_names = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
+                             'Gerwick_6123']
+
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path,
+                            self.good_output_file_path, self.good_qiita_id,
+                            None)
+
+        obs_proj_info = pipeline.get_project_info()
+        obs_project_names = []
+        for d in obs_proj_info:
+            obs_project_names.append(d['project_name'])
+
+        self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
+
+        for exp_d in exp_proj_info:
+            for obs_d in obs_proj_info:
+                if obs_d['project_name'] == exp_d['project_name']:
+                    self.assertDictEqual(obs_d, exp_d)
+                    break
+
 
 if __name__ == '__main__':
     unittest.main()
