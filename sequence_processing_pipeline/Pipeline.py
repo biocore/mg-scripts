@@ -288,8 +288,7 @@ class Pipeline:
         return paths
 
     def get_sample_ids(self):
-        return [x.Sample_ID for x in self.sample_sheet.samples
-                if 'BLANK' not in x]
+        return [x.Sample_ID for x in self.sample_sheet.samples]
 
     def get_project_info(self):
         bioinformatics = self.sample_sheet.Bioinformatics
