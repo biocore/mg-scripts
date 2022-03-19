@@ -153,13 +153,16 @@ class Pipeline:
                 raise PipelineError("directory_path '%s' does not exist." %
                                     directory_path)
 
-    def run(self):
+    def run(self, callback=None):
         """
         Run all jobs added to Pipeline in the order they were added.
-        :return: None
+        :param callback: Optional function to call and upstate status with.
+        :param callback(id=): a string identifying the current running process.
+        :param callback(status=): a string message or description.
+        :return:
         """
         for job in self.pipeline:
-            job.run()
+            job.run(callback=callback)
 
     def add(self, job):
         """
