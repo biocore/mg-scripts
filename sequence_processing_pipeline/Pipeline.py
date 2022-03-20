@@ -198,6 +198,31 @@ class Pipeline:
                                          "n' not found in Bioinformatics secti"
                                          "on"))
 
+            columns_to_sanitize = ['Sample_ID', 'Sample_Name',
+                                   'Well_description']
+
+            # there is a history of the above three columns at times having
+            # sample-id-like values with '_' in-place of '.'. Also less often
+            # seen is '..'. Below will convert all instances of '_' and '..'
+            # to '.' and issue a warning message for each column modified
+            # instead of individual row and column changes. Note that
+            # duplication-checking occurs after this conversion so any
+            # duplicates created through this conversion will issue an error
+            # message.
+            for column in columns_to_sanitize:
+                sanitized = False
+                for item in val_sheet.samples:
+                    old_value = item[column]
+                    item[column] = item[column].replace('_', '.').replace('..',
+                                                                          '.')
+                    if item[column] != old_value:
+                        sanitized = True
+
+                if sanitized:
+                    msgs.append(WarningMessage(f"One or more values in column"
+                                               f" {column} had '_' or '..' re"
+                                               "placed with '.'"))
+
             # look for duplicate samples. metapool will allow two rows w/the
             # same lane and sample_id if one or more other columns are
             # different. However seqpro expects the tuple (lane, sample_id) to
