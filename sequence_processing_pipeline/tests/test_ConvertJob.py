@@ -962,7 +962,7 @@ SCRIPT_EXP = ''.join([
     'date\n',
     'hostname\n',
     'cd {run_dir}\n',
-    'tests/bin/bcl-convert --sample-sheet {ssp}/good-sample-sheet.csv '
+    'tests/bin/bcl-convert --sample-sheet "{ssp}/good-sample-sheet.csv" '
     '--output-directory {gop}/ConvertJob '
     '--bcl-input-directory . '
     '--bcl-num-decompression-threads 16 --bcl-num-conversion-threads 16 '

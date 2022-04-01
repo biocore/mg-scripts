@@ -61,7 +61,7 @@ class GenPrepFileJob(Job):
         # heading.
         self.command = [self.seqpro_path,
                         join(self.output_path, self.run_id),
-                        self.sample_sheet_path,
+                        f'"{self.sample_sheet_path}"',
                         join(self.output_path, 'PrepFiles')]
 
     def run(self, callback=None):
