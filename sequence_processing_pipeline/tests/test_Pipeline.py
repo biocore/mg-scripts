@@ -205,9 +205,12 @@ class TestPipeline(unittest.TestCase):
         # confirm files exist in the expected location and with the expected
         # filenames.
         obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
-        exp = ['tests/data/output_dir/NYU_BMS_Melanoma_13059_blanks.tsv',
-               'tests/data/output_dir/Feist_11661_blanks.tsv',
-               'tests/data/output_dir/Gerwick_6123_blanks.tsv']
+        exp = [(f'tests/data/output_dir/{self.good_run_id}'
+                '_NYU_BMS_Melanoma_13059_blanks.tsv'),
+               (f'tests/data/output_dir/{self.good_run_id}'
+                '_Feist_11661_blanks.tsv'),
+               (f'tests/data/output_dir/{self.good_run_id}'
+                '_Gerwick_6123_blanks.tsv')]
 
         # sort the lists to ensure both are in a fixed order.
         obs.sort()
@@ -218,63 +221,70 @@ class TestPipeline(unittest.TestCase):
         # confirm files contain the expected number of lines.
         # This is going to be based on the number of samples named 'BLANK*'
         # in good-sample-sheet.csv.
-        exp_lines = {'NYU_BMS_Melanoma_13059_blanks.tsv': 33,
-                     'Feist_11661_blanks.tsv': 8,
-                     'Gerwick_6123_blanks.tsv': 2}
+        exp_lines = {f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+                     33,
+                     f'{self.good_run_id}_Feist_11661_blanks.tsv': 8,
+                     f'{self.good_run_id}_Gerwick_6123_blanks.tsv': 2}
 
         exp_first_lines = {
-            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK1.1A\t2021-10-21\t193\t'
-                                                 'Control\tNegative\tSterile w'
-                                                 'ater blank\turban biome\tres'
-                                                 'earch facility\tsterile wate'
-                                                 'r\tmisc environment\tUSA:CA:'
-                                                 'San Diego\tBLANK1.1A\t32.5\t'
-                                                 '-117.25\tcontrol blank\tmeta'
-                                                 'genome\t256318\tBLANK1.1A\tN'
-                                                 'YU_BMS_Melanoma\tTRUE\t'
-                                                 'UCSD\tFALSE',
-            'Feist_11661_blanks.tsv': 'BLANK.40.12G\t2021-10-21\t193\tControl'
-                                      '\tNegative\tSterile water blank\turban '
-                                      'biome\tresearch facility\tsterile water'
-                                      '\tmisc environment\tUSA:CA:San Diego\tB'
-                                      'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
-                                      'nk\tmetagenome\t256318\tBLANK.40.12G\t'
-                                      'Feist\tTRUE\tUCSD\tFALSE',
-            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tControl'
-                                       '\tNegative\tSterile water blank\turban'
-                                       ' biome\tresearch facility\tsterile wat'
-                                       'er\tmisc environment\tUSA:CA:San Diego'
-                                       '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
-                                       ' blank\tmetagenome\t256318\tBLANK.41.1'
-                                       '2G\tGerwick\tTRUE\tUCSD\tFALSE'
+            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+            'BLANK1.1A\t2021-10-21\t193\t'
+            'Control\tNegative\tSterile w'
+            'ater blank\turban biome\tres'
+            'earch facility\tsterile wate'
+            'r\tmisc environment\tUSA:CA:'
+            'San Diego\tBLANK1.1A\t32.5\t'
+            '-117.25\tcontrol blank\tmeta'
+            'genome\t256318\tBLANK1.1A\tN'
+            'YU_BMS_Melanoma\tTRUE\t'
+            'UCSD\tFALSE',
+            f'{self.good_run_id}_Feist_11661_blanks.tsv':
+            'BLANK.40.12G\t2021-10-21\t193\tControl'
+            '\tNegative\tSterile water blank\turban '
+            'biome\tresearch facility\tsterile water'
+            '\tmisc environment\tUSA:CA:San Diego\tB'
+            'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
+            'nk\tmetagenome\t256318\tBLANK.40.12G\t'
+            'Feist\tTRUE\tUCSD\tFALSE',
+            f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
+            'BLANK.41.12G\t2021-10-21\t193\tControl'
+            '\tNegative\tSterile water blank\turban'
+            ' biome\tresearch facility\tsterile wat'
+            'er\tmisc environment\tUSA:CA:San Diego'
+            '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
+            ' blank\tmetagenome\t256318\tBLANK.41.1'
+            '2G\tGerwick\tTRUE\tUCSD\tFALSE'
         }
 
         exp_last_lines = {
-            'NYU_BMS_Melanoma_13059_blanks.tsv': 'BLANK4.4H\t2021-10-21\t193\t'
-                                                 'Control\tNegative\tSterile w'
-                                                 'ater blank\turban biome\tres'
-                                                 'earch facility\tsterile wate'
-                                                 'r\tmisc environment\tUSA:CA:'
-                                                 'San Diego\tBLANK4.4H\t32.5\t'
-                                                 '-117.25\tcontrol blank\tmeta'
-                                                 'genome\t256318\tBLANK4.4H\tN'
-                                                 'YU_BMS_Melanoma\tTRUE\t'
-                                                 'UCSD\tFALSE',
-            'Feist_11661_blanks.tsv': 'BLANK.43.12H\t2021-10-21\t193\tControl'
-                                      '\tNegative\tSterile water blank\turban'
-                                      ' biome\tresearch facility\tsterile wat'
-                                      'er\tmisc environment\tUSA:CA:San Diego'
-                                      '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
-                                      ' blank\tmetagenome\t256318\tBLANK.43.1'
-                                      '2H\tFeist\tTRUE\tUCSD\tFALSE',
-            'Gerwick_6123_blanks.tsv': 'BLANK.41.12G\t2021-10-21\t193\tContro'
-                                       'l\tNegative\tSterile water blank\turb'
-                                       'an biome\tresearch facility\tsterile '
-                                       'water\tmisc environment\tUSA:CA:San D'
-                                       'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
-                                       'ntrol blank\tmetagenome\t256318\tBLAN'
-                                       'K.41.12G\tGerwick\tTRUE\tUCSD\t'
-                                       'FALSE'
+            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+            'BLANK4.4H\t2021-10-21\t193\t'
+            'Control\tNegative\tSterile w'
+            'ater blank\turban biome\tres'
+            'earch facility\tsterile wate'
+            'r\tmisc environment\tUSA:CA:'
+            'San Diego\tBLANK4.4H\t32.5\t'
+            '-117.25\tcontrol blank\tmeta'
+            'genome\t256318\tBLANK4.4H\tN'
+            'YU_BMS_Melanoma\tTRUE\t'
+            'UCSD\tFALSE',
+            f'{self.good_run_id}_Feist_11661_blanks.tsv':
+            'BLANK.43.12H\t2021-10-21\t193\tControl'
+            '\tNegative\tSterile water blank\turban'
+            ' biome\tresearch facility\tsterile wat'
+            'er\tmisc environment\tUSA:CA:San Diego'
+            '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
+            ' blank\tmetagenome\t256318\tBLANK.43.1'
+            '2H\tFeist\tTRUE\tUCSD\tFALSE',
+            f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
+            'BLANK.41.12G\t2021-10-21\t193\tContro'
+            'l\tNegative\tSterile water blank\turb'
+            'an biome\tresearch facility\tsterile '
+            'water\tmisc environment\tUSA:CA:San D'
+            'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
+            'ntrol blank\tmetagenome\t256318\tBLAN'
+            'K.41.12G\tGerwick\tTRUE\tUCSD\t'
+            'FALSE'
         }
 
         for some_path in paths:

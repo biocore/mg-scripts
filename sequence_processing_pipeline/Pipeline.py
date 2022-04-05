@@ -248,7 +248,8 @@ class Pipeline:
         paths = []
         for project in projects:
             samples_in_proj = [x for x, y in samples if y == project]
-            some_path = join(self.output_path, f'{project}_blanks.tsv')
+            some_path = join(self.output_path,
+                             f'{self.run_id}_{project}_blanks.tsv')
             paths.append(some_path)
             with open(some_path, 'w') as f:
                 # write out header to disk
