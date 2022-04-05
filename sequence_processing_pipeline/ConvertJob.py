@@ -102,7 +102,7 @@ class ConvertJob(Job):
         # accordingly.
         if 'bcl-convert' in self.bcl_tool:
             lines.append(('%s '
-                          '--sample-sheet %s '
+                          '--sample-sheet "%s" '
                           '--output-directory %s '
                           '--bcl-input-directory . '
                           '--bcl-num-decompression-threads 16 '
@@ -117,7 +117,7 @@ class ConvertJob(Job):
             # equivalent cp for bcl-conversion (see below) needed.
         else:
             lines.append(('%s '
-                          '--sample-sheet %s '
+                          '--sample-sheet "%s" '
                           '--minimum-trimmed-read-length 1 '
                           '--mask-short-adapter-reads 1 '
                           '-R . '
