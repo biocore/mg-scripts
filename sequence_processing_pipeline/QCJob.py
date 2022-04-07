@@ -65,7 +65,7 @@ class QCJob(Job):
 
         # set to 500 bytes to avoid empty and small files that Qiita
         # has trouble with.
-        self.minimum_bytes = 500
+        self.minimum_bytes = 3100
 
         self.script_paths = {}
 
