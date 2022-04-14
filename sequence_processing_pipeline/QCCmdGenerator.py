@@ -64,10 +64,10 @@ class QCCmdGenerator:
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
-            result += (f'--adapter_sequence {self.adapter_a}'
+            result += (f' --adapter_sequence {self.adapter_a}'
                        f' --adapter_sequence_r2 {self.adapter_A}')
 
-        result += (f'-l 100 -i {read1_input_path} -I {read2_input_path} -w '
+        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} -w '
                    f'{self.nprocs} -j {json_output_path} -h {html_output_path}'
                    f' -o {read1_output_path} -O {read2_output_path} -R '
                    f'{report_title}')
@@ -109,10 +109,10 @@ class QCCmdGenerator:
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
-            result += (f'--adapter_sequence {self.adapter_a} '
-                       f'--adapter_sequence_r2 {self.adapter_A}')
+            result += (f' --adapter_sequence {self.adapter_a}'
+                       f' --adapter_sequence_r2 {self.adapter_A}')
 
-        result += (f'-l 100 -i {read1_input_path} -I {read2_input_path} '
+        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} '
                    f'-w {self.nprocs} -j {json_output_path} -h '
                    f'{html_output_path} --stdout | {self.minimap2_path} -ax'
                    f' sr -t {self.nprocs} {human_phix_db_path} - -a | '
