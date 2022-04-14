@@ -80,89 +80,33 @@ class QCHelper():
         # and json directories and generate output files for them.
         makedirs(fastp_reports_dir, exist_ok=True)
 
-        # possible amplicon
+        cmds = []
+
         if self.a_trim is True:
-            if self.h_filter is False:
-                cmd = self._block2a(self.adapter_a,
-                                    self.adapter_A,
-                                    self.chemistry,
-                                    self.project_name,
-                                    self.products_dir)
+            if self.h_filter is True:
+                tmp = 'filtered_sequences'
             else:
-                cmd = self._block2b(self.adapter_a,
-                                    self.adapter_A,
-                                    self.products_dir,
-                                    self.project_name,
-                                    fastp_reports_dir)
-            return cmd
+                tmp = 'trimmed_sequences'
 
-        logging.warning("QC.block2() called with a_trim == False.")
+            if not exists(join(self.products_dir, tmp)):
+                makedirs(join(self.products_dir, tmp), exist_ok=True)
+
+        if self.a_trim is True:
+            for fastq_file_path in self.fastq_file_paths:
+                c = QCCmdGenerator(fastq_file_path, self.products_dir,
+                                         self.project_name, self.nprocs,
+                                         self.adapter_a,
+                                         self.adapter_A, self.fastp_path,
+                                         self.minimap2_path,
+                                         self.samtools_path)
+
+                if self.h_filter is True:
+                    cmds.append(c.gen_chained_cmd(fastp_reports_dir,
+                                                  self.human_phix_db_path))
+                else:
+                    cmds.append(c.gen_fastp_cmd())
+
+            return cmds
+
+        logging.warning("QCJob created w/a_trim set to False.")
         return None
-
-    def _block2a(self, adapter_a, adapter_A, chemistry, project_name,
-                 products_dir):
-        """
-        An internal method recreating the block of code in fpmmp.sh responsible
-        for handling a_trim = True and h_filter = False.
-        :param adapter_a: Forward-read
-        :param adapter_A: Reverse-read
-        :param chemistry: Chemistry of project. Usually 'Default' or 'Amplicon'
-        :param project_name: Name of the project
-        :param products_dir: The root directory to place products.
-        :return: A list of strings to process the fastq files in trim_file.
-        """
-        logging.debug("Pathway: True/False")
-
-        tmp = join(products_dir, 'trimmed_sequences')
-        if not exists(tmp):
-            makedirs(tmp, exist_ok=True)
-
-        cmd_list = []
-
-        for fastq_file_path in self.fastq_file_paths:
-            # technically, legacy behavior is to run fastp even if only
-            # one of the two variables (adapter_a, adapter_A) is None.
-            # However, let's assume that both should be None and if
-            # only one is None, then that's an Error.
-            # CmdGenerator will test for that.
-            cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
-                                     project_name, self.nprocs, adapter_a,
-                                     adapter_A, self.fastp_path,
-                                     self.minimap2_path, self.samtools_path)
-
-            cmd = cmd_gen.generate_fastp_cmd()
-            cmd_list.append(cmd)
-
-        return cmd_list
-
-    def _block2b(self, adapter_a, adapter_A, products_dir, project_name,
-                 fastp_reports_dir):
-        """
-        An internal method recreating the block of code in fpmmp.sh responsible
-        for handling a_trim = True and h_filter = True.
-        :param adapter_a: Forward-read
-        :param adapter_A: Reverse-read
-        :param products_dir: The root directory to place products.
-        :param project_name: Name of the project
-        :param fastp_reports_dir: The root directory to place fastp reports.
-        :return: A list of strings to process the fastq files in trim_file.
-        """
-        logging.debug("Pathway: True/True")
-
-        tmp = join(products_dir, 'filtered_sequences')
-        if not exists(tmp):
-            makedirs(tmp, exist_ok=True)
-
-        cmd_list = []
-
-        for fastq_file_path in self.fastq_file_paths:
-            cmd_gen = QCCmdGenerator(fastq_file_path, products_dir,
-                                     project_name, self.nprocs, adapter_a,
-                                     adapter_A, self.fastp_path,
-                                     self.minimap2_path, self.samtools_path)
-
-            cmd = cmd_gen.generate_full_toolchain_cmd(fastp_reports_dir,
-                                                      self.human_phix_db_path)
-            cmd_list.append(cmd)
-
-        return cmd_list

@@ -38,7 +38,7 @@ class QCCmdGenerator:
             if self.adapter_a is not None:
                 raise ValueError("adapter_A is declared but not adapter_a.")
 
-    def generate_fastp_cmd(self):
+    def gen_fastp_cmd(self):
         """
         Generates a command-line string for running fastp, based on the
          parameters supplied to the object.
@@ -74,8 +74,8 @@ class QCCmdGenerator:
 
         return result
 
-    def generate_full_toolchain_cmd(self, fastp_reports_dir,
-                                    human_phix_db_path):
+    def gen_chained_cmd(self, fastp_reports_dir,
+                        human_phix_db_path):
         """
         Generates a command-line string for running fastp piping directly
          into minimap2 piping directly into samtools. The string is based
