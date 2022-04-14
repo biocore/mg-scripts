@@ -94,11 +94,11 @@ class QCHelper():
         if self.a_trim is True:
             for fastq_file_path in self.fastq_file_paths:
                 c = QCCmdGenerator(fastq_file_path, self.products_dir,
-                                         self.project_name, self.nprocs,
-                                         self.adapter_a,
-                                         self.adapter_A, self.fastp_path,
-                                         self.minimap2_path,
-                                         self.samtools_path)
+                                   self.project_name, self.nprocs,
+                                   self.adapter_a,
+                                   self.adapter_A, self.fastp_path,
+                                   self.minimap2_path,
+                                   self.samtools_path)
 
                 if self.h_filter is True:
                     cmds.append(c.gen_chained_cmd(fastp_reports_dir,
