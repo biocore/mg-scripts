@@ -3,7 +3,6 @@ from os import walk, stat, listdir, makedirs
 from os.path import exists, join, split
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from sequence_processing_pipeline.QCHelper import QCHelper
 from shutil import move
 import logging
 import re
@@ -48,12 +47,11 @@ class QCJob(Job):
         self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
         self.needs_trimming = metadata['needs_adapter_trimming']
-        self.nprocs = nprocs
+        self.nprocs = 16 if nprocs > 16 else nprocs
         self.chemistry = metadata['chemistry']
         self.mmi_db_path = mmi_db_path
         self.queue_name = queue_name
         self.node_count = node_count
-        self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
         self.jmem = jmem
         self.fastp_path = fastp_path
@@ -67,12 +65,34 @@ class QCJob(Job):
 
         self.script_paths = {}
 
+        if not isinstance(self.needs_trimming, bool):
+            raise ValueError("needs_adapter_trimming must be boolean.")
+
         for project in self.project_data:
             project_name = project['Sample_Project']
             fastq_files = self._find_fastq_files(project_name)
             if not fastq_files:
                 raise PipelineError("Fastq files could not be found for "
                                     f"project '{project_name}'")
+
+            if project['ForwardAdapter'] == 'NA':
+                project['ForwardAdapter'] = None
+
+            if project['ReverseAdapter'] == 'NA':
+                project['ReverseAdapter'] = None
+
+            if project['ForwardAdapter'] is None:
+                if project['ReverseAdapter'] is not None:
+                    raise ValueError(("ForwardAdapter is declared but not "
+                                      "ReverseAdapter."))
+
+            if project['ReverseAdapter'] is None:
+                if project['ForwardAdapter'] is not None:
+                    raise ValueError(("ReverseAdapter is declared but not "
+                                      "ForwardAdapter."))
+
+            if not isinstance(project['HumanFiltering'], bool):
+                raise ValueError("needs_adapter_trimming must be boolean.")
 
             script_path = self._generate_job_script(project_name,
                                                     project['ForwardAdapter'],
@@ -225,18 +245,12 @@ class QCJob(Job):
                              h_filter, fastq_file_paths):
         lines = []
 
-        project_dir = join(self.output_path, project_name)
-
         details_file_name = f'{self.job_name}_{project_name}.array-details'
         sh_details_fp = join(self.output_path, details_file_name)
 
-        qc = QCHelper(self.nprocs, fastq_file_paths, project_name,
-                      project_dir, self.mmi_db_path, adapter_a,
-                      adapter_A, self.needs_trimming, h_filter,
-                      self.chemistry, self.fastp_path, self.minimap2_path,
-                      self.samtools_path)
-
-        cmds = qc.generate_commands()
+        cmds = self._generate_commands(fastq_file_paths, project_name,
+                                       join(self.output_path, project_name),
+                                       h_filter, adapter_a, adapter_A)
         cmds = self._group_commands(cmds)
 
         lines.append("#!/bin/bash")
@@ -276,3 +290,139 @@ class QCJob(Job):
             f.write('\n'.join(cmds))
 
         return job_script_path
+
+    def _generate_commands(self, fastq_file_paths, project_name, project_dir,
+                           h_filter, adapter_a, adapter_A):
+        """
+        Generate the command-lines needed to QC the data, based on the
+        parameters supplied to the object. The result will be the list of
+        strings needed to process the fastq files referenced in the trim file.
+        :return: A list of strings that can be run using Popen() and the like.
+        """
+        fastp_reports_dir = join(project_dir, 'fastp_reports_dir')
+
+        # if this directory is not made, then fastp will not create the html
+        # and json directories and generate output files for them.
+        makedirs(fastp_reports_dir, exist_ok=True)
+
+        cmds = []
+
+        od = 'filtered_sequences' if h_filter is True else 'trimmed_sequences'
+
+        if self.needs_trimming is True:
+            if not exists(join(project_dir, od)):
+                makedirs(join(project_dir, od),
+                         exist_ok=True)
+
+        if self.needs_trimming is True:
+            foo = [x.strip() for x in fastq_file_paths if '_R1_' in x]
+            for fastq_file_path in foo:
+                current_dir = split(fastq_file_path)[0]
+                _, filename1 = split(fastq_file_path)
+                filename2 = filename1.replace('_R1_00', '_R2_00')
+
+                if h_filter is True:
+                    cmds.append(self._gen_chained_cmd(current_dir,
+                                                      filename1,
+                                                      filename2,
+                                                      fastp_reports_dir,
+                                                      project_name,
+                                                      project_dir,
+                                                      adapter_a,
+                                                      adapter_A))
+                else:
+                    cmds.append(self._gen_fastp_cmd(current_dir,
+                                                    filename1,
+                                                    filename2,
+                                                    project_dir,
+                                                    adapter_a,
+                                                    adapter_A))
+            return cmds
+
+        logging.warning("QCJob created w/a_trim set to False.")
+        return None
+
+    def _gen_fastp_cmd(self, current_dir, filename1, filename2, project_dir,
+                       adapter_a, adapter_A):
+        """
+        Generates a command-line string for running fastp, based on the
+         parameters supplied to the object.
+        :return: A string suitable for executing in Popen() and the like.
+        """
+        read1_input_path = join(current_dir, filename1)
+        read2_input_path = join(current_dir, filename2)
+
+        partial_path = join(current_dir, project_dir)
+        json_output_path = join(partial_path, 'json',
+                                filename1.replace('.fastq.gz', '.json'))
+        html_output_path = join(partial_path, 'html',
+                                filename1.replace('.fastq.gz', '.html'))
+        read1_output_path = join(partial_path, 'trimmed_sequences',
+                                 filename1.replace('.fastq.gz',
+                                                   '.fastp.fastq.gz'))
+        read2_output_path = join(partial_path, 'trimmed_sequences',
+                                 filename2.replace('.fastq.gz',
+                                                   '.fastp.fastq.gz'))
+        report_title = filename1.replace('.fastq.gz', '') + '_report'
+
+        result = self.fastp_path
+        if adapter_a:
+            # assume that if adapter_a is not None, then adapter_A is not None
+            # as well. We performed this check already.
+            result += (f' --adapter_sequence {adapter_a}'
+                       f' --adapter_sequence_r2 {adapter_A}')
+
+        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} -w '
+                   f'{self.nprocs} -j {json_output_path} -h {html_output_path}'
+                   f' -o {read1_output_path} -O {read2_output_path} -R '
+                   f'{report_title}')
+
+        return result
+
+    def _gen_chained_cmd(self, current_dir, filename1, filename2,
+                         fastp_reports_dir, project_name, project_dir,
+                         adapter_a, adapter_A):
+        """
+        Generates a command-line string for running fastp piping directly
+         into minimap2 piping directly into samtools. The string is based
+         on the parameters supplied to the object.
+        :param fastp_reports_dir: Path to dir for storing json and html files
+        :param human_phix_db_path: Path to the human_phix_db_path.mmi
+        :return: A string suitable for executing in Popen() and the like.
+        """
+
+        read1_input_path = join(current_dir, filename1)
+        read2_input_path = join(current_dir, filename2)
+
+        tmp_path = join(project_name, fastp_reports_dir, 'json')
+        makedirs(tmp_path, exist_ok=True)
+        json_output_path = join(tmp_path, filename1.replace('.fastq.gz',
+                                                            '.json'))
+
+        tmp_path = join(project_name, fastp_reports_dir, 'html')
+        makedirs(tmp_path, exist_ok=True)
+        html_output_path = join(tmp_path, filename1.replace('.fastq.gz',
+                                                            '.html'))
+
+        partial = join(project_dir, 'filtered_sequences')
+
+        path1 = join(partial, filename1.replace('.fastq.gz',
+                                                '.trimmed.fastq.gz'))
+        path2 = join(partial, filename2.replace('.fastq.gz',
+                                                '.trimmed.fastq.gz'))
+
+        result = self.fastp_path
+        if adapter_a:
+            # assume that if adapter_a is not None, then adapter_A is not None
+            # as well. We performed this check already.
+            result += (f' --adapter_sequence {adapter_a}'
+                       f' --adapter_sequence_r2 {adapter_A}')
+
+        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} '
+                   f'-w {self.nprocs} -j {json_output_path} -h '
+                   f'{html_output_path} --stdout | {self.minimap2_path} -ax'
+                   f' sr -t {self.nprocs} {self.mmi_db_path} - -a | '
+                   f'{self.samtools_path} fastq -@ {self.nprocs} -f 12 -F '
+                   f'256 -1 {path1} -2 {path2}')
+
+        return result
