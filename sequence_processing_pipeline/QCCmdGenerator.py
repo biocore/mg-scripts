@@ -109,7 +109,7 @@ class QCCmdGenerator:
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
-            result += (f'fastp --adapter_sequence {self.adapter_a} '
+            result += (f'--adapter_sequence {self.adapter_a} '
                        f'--adapter_sequence_r2 {self.adapter_A}')
 
         result += (f'-l 100 -i {read1_input_path} -I {read2_input_path} '
