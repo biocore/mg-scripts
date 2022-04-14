@@ -26,8 +26,6 @@ class QCCmdGenerator:
         self.nprocs = nprocs
         self.adapter_a = adapter_a
         self.adapter_A = adapter_A
-        self.filename1_short = self.filename1.replace('.fastq.gz', '')
-        self.filename2_short = self.filename2.replace('.fastq.gz', '')
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
@@ -40,14 +38,6 @@ class QCCmdGenerator:
             if self.adapter_a is not None:
                 raise ValueError("adapter_A is declared but not adapter_a.")
 
-    def get_short_names(self):
-        """
-        Return the shortnames for the given Fastq file. Used in a number of
-         places so it's preferable to obtain them from a single source.
-        :return: a tuple of (filename1_short, filename2_short)
-        """
-        return (self.filename1_short, self.filename2_short)
-
     def generate_fastp_cmd(self):
         """
         Generates a command-line string for running fastp, based on the
@@ -59,44 +49,30 @@ class QCCmdGenerator:
 
         partial_path = join(self.current_dir, self.products_dir)
         json_output_path = join(partial_path, 'json',
-                                self.filename1_short + '.json')
+                                self.filename1.replace('.fastq.gz', '.json'))
         html_output_path = join(partial_path, 'html',
-                                self.filename1_short + '.html')
+                                self.filename1.replace('.fastq.gz', '.html'))
         read1_output_path = join(partial_path, 'trimmed_sequences',
-                                 self.filename1_short + '.fastp.fastq.gz')
+                                 self.filename1.replace('.fastq.gz',
+                                                        '.fastp.fastq.gz'))
         read2_output_path = join(partial_path, 'trimmed_sequences',
-                                 self.filename2_short + '.fastp.fastq.gz')
-        report_title = self.filename1_short + '_report'
+                                 self.filename2.replace('.fastq.gz',
+                                                        '.fastp.fastq.gz'))
+        report_title = self.filename1.replace('.fastq.gz', '') + '_report'
 
-        self.fastp_cmd_list = ['fastp']
+        result = self.fastp_path
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
-            self.fastp_cmd_list.append('--adapter_sequence')
-            self.fastp_cmd_list.append(self.adapter_a)
-            self.fastp_cmd_list.append('--adapter_sequence_r2')
-            self.fastp_cmd_list.append(self.adapter_A)
+            result += (f'--adapter_sequence {self.adapter_a}'
+                       f' --adapter_sequence_r2 {self.adapter_A}')
 
-        self.fastp_cmd_list.append('-l')
-        self.fastp_cmd_list.append('100')
-        self.fastp_cmd_list.append('-i')
-        self.fastp_cmd_list.append(read1_input_path)
-        self.fastp_cmd_list.append('-I')
-        self.fastp_cmd_list.append(read2_input_path)
-        self.fastp_cmd_list.append('-w')
-        self.fastp_cmd_list.append(self.nprocs)
-        self.fastp_cmd_list.append('-j')
-        self.fastp_cmd_list.append(json_output_path)
-        self.fastp_cmd_list.append('-h')
-        self.fastp_cmd_list.append(html_output_path)
-        self.fastp_cmd_list.append('-o')
-        self.fastp_cmd_list.append(read1_output_path)
-        self.fastp_cmd_list.append('-O')
-        self.fastp_cmd_list.append(read2_output_path)
-        self.fastp_cmd_list.append('-R')
-        self.fastp_cmd_list.append(report_title)
+        result += (f'-l 100 -i {read1_input_path} -I {read2_input_path} -w '
+                   f'{self.nprocs} -j {json_output_path} -h {html_output_path}'
+                   f' -o {read1_output_path} -O {read2_output_path} -R '
+                   f'{report_title}')
 
-        return ' '.join(self.fastp_cmd_list)
+        return result
 
     def generate_full_toolchain_cmd(self, fastp_reports_dir,
                                     human_phix_db_path):
@@ -114,61 +90,33 @@ class QCCmdGenerator:
 
         tmp_path = join(self.project_name, fastp_reports_dir, 'json')
         makedirs(tmp_path, exist_ok=True)
-        json_output_path = join(tmp_path, self.filename1_short + '.json')
+        json_output_path = join(tmp_path, self.filename1.replace('.fastq.gz',
+                                                                 '.json'))
 
         tmp_path = join(self.project_name, fastp_reports_dir, 'html')
         makedirs(tmp_path, exist_ok=True)
-        html_output_path = join(tmp_path, self.filename1_short + '.html')
+        html_output_path = join(tmp_path, self.filename1.replace('.fastq.gz',
+                                                                 '.html'))
 
         partial = join(self.products_dir, 'filtered_sequences')
 
-        path1 = join(partial, self.filename1_short + '.trimmed.fastq.gz')
-        path2 = join(partial, self.filename2_short + '.trimmed.fastq.gz')
+        path1 = join(partial, self.filename1.replace('.fastq.gz',
+                                                     '.trimmed.fastq.gz'))
+        path2 = join(partial, self.filename2.replace('.fastq.gz',
+                                                     '.trimmed.fastq.gz'))
 
-        self.fastp_cmd_list = [self.fastp_path]
+        result = self.fastp_path
         if self.adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
-            self.fastp_cmd_list.append('--adapter_sequence')
-            self.fastp_cmd_list.append(self.adapter_a)
-            self.fastp_cmd_list.append('--adapter_sequence_r2')
-            self.fastp_cmd_list.append(self.adapter_A)
-        self.fastp_cmd_list.append('-l')
-        self.fastp_cmd_list.append('100')
-        self.fastp_cmd_list.append('-i')
-        self.fastp_cmd_list.append(read1_input_path)
-        self.fastp_cmd_list.append('-I')
-        self.fastp_cmd_list.append(read2_input_path)
-        self.fastp_cmd_list.append('-w')
-        self.fastp_cmd_list.append(self.nprocs)
-        self.fastp_cmd_list.append('-j')
-        self.fastp_cmd_list.append(json_output_path)
-        self.fastp_cmd_list.append('-h')
-        self.fastp_cmd_list.append(html_output_path)
-        self.fastp_cmd_list.append('--stdout')
+            result += (f'fastp --adapter_sequence {self.adapter_a} '
+                       f'--adapter_sequence_r2 {self.adapter_A}')
 
-        self.minimap_cmd_list = [self.minimap2_path]
-        self.minimap_cmd_list.append('-ax')
-        self.minimap_cmd_list.append('sr')
-        self.minimap_cmd_list.append('-t')
-        self.minimap_cmd_list.append(self.nprocs)
-        self.minimap_cmd_list.append(human_phix_db_path)
-        self.minimap_cmd_list.append('-')
-        self.minimap_cmd_list.append('-a')
+        result += (f'-l 100 -i {read1_input_path} -I {read2_input_path} '
+                   f'-w {self.nprocs} -j {json_output_path} -h '
+                   f'{html_output_path} --stdout | {self.minimap2_path} -ax'
+                   f' sr -t {self.nprocs} {human_phix_db_path} - -a | '
+                   f'{self.samtools_path} fastq -@ {self.nprocs} -f 12 -F '
+                   f'256 -1 {path1} -2 {path2}')
 
-        self.samtools_cmd_list = [self.samtools_path]
-        self.samtools_cmd_list.append('fastq')
-        self.samtools_cmd_list.append('-@')
-        self.samtools_cmd_list.append(self.nprocs)
-        self.samtools_cmd_list.append('-f')
-        self.samtools_cmd_list.append('12')
-        self.samtools_cmd_list.append('-F')
-        self.samtools_cmd_list.append('256')
-        self.samtools_cmd_list.append('-1')
-        self.samtools_cmd_list.append(path1)
-        self.samtools_cmd_list.append('-2')
-        self.samtools_cmd_list.append(path2)
-
-        # create the final command piping all other commands together.
-        return ' '.join(self.fastp_cmd_list) + ' | ' + ' '.join(
-            self.minimap_cmd_list) + ' | ' + ' '.join(self.samtools_cmd_list)
+        return result
