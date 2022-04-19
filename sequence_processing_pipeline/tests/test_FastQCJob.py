@@ -524,7 +524,6 @@ class TestFastQCJob(unittest.TestCase):
         # write files out to disk
         for file_name in file_names:
             with open(file_name, 'w') as f2:
-                print(file_name)
                 f2.write("This is a file.")
 
     def tearDown(self):

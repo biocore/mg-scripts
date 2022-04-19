@@ -74,7 +74,6 @@ class TestJob(unittest.TestCase):
         cmds = list(range(1, 8))
         cmds = [str(x) for x in cmds]
         results = job._group_commands(cmds)
-        print(results)
         self.assertEqual(results[0], '1;3;5;7')
         self.assertEqual(results[1], '2;4;6')
         self.assertEqual(len(results), 2)

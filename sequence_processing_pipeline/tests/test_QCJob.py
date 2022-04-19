@@ -616,7 +616,6 @@ class TestQCJob(unittest.TestCase):
                 if remove_this:
                     lines_obs = [x.replace(remove_this, '') for x in lines_obs]
                 lines_obs.sort()
-                print("LAST LINE: %s" % lines_obs[-1])
                 self.assertEqual(lines_obs[0], config['first_line'])
                 self.assertEqual(lines_obs[-1], config['last_line'])
                 self.assertEqual(len(lines_obs), config['count'])
@@ -690,7 +689,6 @@ class TestQCJob(unittest.TestCase):
                 lines_obs = [x.strip() for x in lines_obs]
                 if remove_this:
                     lines_obs = [x.replace(remove_this, '') for x in lines_obs]
-                print("LAST LINE: %s" % lines_obs[-1])
                 self.assertEqual(lines_obs[0], config['first_line'])
                 self.assertEqual(lines_obs[-1], config['last_line'])
                 self.assertEqual(len(lines_obs), config['count'])
