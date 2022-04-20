@@ -1121,7 +1121,6 @@ class TestQCJob(unittest.TestCase):
 
         self.assertListEqual(obs, exp)
 
-
     def test_multiple_libraries_plus_kraken2(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
@@ -1143,8 +1142,8 @@ class TestQCJob(unittest.TestCase):
         project_dir = f'{root_path}/QCJob/{project_name}'
 
         obs = job._gen_chained_cmd(current_dir, filename1, filename2,
-                             fastp_reports_dir, project_name, project_dir,
-                             adapter_a, adapter_A)
+                                   fastp_reports_dir, project_name,
+                                   project_dir, adapter_a, adapter_A)
 
         exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --a"
                "dapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 -i"
