@@ -1121,6 +1121,61 @@ class TestQCJob(unittest.TestCase):
 
         self.assertListEqual(obs, exp)
 
+
+    def test_multiple_libraries_plus_kraken2(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+
+        job = QCJob(self.fastq_root_path, self.output_path,
+                    self.sample_sheet_path, double_db_paths,
+                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000)
+
+        # some_dir must be relative to work in a unit-test setting
+        adapter_a = 'GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
+        adapter_A = 'GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT'
+        filename1 = '999999_S999_L002_R1_001.fastq.gz'
+        filename2 = '999999_S999_L002_R2_001.fastq.gz'
+        project_name = 'SomeProject_99999'
+        fastp_reports_dir = 'fastp_reports_dir'
+        root_path = 'some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2'
+        current_dir = f'{root_path}/ConvertJob/{project_name}'
+        project_dir = f'{root_path}/QCJob/{project_name}'
+
+        obs = job._gen_chained_cmd(current_dir, filename1, filename2,
+                             fastp_reports_dir, project_name, project_dir,
+                             adapter_a, adapter_A)
+
+        exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --a"
+               "dapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 -i"
+               " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/Some"
+               "Project_99999/999999_S999_L002_R1_001.fastq.gz -I some_dir/263"
+               "d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/SomeProject_99999"
+               "/999999_S999_L002_R2_001.fastq.gz -w 16 -j SomeProject_99999/f"
+               "astp_reports_dir/json/999999_S999_L002_R1_001.json -h SomeProj"
+               "ect_99999/fastp_reports_dir/html/999999_S999_L002_R1_001.html "
+               "--stdout | minimap2 -ax sr -t 16 db_path/mmi_1.db - -a | samto"
+               "ols fastq -@ 16 -f 12 -F 256 | minimap2 -ax sr -t 16 db_path/m"
+               "mi_2.db - -a | samtools fastq -@ 16 -f 12 -F 256 -1 some_dir/2"
+               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
+               "ltered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz -2 s"
+               "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
+               "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
+               "q.gz\nkraken2 --threads 16 --db /Users/ccowart/Development/mg-"
+               "scripts/sequence_processing_pipeline/tests/data/kraken2.db --r"
+               "eport some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/Some"
+               "Project_99999/filtered_sequences/999999_S999_L002_R1_001.krake"
+               "n2_report.txt --unclassified-out some_dir/263d376f-8957-5b4a-a"
+               "648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_sequences/99"
+               "9999_S999_L002_R1_001.kraken2.trimmed.#.fastq --paired some_di"
+               "r/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999"
+               "/filtered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz s"
+               "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
+               "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
+               "q.gz")
+
+        self.assertEqual(obs, exp)
+
     exp_QCJob_1 = [
         '#!/bin/bash',
         ('#PBS -N abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_1305'
