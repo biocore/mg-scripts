@@ -6,6 +6,7 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+import re
 
 
 class TestQCJob(unittest.TestCase):
@@ -1145,6 +1146,11 @@ class TestQCJob(unittest.TestCase):
                                    fastp_reports_dir, project_name,
                                    project_dir, adapter_a, adapter_A)
 
+        # remove absolute path to kraken2 database so test will work
+        # everywhere.
+        obs = re.sub(r"--threads 16 --db .*kraken2.db --report",
+                     r"--threads 16 --db kraken2.db --report", obs)
+
         exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --a"
                "dapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 -i"
                " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/Some"
@@ -1160,18 +1166,16 @@ class TestQCJob(unittest.TestCase):
                "ltered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz -2 s"
                "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
                "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
-               "q.gz\nkraken2 --threads 16 --db /Users/ccowart/Development/mg-"
-               "scripts/sequence_processing_pipeline/tests/data/kraken2.db --r"
-               "eport some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/Some"
-               "Project_99999/filtered_sequences/999999_S999_L002_R1_001.krake"
-               "n2_report.txt --unclassified-out some_dir/263d376f-8957-5b4a-a"
-               "648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_sequences/99"
-               "9999_S999_L002_R1_001.kraken2.trimmed.#.fastq --paired some_di"
-               "r/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999"
-               "/filtered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz s"
-               "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
-               "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
-               "q.gz")
+               "q.gz\nkraken2 --threads 16 --db kraken2.db --report some_dir/2"
+               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
+               "ltered_sequences/999999_S999_L002_R1_001.kraken2_report.txt --"
+               "unclassified-out some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2"
+               "/QCJob/SomeProject_99999/filtered_sequences/999999_S999_L002_R"
+               "1_001.kraken2.trimmed.#.fastq --paired some_dir/263d376f-8957-"
+               "5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_sequen"
+               "ces/999999_S999_L002_R1_001.trimmed.fastq.gz some_dir/263d376f"
+               "-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_"
+               "sequences/999999_S999_L002_R2_001.trimmed.fastq.gz")
 
         self.assertEqual(obs, exp)
 
