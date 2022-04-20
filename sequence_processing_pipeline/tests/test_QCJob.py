@@ -6,6 +6,7 @@ from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+import re
 
 
 class TestQCJob(unittest.TestCase):
@@ -14,13 +15,14 @@ class TestQCJob(unittest.TestCase):
         package_root = abspath('sequence_processing_pipeline')
         self.path = partial(join, package_root, 'tests', 'data')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
-        self.mmi_db_path = self.path('mmi.db')
+        self.mmi_db_paths = [self.path('mmi.db')]
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.maxDiff = None
         self.output_path = self.path('output_dir')
         self.fastq_root_path = join(self.output_path, 'ConvertJob')
+        self.kraken2_db_path = self.path('kraken2.db')
 
         try:
             shutil.rmtree(self.output_path)
@@ -540,18 +542,20 @@ class TestQCJob(unittest.TestCase):
     def test_qcjob_creation(self):
         with self.assertRaises(PipelineError) as e:
             QCJob(self.fastq_root_path, self.output_path,
-                  'not/path/to/sample/sheet', self.mmi_db_path,
-                  'queue_name', 1, 16, 24, '8gb', 'fastp', 'minimap2',
-                  'samtools', [], self.qiita_job_id, 30, 1000)
+                  'not/path/to/sample/sheet', self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                  1000)
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
 
     def test_split_file_creation(self):
         qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.sample_sheet_path, self.mmi_db_path, 'queue_name',
-                       1, 16, 24, '8gb', 'fastp', 'minimap2', 'samtools', [],
-                       self.qiita_job_id, 30, 1000)
+                       self.sample_sheet_path, self.mmi_db_paths,
+                       self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                       30, 1000)
 
         # assert that the Torque job files were created and are in the
         # proper location.
@@ -622,9 +626,10 @@ class TestQCJob(unittest.TestCase):
         # commands as a single command.
 
         qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.sample_sheet_path, self.mmi_db_path, 'queue_name',
-                       1, 16, 24, '8gb', 'fastp', 'minimap2', 'samtools', [],
-                       self.qiita_job_id, 30, 250)
+                       self.sample_sheet_path, self.mmi_db_paths,
+                       self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                       30, 250)
 
         # assert that the Torque job files were created and are in the
         # proper location.
@@ -685,27 +690,16 @@ class TestQCJob(unittest.TestCase):
                 lines_obs = [x.strip() for x in lines_obs]
                 if remove_this:
                     lines_obs = [x.replace(remove_this, '') for x in lines_obs]
-                    if lines_obs[0] != config['first_line']:
-                        print("FIRST LINE OBSERVED ##################")
-                        print(lines_obs[0])
-                        print("FIRST LINE EXPECTED ##################")
-                        print(config['first_line'])
-                        print("##################")
-                    if lines_obs[-1] != config['last_line']:
-                        print("LAST LINE OBSERVED ##################")
-                        print(lines_obs[-1])
-                        print("LAST LINE EXPECTED ##################")
-                        print(config['last_line'])
-                        print("##################")
                 self.assertEqual(lines_obs[0], config['first_line'])
                 self.assertEqual(lines_obs[-1], config['last_line'])
                 self.assertEqual(len(lines_obs), config['count'])
 
     def test_audit(self):
         job = QCJob(self.fastq_root_path, self.output_path,
-                    self.sample_sheet_path, self.mmi_db_path, 'queue_name',
-                    1, 16, 24, '8gb', 'fastp', 'minimap2', 'samtools', [],
-                    self.qiita_job_id, 30, 1000)
+                    self.sample_sheet_path, self.mmi_db_paths,
+                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000)
 
         obs = job.audit(self.sample_ids)
 
@@ -1128,6 +1122,63 @@ class TestQCJob(unittest.TestCase):
 
         self.assertListEqual(obs, exp)
 
+    def test_multiple_libraries_plus_kraken2(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+
+        job = QCJob(self.fastq_root_path, self.output_path,
+                    self.sample_sheet_path, double_db_paths,
+                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000)
+
+        # some_dir must be relative to work in a unit-test setting
+        adapter_a = 'GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
+        adapter_A = 'GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT'
+        filename1 = '999999_S999_L002_R1_001.fastq.gz'
+        filename2 = '999999_S999_L002_R2_001.fastq.gz'
+        project_name = 'SomeProject_99999'
+        fastp_reports_dir = 'fastp_reports_dir'
+        root_path = 'some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2'
+        current_dir = f'{root_path}/ConvertJob/{project_name}'
+        project_dir = f'{root_path}/QCJob/{project_name}'
+
+        obs = job._gen_chained_cmd(current_dir, filename1, filename2,
+                                   fastp_reports_dir, project_name,
+                                   project_dir, adapter_a, adapter_A)
+
+        # remove absolute path to kraken2 database so test will work
+        # everywhere.
+        obs = re.sub(r"--threads 16 --db .*kraken2.db --report",
+                     r"--threads 16 --db kraken2.db --report", obs)
+
+        exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --a"
+               "dapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 -i"
+               " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/Some"
+               "Project_99999/999999_S999_L002_R1_001.fastq.gz -I some_dir/263"
+               "d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/SomeProject_99999"
+               "/999999_S999_L002_R2_001.fastq.gz -w 16 -j SomeProject_99999/f"
+               "astp_reports_dir/json/999999_S999_L002_R1_001.json -h SomeProj"
+               "ect_99999/fastp_reports_dir/html/999999_S999_L002_R1_001.html "
+               "--stdout | minimap2 -ax sr -t 16 db_path/mmi_1.db - -a | samto"
+               "ols fastq -@ 16 -f 12 -F 256 | minimap2 -ax sr -t 16 db_path/m"
+               "mi_2.db - -a | samtools fastq -@ 16 -f 12 -F 256 -1 some_dir/2"
+               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
+               "ltered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz -2 s"
+               "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
+               "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
+               "q.gz\nkraken2 --threads 16 --db kraken2.db --report some_dir/2"
+               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
+               "ltered_sequences/999999_S999_L002_R1_001.kraken2_report.txt --"
+               "unclassified-out some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2"
+               "/QCJob/SomeProject_99999/filtered_sequences/999999_S999_L002_R"
+               "1_001.kraken2.trimmed.#.fastq --paired some_dir/263d376f-8957-"
+               "5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_sequen"
+               "ces/999999_S999_L002_R1_001.trimmed.fastq.gz some_dir/263d376f"
+               "-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_"
+               "sequences/999999_S999_L002_R2_001.trimmed.fastq.gz")
+
+        self.assertEqual(obs, exp)
+
     exp_QCJob_1 = [
         '#!/bin/bash',
         ('#PBS -N abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_1305'
@@ -1259,27 +1310,22 @@ class TestQCJob(unittest.TestCase):
                                  "k_6123/filtered_sequences/3A_R2_001.trimmed."
                                  "fastq.gz",
 
-                   'last_line': "fastp --adapter_sequence AACC --adapter_seque"
-                                "nce_r2 GGTT -l 100 -i sequence_processing_pip"
-                                "eline/tests/data/output_dir/ConvertJob/Gerwic"
-                                "k_6123/ISB_R1_001.fastq.gz -I sequence_proces"
-                                "sing_pipeline/tests/data/output_dir/ConvertJo"
-                                "b/Gerwick_6123/ISB_R2_001.fastq.gz -w 16 -j s"
+                   'last_line': "kraken2 --threads 16 --db sequence_processing"
+                                "_pipeline/tests/data/kraken2.db --report sequ"
+                                "ence_processing_pipeline/tests/data/output_di"
+                                "r/QCJob/Gerwick_6123/filtered_sequences/ISB_R"
+                                "1_001.kraken2_report.txt --unclassified-out s"
                                 "equence_processing_pipeline/tests/data/output"
-                                "_dir/QCJob/Gerwick_6123/fastp_reports_dir/jso"
-                                "n/ISB_R1_001.json -h sequence_processing_pipe"
-                                "line/tests/data/output_dir/QCJob/Gerwick_6123"
-                                "/fastp_reports_dir/html/ISB_R1_001.html --std"
-                                "out | minimap2 -ax sr -t 16 sequence_processi"
-                                "ng_pipeline/tests/data/mmi.db - -a | samtools"
-                                " fastq -@ 16 -f 12 -F 256 -1 sequence_process"
-                                "ing_pipeline/tests/data/output_dir/QCJob/Gerw"
-                                "ick_6123/filtered_sequences/ISB_R1_001.trimme"
-                                "d.fastq.gz -2 sequence_processing_pipeline/te"
-                                "sts/data/output_dir/QCJob/Gerwick_6123/filter"
-                                "ed_sequences/ISB_R2_001.trimmed.fastq.gz",
+                                "_dir/QCJob/Gerwick_6123/filtered_sequences/IS"
+                                "B_R1_001.kraken2.trimmed.#.fastq --paired seq"
+                                "uence_processing_pipeline/tests/data/output_d"
+                                "ir/QCJob/Gerwick_6123/filtered_sequences/ISB_"
+                                "R1_001.trimmed.fastq.gz sequence_processing_p"
+                                "ipeline/tests/data/output_dir/QCJob/Gerwick_6"
+                                "123/filtered_sequences/ISB_R2_001.trimmed.fas"
+                                "tq.gz",
 
-                   'count': 9},
+                   'count': 18},
                'QCJob_NYU_BMS_Melanoma_13059.array-details': {
                    'first_line': "fastp --adapter_sequence AACC "
                                  "--adapter_sequence_r2 GGTT -l 100 -i sequenc"
@@ -1461,24 +1507,19 @@ class TestQCJob(unittest.TestCase):
                           "ed.fastq.gz -2 sequence_processing_pipeline/tests/d"
                           "ata/output_dir/QCJob/Gerwick_6123/filtered_sequence"
                           "s/3A_R2_001.trimmed.fastq.gz",
-            'last_line': "fastp --adapter_sequence AACC --adapter_sequence_r2 "
-                         "GGTT -l 100 -i sequence_processing_pipeline/tests/da"
-                         "ta/output_dir/ConvertJob/Gerwick_6123/ISB_R1_001.fas"
-                         "tq.gz -I sequence_processing_pipeline/tests/data/out"
-                         "put_dir/ConvertJob/Gerwick_6123/ISB_R2_001.fastq.gz "
-                         "-w 16 -j sequence_processing_pipeline/tests/data/out"
-                         "put_dir/QCJob/Gerwick_6123/fastp_reports_dir/json/IS"
-                         "B_R1_001.json -h sequence_processing_pipeline/tests/"
-                         "data/output_dir/QCJob/Gerwick_6123/fastp_reports_dir"
-                         "/html/ISB_R1_001.html --stdout | minimap2 -ax sr -t "
-                         "16 sequence_processing_pipeline/tests/data/mmi.db - "
-                         "-a | samtools fastq -@ 16 -f 12 -F 256 -1 sequence_p"
-                         "rocessing_pipeline/tests/data/output_dir/QCJob/Gerwi"
-                         "ck_6123/filtered_sequences/ISB_R1_001.trimmed.fastq."
-                         "gz -2 sequence_processing_pipeline/tests/data/output"
+            'last_line': "kraken2 --threads 16 --db sequence_processing_pipeli"
+                         "ne/tests/data/kraken2.db --report sequence_processin"
+                         "g_pipeline/tests/data/output_dir/QCJob/Gerwick_6123/"
+                         "filtered_sequences/ISB_R1_001.kraken2_report.txt --u"
+                         "nclassified-out sequence_processing_pipeline/tests/d"
+                         "ata/output_dir/QCJob/Gerwick_6123/filtered_sequences"
+                         "/ISB_R1_001.kraken2.trimmed.#.fastq --paired sequenc"
+                         "e_processing_pipeline/tests/data/output_dir/QCJob/Ge"
+                         "rwick_6123/filtered_sequences/ISB_R1_001.trimmed.fas"
+                         "tq.gz sequence_processing_pipeline/tests/data/output"
                          "_dir/QCJob/Gerwick_6123/filtered_sequences/ISB_R2_00"
                          "1.trimmed.fastq.gz",
-            'count': 9},
+            'count': 18},
         'QCJob_NYU_BMS_Melanoma_13059.array-details': {
             'first_line': "fastp --adapter_sequence AACC --adapter_sequence_r2"
                           " GGTT -l 100 -i sequence_processing_pipeline/tests/"

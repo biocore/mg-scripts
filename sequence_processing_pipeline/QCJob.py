@@ -12,9 +12,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 class QCJob(Job):
     def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
-                 mmi_db_path, queue_name, node_count, nprocs, wall_time_limit,
-                 jmem, fastp_path, minimap2_path, samtools_path,
-                 modules_to_load, qiita_job_id, pool_size, max_array_length):
+                 minimap_database_paths, kraken2_database_path, queue_name,
+                 node_count, nprocs, wall_time_limit, jmem, fastp_path,
+                 minimap2_path, samtools_path, modules_to_load, qiita_job_id,
+                 pool_size, max_array_length):
         """
         Submit a Torque job where the contents of fastq_root_dir are processed
         using fastp, minimap, and samtools. Human-genome sequences will be
@@ -22,7 +23,8 @@ class QCJob(Job):
         :param fastq_root_dir: Path to a dir of Fastq files, org. by project.
         :param output_path: Path where all pipeline-generated files live.
         :param sample_sheet_path: Path to a sample sheet file.
-        :param mmi_db_path: Path to human genome database in running env.
+        :param minimap_database_paths: Path to human genome databases in env.
+        :param kraken2_database_path: Path to human genome dat abase in env.
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
         :param nprocs: Number of processes to use in runing env.
@@ -49,7 +51,8 @@ class QCJob(Job):
         self.needs_trimming = metadata['needs_adapter_trimming']
         self.nprocs = 16 if nprocs > 16 else nprocs
         self.chemistry = metadata['chemistry']
-        self.mmi_db_path = mmi_db_path
+        self.minimap_database_paths = minimap_database_paths
+        self.kraken2_database_path = kraken2_database_path
         self.queue_name = queue_name
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
@@ -382,15 +385,6 @@ class QCJob(Job):
     def _gen_chained_cmd(self, current_dir, filename1, filename2,
                          fastp_reports_dir, project_name, project_dir,
                          adapter_a, adapter_A):
-        """
-        Generates a command-line string for running fastp piping directly
-         into minimap2 piping directly into samtools. The string is based
-         on the parameters supplied to the object.
-        :param fastp_reports_dir: Path to dir for storing json and html files
-        :param human_phix_db_path: Path to the human_phix_db_path.mmi
-        :return: A string suitable for executing in Popen() and the like.
-        """
-
         read1_input_path = join(current_dir, filename1)
         read2_input_path = join(current_dir, filename2)
 
@@ -411,18 +405,41 @@ class QCJob(Job):
         path2 = join(partial, filename2.replace('.fastq.gz',
                                                 '.trimmed.fastq.gz'))
 
+        kraken_report_path = join(partial,
+                                  filename1.replace('.fastq.gz',
+                                                    '.kraken2_report.txt'))
+
+        kraken_output_path = join(partial,
+                                  filename1.replace('.fastq.gz',
+                                                    '.kraken2.trimmed.#.fastq')
+                                  )
+
         result = self.fastp_path
+
         if adapter_a:
             # assume that if adapter_a is not None, then adapter_A is not None
             # as well. We performed this check already.
             result += (f' --adapter_sequence {adapter_a}'
                        f' --adapter_sequence_r2 {adapter_A}')
 
-        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} '
-                   f'-w {self.nprocs} -j {json_output_path} -h '
-                   f'{html_output_path} --stdout | {self.minimap2_path} -ax'
-                   f' sr -t {self.nprocs} {self.mmi_db_path} - -a | '
-                   f'{self.samtools_path} fastq -@ {self.nprocs} -f 12 -F '
-                   f'256 -1 {path1} -2 {path2}')
+        result += (f' -l 100 -i {read1_input_path} -I {read2_input_path} -w '
+                   f'{self.nprocs} -j {json_output_path} -h {html_output_path}'
+                   ' --stdout ')
+
+        # for each database specified in configuration, run the data through
+        # minimap using the database and pipe to samtools to tame the output.
+        for database in self.minimap_database_paths:
+            result += (f'| {self.minimap2_path} -ax sr -t {self.nprocs} '
+                       f'{database} - -a | {self.samtools_path} fastq -@ '
+                       f'{self.nprocs} -f 12 -F 256 ')
+
+        # append the final parameters to write out the final output to disk
+        result += f'-1 {path1} -2 {path2}'
+
+        # add krakken2
+        result += (f'\nkraken2 --threads {self.nprocs} --db '
+                   f'{self.kraken2_database_path} --report '
+                   f'{kraken_report_path} --unclassified-out '
+                   f'{kraken_output_path} --paired {path1} {path2}')
 
         return result
