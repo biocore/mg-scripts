@@ -80,11 +80,10 @@ class FastQCJob(Job):
             project_dir = join(path_to_run_id_data_fastq_dir, directory)
             files = self._find_files(project_dir)
 
-            # extract only fastq files from the list
-            files = [x for x in files if x.endswith('.fastq.gz')]
-
-            # remove all files in 'zero_files' sub-folder
-            files = [x for x in files if 'zero_files' not in x]
+            # extract only fastq files from the list and remove all files
+            # in 'zero_files' sub-folder.
+            files = [x for x in files if x.endswith('.fastq.gz') and
+                     'zero_files' not in x]
 
             # break files up into R1, R2, I1, I2
             # assume _R1_ does not occur in the path as well.
