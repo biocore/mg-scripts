@@ -83,6 +83,9 @@ class FastQCJob(Job):
             # extract only fastq files from the list
             files = [x for x in files if x.endswith('.fastq.gz')]
 
+            # remove all files in 'zero_files' sub-folder
+            files = [x for x in files if 'zero_files' not in x]
+
             # break files up into R1, R2, I1, I2
             # assume _R1_ does not occur in the path as well.
             r1_only = [x for x in files if '_R1_' in x]
@@ -127,13 +130,17 @@ class FastQCJob(Job):
                 results.append(
                     (directory, filter_type, project_dir, r1_only, r2_only))
 
-        return results
+        return results if results else None
 
     def _scan_fastq_files(self, is_raw_input=False):
         find_path = (self.raw_fastq_files_path if is_raw_input else
                      self.processed_fastq_files_path)
 
         projects = self._find_projects(find_path, is_raw_input)
+
+        if projects is None:
+            raise PipelineError("There are no fastq files for FastQCJob to "
+                                "process.")
 
         fastqc_results = []
 
