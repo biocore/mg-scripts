@@ -1,10 +1,10 @@
 import unittest
-from os.path import join, exists
+from os.path import join, exists, isfile
 from functools import partial
 from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os import makedirs
-from shutil import rmtree
+from os import makedirs, listdir, mkdir
+from shutil import rmtree, move
 
 
 class TestFastQCJob(unittest.TestCase):
@@ -529,10 +529,19 @@ class TestFastQCJob(unittest.TestCase):
     def tearDown(self):
         rmtree(self.output_path)
 
+        zero_path = join(self.raw_fastq_files_path, 'zero_files')
+
+        if exists(zero_path):
+            for f in listdir(zero_path):
+                source = join(zero_path, f)
+                move(source, join(self.raw_fastq_files_path, f))
+
+            rmtree(zero_path)
+
     def test_config_file_not_found(self):
         with self.assertRaises(PipelineError) as e:
             FastQCJob(self.qc_root_path, self.output_path,
-                      self.raw_fastq_files_path,
+                      self.raw_fastq_files_path.replace('/project1', ''),
                       self.processed_fastq_files_path, 16, 16,
                       'sequence_processing_pipeline/tests/bin/fastqc', [],
                       self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
@@ -545,7 +554,7 @@ class TestFastQCJob(unittest.TestCase):
 
     def test_generate_job_scripts(self):
         job = FastQCJob(self.qc_root_path, self.output_path,
-                        self.raw_fastq_files_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
                         self.processed_fastq_files_path,
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
@@ -558,7 +567,7 @@ class TestFastQCJob(unittest.TestCase):
 
     def test_audit(self):
         job = FastQCJob(self.qc_root_path, self.output_path,
-                        self.raw_fastq_files_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
                         self.processed_fastq_files_path,
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
@@ -975,6 +984,32 @@ class TestFastQCJob(unittest.TestCase):
         exp = sorted(exp + ['BLANK1', 'not-a-sample'])
 
         self.assertListEqual(obs, exp)
+
+    def test_all_zero_files(self):
+        # create a 'zero_files' sub-folder and move all files there
+        # temporarily.
+        mkdir(join(self.raw_fastq_files_path, 'zero_files'))
+
+        for f in listdir(self.raw_fastq_files_path):
+            source = join(self.raw_fastq_files_path, f)
+            if isfile(source):
+                move(source, join(self.raw_fastq_files_path, 'zero_files', f))
+
+        # attempt to create a FastQCJob when all input fastq files are in
+        # zero_files. This will cause an Error if all fastq files for just
+        # one project are 'zero-filed', even if there are other projects where
+        # this is not the case.
+        with self.assertRaises(PipelineError) as e:
+            FastQCJob(self.qc_root_path, self.output_path,
+                      self.raw_fastq_files_path.replace('/project1', ''),
+                      self.processed_fastq_files_path,
+                      16, 16,
+                      'sequence_processing_pipeline/tests/bin/fastqc', [],
+                      self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                      self.config_yml, 1000)
+
+        self.assertEqual(str(e.exception), "There are no fastq files for "
+                                           "FastQCJob to process.")
 
 
 if __name__ == '__main__':
