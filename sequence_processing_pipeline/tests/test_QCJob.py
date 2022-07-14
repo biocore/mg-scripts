@@ -1198,7 +1198,8 @@ class TestQCJob(unittest.TestCase):
         'step=$(( $offset - 0 ))',
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_NYU_BMS_Melanoma_13059.array-details | tail -n 1)',
-        'eval $cmd0']
+        'eval $cmd0',
+        'echo "Cmd Completed: $cmd0']
 
     exp_QCJob_2 = [
         '#!/bin/bash',
@@ -1218,7 +1219,8 @@ class TestQCJob(unittest.TestCase):
         'step=$(( $offset - 0 ))',
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_Feist_11661.array-details | tail -n 1)',
-        'eval $cmd0']
+        'eval $cmd0',
+        'echo "Cmd Completed: $cmd0']
 
     exp_QCJob_3 = [
         '#!/bin/bash',
@@ -1238,7 +1240,8 @@ class TestQCJob(unittest.TestCase):
         'step=$(( $offset - 0 ))',
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_Gerwick_6123.array-details | tail -n 1)',
-        'eval $cmd0']
+        'eval $cmd0',
+        'echo "Cmd Completed: $cmd0']
 
     exp_map = {'QCJob_Feist_11661.array-details': {
                    'first_line': "fastp --adapter_sequence AACC "
