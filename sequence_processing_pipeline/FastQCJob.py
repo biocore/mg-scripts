@@ -161,6 +161,16 @@ class FastQCJob(Job):
 
         return fastqc_results, project_names
 
+    def _was_successful(self):
+        completed_files = self._find_files(self.output_path)
+        completed_files = [x for x in completed_files if
+                           x.endswith('.completed')]
+
+        if len(completed_files) == len(self.commands):
+            return True
+
+        return False
+
     def run(self, callback=None):
         job_info = self.qsub(self.job_script_path, None, None,
                              exec_from=self.log_path, callback=callback)
@@ -201,6 +211,9 @@ class FastQCJob(Job):
             if results['return_code'] != 0:
                 raise PipelineError("multiqc encountered an error")
 
+        if not self._was_successful():
+            raise PipelineError("FastQCJob did not complete successfully.")
+
     def _generate_job_script(self):
         lines = []
 
@@ -233,6 +246,9 @@ class FastQCJob(Job):
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
+
+        sentinel_file = f'{self.job_name}_$step.completed'
+        lines.append(f'echo "Cmd Completed: $cmd0\n" > logs/{sentinel_file}')
 
         with open(self.job_script_path, 'w') as f:
             f.write('\n'.join(lines))

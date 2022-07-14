@@ -63,6 +63,7 @@ class QCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
         self.suffix = 'fastq.gz'
+        self.counts = {}
 
         self.minimum_bytes = 3100
 
@@ -97,13 +98,14 @@ class QCJob(Job):
             if not isinstance(project['HumanFiltering'], bool):
                 raise ValueError("needs_adapter_trimming must be boolean.")
 
-            script_path = self._generate_job_script(project_name,
-                                                    project['ForwardAdapter'],
-                                                    project['ReverseAdapter'],
-                                                    project['HumanFiltering'],
-                                                    fastq_files)
+            spath, cnt = self._generate_job_script(project_name,
+                                                   project['ForwardAdapter'],
+                                                   project['ReverseAdapter'],
+                                                   project['HumanFiltering'],
+                                                   fastq_files)
 
-            self.script_paths[project_name] = script_path
+            self.script_paths[project_name] = spath
+            self.counts[project_name] = cnt
 
     def _filter(self, filtered_directory, empty_files_directory,
                 minimum_bytes):
@@ -129,6 +131,16 @@ class QCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
+    def _was_successful(self, project_name):
+        completed_files = self._find_files(self.output_path)
+        completed_files = [x for x in completed_files if
+                           x.endswith('.completed') and project_name in x]
+
+        if len(completed_files) == self.counts[project_name]:
+            return True
+
+        return False
+
     def run(self, callback=None):
         for project in self.project_data:
             project_name = project['Sample_Project']
@@ -136,7 +148,12 @@ class QCJob(Job):
             pbs_job_id = self.qsub(self.script_paths[project_name], None, None,
                                    exec_from=self.log_path, callback=callback)
             logging.debug(f'QCJob {pbs_job_id} completed')
+
             source_dir = join(self.output_path, project_name)
+
+            if not self._was_successful(project_name):
+                raise PipelineError("QCJob did not complete successfully.")
+
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
             else:
@@ -256,6 +273,8 @@ class QCJob(Job):
                                        h_filter, adapter_a, adapter_A)
         cmds = self._group_commands(cmds)
 
+        step_count = len(cmds)
+
         lines.append("#!/bin/bash")
         job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'
 
@@ -267,7 +286,7 @@ class QCJob(Job):
         lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
         lines.append(f"#PBS -l mem={self.jmem}")
 
-        lines.append("#PBS -t 1-%d%%%d" % (len(cmds), self.pool_size))
+        lines.append("#PBS -t 1-%d%%%d" % (step_count, self.pool_size))
 
         lines.append("set -x")
         lines.append('date')
@@ -283,6 +302,9 @@ class QCJob(Job):
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
 
+        sentinel_file = f'{self.job_name}_{project_name}_$step.completed'
+        lines.append(f'echo "Cmd Completed: $cmd0\n" > logs/{sentinel_file}')
+
         job_script_path = join(self.output_path,
                                f'{self.job_name}_{project_name}.sh')
 
@@ -292,7 +314,7 @@ class QCJob(Job):
         with open(sh_details_fp, 'w') as f:
             f.write('\n'.join(cmds))
 
-        return job_script_path
+        return job_script_path, step_count
 
     def _generate_commands(self, fastq_file_paths, project_name, project_dir,
                            h_filter, adapter_a, adapter_A):
@@ -318,8 +340,8 @@ class QCJob(Job):
                          exist_ok=True)
 
         if self.needs_trimming is True:
-            foo = [x.strip() for x in fastq_file_paths if '_R1_' in x]
-            for fastq_file_path in foo:
+            paths = [x.strip() for x in fastq_file_paths if '_R1_' in x]
+            for fastq_file_path in paths:
                 current_dir = split(fastq_file_path)[0]
                 _, filename1 = split(fastq_file_path)
                 filename2 = filename1.replace('_R1_00', '_R2_00')
