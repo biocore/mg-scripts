@@ -1011,6 +1011,26 @@ class TestFastQCJob(unittest.TestCase):
         self.assertEqual(str(e.exception), "There are no fastq files for "
                                            "FastQCJob to process.")
 
+    def test_completed_file_generation(self):
+        job = FastQCJob(self.qc_root_path, self.output_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
+                        self.processed_fastq_files_path,
+                        16, 16,
+                        'sequence_processing_pipeline/tests/bin/fastqc', [],
+                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                        self.config_yml, 1000)
+
+        my_path = join(self.output_path, 'FastQCJob', 'logs')
+
+        # since .completed files are generated when jobs are submitted via
+        # the run() method and completed successfully, we must manually
+        # create the files _was_successful() expects to see.
+        for i in range(0, 4):
+            with open(join(my_path, f'project1_{i}.completed'), 'w') as f:
+                f.write("This is a .completed file.")
+
+        self.assertTrue(job._was_successful())
+
 
 if __name__ == '__main__':
     unittest.main()
