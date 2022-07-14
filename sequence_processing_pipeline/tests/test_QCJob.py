@@ -1178,6 +1178,27 @@ class TestQCJob(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_completed_file_generation(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+
+        job = QCJob(self.fastq_root_path, self.output_path,
+                    self.sample_sheet_path, double_db_paths,
+                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000)
+
+        my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
+                   'QCJob/logs')
+
+        # since .completed files are generated when jobs are submitted via
+        # the run() method and completed successfully, we must manually
+        # create the files _was_successful() expects to see.
+        for i in range(0, 9):
+            with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
+                f.write("This is a .completed file.")
+
+        self.assertTrue(job._was_successful('Gerwick_6123'))
+
     exp_QCJob_1 = [
         '#!/bin/bash',
         ('#PBS -N abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS_Melanoma_1305'
