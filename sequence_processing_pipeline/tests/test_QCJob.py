@@ -667,16 +667,6 @@ class TestQCJob(unittest.TestCase):
                 if remove_this:
                     lines_obs = [x.replace(remove_this, '') for x in
                                  lines_obs]
-
-                print("OBS#######################")
-                for line in lines_obs:
-                    print(line)
-                print("EXP#######################")
-                for line in lines_exp:
-                    print(line)
-                print("END#######################")
-
-
                 self.assertEqual(lines_obs, lines_exp)
 
         # assert that the array-details files were created and are in the
@@ -1208,7 +1198,8 @@ class TestQCJob(unittest.TestCase):
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_NYU_BMS_Melanoma_13059.array-details | tail -n 1)',
         'eval $cmd0',
-        'echo "Cmd Completed: $cmd0" > logs/QCJob_NYU_BMS_Melanoma_13059_$step.completed']
+        ('echo "Cmd Completed: $cmd0" > logs/'
+         'QCJob_NYU_BMS_Melanoma_13059_$step.completed')]
 
     exp_QCJob_2 = [
         '#!/bin/bash',
@@ -1250,7 +1241,8 @@ class TestQCJob(unittest.TestCase):
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_Gerwick_6123.array-details | tail -n 1)',
         'eval $cmd0',
-        'echo "Cmd Completed: $cmd0" > logs/QCJob_Gerwick_6123_$step.completed']
+        ('echo "Cmd Completed: $cmd0" > logs/'
+         'QCJob_Gerwick_6123_$step.completed')]
 
     exp_map = {'QCJob_Feist_11661.array-details': {
                    'first_line': "fastp --adapter_sequence AACC "
@@ -1407,7 +1399,8 @@ class TestQCJob(unittest.TestCase):
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_NYU_BMS_Melanoma_13059.array-details | tail -n 1)',
         'eval $cmd0',
-        'echo "Cmd Completed: $cmd0" > logs/QCJob_NYU_BMS_Melanoma_13059_$step.completed']
+        ('echo "Cmd Completed: $cmd0" > logs/'
+         'QCJob_NYU_BMS_Melanoma_13059_$step.completed')]
 
     exp_QCJob_2_chained = [
         '#!/bin/bash',
@@ -1449,7 +1442,8 @@ class TestQCJob(unittest.TestCase):
         'cmd0=$(head -n $step sequence_processing_pipeline/tests/data/output_d'
         'ir/QCJob/QCJob_Gerwick_6123.array-details | tail -n 1)',
         'eval $cmd0',
-        'echo "Cmd Completed: $cmd0" > logs/QCJob_Gerwick_6123_$step.completed']
+        ('echo "Cmd Completed: $cmd0" > logs/'
+         'QCJob_Gerwick_6123_$step.completed')]
 
     exp_map_chained = {'QCJob_Feist_11661.array-details': {
         'first_line': "fastp --adapter_sequence AACC --adapter_sequence_r2 GGT"
