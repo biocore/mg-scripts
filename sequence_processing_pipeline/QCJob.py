@@ -303,7 +303,7 @@ class QCJob(Job):
         lines.append('eval $cmd0')
 
         sentinel_file = f'{self.job_name}_{project_name}_$step.completed'
-        lines.append(f'echo "Cmd Completed: $cmd0\n" > logs/{sentinel_file}')
+        lines.append(f'echo "Cmd Completed: $cmd0" > logs/{sentinel_file}')
 
         job_script_path = join(self.output_path,
                                f'{self.job_name}_{project_name}.sh')

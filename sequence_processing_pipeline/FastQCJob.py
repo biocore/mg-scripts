@@ -248,7 +248,7 @@ class FastQCJob(Job):
         lines.append('eval $cmd0')
 
         sentinel_file = f'{self.job_name}_$step.completed'
-        lines.append(f'echo "Cmd Completed: $cmd0\n" > logs/{sentinel_file}')
+        lines.append(f'echo "Cmd Completed: $cmd0" > logs/{sentinel_file}')
 
         with open(self.job_script_path, 'w') as f:
             f.write('\n'.join(lines))
