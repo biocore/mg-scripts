@@ -264,8 +264,8 @@ class QCJob(Job):
         lines.append(f"#SBATCH -p {self.queue_name}")
         lines.append(f'#SBATCH -N {self.node_count}')
         lines.append(f'#SBATCH -n {self.nprocs}')
-        lines.append("#SBATCH --time {self.wall_time_limit}:00:00")
-        lines.append(f"SBATCH --mem={self.jmem}")
+        lines.append(f"#SBATCH --time {self.wall_time_limit}:00:00")
+        lines.append(f"SBATCH --mem {self.jmem}")
 
         lines.append("#SBATCH --array 1-%d%%%d" % (len(cmds), self.pool_size))
 
