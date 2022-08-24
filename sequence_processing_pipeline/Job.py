@@ -74,7 +74,7 @@ class Job:
 
     def run(self):
         """
-        Since a Job object can encapsulate one or more qsub() or system()
+        Since a Job object can encapsulate one or more submit_job() or system()
         calls, the base run() method remains unimplemented. It is the job of
         each sub-class to define what needs to be run in order to generate the
         expected output.
@@ -188,12 +188,13 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def qsub(self, script_path, qsub_parameters=None, script_parameters=None,
-             wait=True, exec_from=None, callback=None):
+    def submit_job(self, script_path, job_parameters=None,
+                   script_parameters=None, wait=True, exec_from=None,
+                   callback=None):
         """
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
-        :param qsub_parameters: Optional parameters for qsub.
+        :param job_parameters: Optional parameters for scheduler submission.
         :param script_parameters: Optional parameters for your job script.
         :param wait: Set to False to submit job and not wait.
         :param exec_from: Set working directory to execute command from.
@@ -202,10 +203,10 @@ class Job:
         elapsed time. Raises PipelineError if job could not be submitted or
         if job was unsuccessful.
         """
-        if qsub_parameters:
-            cmd = 'qsub %s %s' % (qsub_parameters, script_path)
+        if job_parameters:
+            cmd = 'sbatch %s %s' % (job_parameters, script_path)
         else:
-            cmd = 'qsub %s' % (script_path)
+            cmd = 'sbatch %s' % (script_path)
 
         if script_parameters:
             cmd += ' %s' % script_parameters
@@ -213,9 +214,9 @@ class Job:
         if exec_from:
             cmd = f'cd {exec_from};' + cmd
 
-        logging.debug("qsub call: %s" % cmd)
-        # if system_call does not raise a PipelineError(), then the qsub
-        # successfully submitted the job. In this case, qsub should return
+        logging.debug("job scheduler call: %s" % cmd)
+        # if system_call does not raise a PipelineError(), then the scheduler
+        # successfully submitted the job. In this case, it should return
         # the id of the job in stdout.
         results = self._system_call(cmd)
         stdout = results['stdout']
@@ -275,7 +276,7 @@ class Job:
 
                     if callback is not None:
                         # use the callback to update the user on the current
-                        # status of the running job. Use the qsub_state_map
+                        # status of the running job. Use the job_state_map
                         # to map one letter state codes to human-readable text
                         # strings.
                         state = job_info['job_state']
