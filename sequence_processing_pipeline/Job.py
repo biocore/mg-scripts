@@ -232,7 +232,7 @@ class Job:
             jobs_data = result['stdout'].split('\n')[:-1]
             for jd in jobs_data:
                 jid, jname, jstate, etime, estatus = jd.split('|')
-                if job_id == jd:
+                if job_id == jid:
                     job_info['job_id'] = jd
                     job_info['job_name'] = jname
                     job_info['job_state'] = jstate
@@ -258,7 +258,7 @@ class Job:
 
             if job_info['job_state'] == 'COMPLETED':
                 if 'exit_status' in job_info:
-                    if job_info['exit_status'] == '0.0':
+                    if job_info['exit_status'] == '0:0':
                         # job completed successfully
                         return job_info
                     else:
