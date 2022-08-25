@@ -72,23 +72,22 @@ class ConvertJob(Job):
         lines = []
 
         lines.append("#!/bin/bash")
-        lines.append(f"#PBS -N {self.qiita_job_id}_{self.job_name}")
-        lines.append(f"#PBS -q {self.queue_name}")
-        lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,
-                                                  self.nprocs))
-        lines.append("#PBS -V")
-        lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
+        lines.append(f"#SBATCH --job-name {self.qiita_job_id}_{self.job_name}")
+        lines.append(f"#SBATCH -p {self.queue_name}")
+        lines.append(f'#SBATCH -N {self.node_count}')
+        lines.append(f'#SBATCH -n {self.nprocs}')
+        lines.append("#SBATCH --time %d:00:00" % self.wall_time_limit)
 
         # send an email to the list of users defined below when a job starts,
         # terminates, or aborts. This is used to confirm that the package's
         # own reporting mechanism is reporting correctly.
-        lines.append("#PBS -m bea")
+        lines.append("#SBATCH --mail-type=ALL")
 
         # list of users to be contacted independently of this package's
         # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#PBS -M qiita.help@gmail.com")
+        lines.append("#SBATCH --mail-user qiita.help@gmail.com")
 
-        lines.append(f"#PBS -l pmem={self.pmem}")
+        lines.append(f"#SBATCH --mem-per-cpu {self.pmem}")
 
         lines.append("set -x")
         lines.append('date')
@@ -145,7 +144,7 @@ class ConvertJob(Job):
                          changed.
         :return:
         """
-        job_info = self.qsub(self.job_script_path, None, None,
-                             exec_from=self.log_path, callback=callback)
+        job_info = self.submit_job(self.job_script_path, None, None,
+                                   exec_from=self.log_path, callback=callback)
 
         logging.info(f'Successful job: {job_info}')

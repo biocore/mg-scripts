@@ -162,8 +162,8 @@ class FastQCJob(Job):
         return fastqc_results, project_names
 
     def run(self, callback=None):
-        job_info = self.qsub(self.job_script_path, None, None,
-                             exec_from=self.log_path, callback=callback)
+        job_info = self.submit_job(self.job_script_path, None, None,
+                                   exec_from=self.log_path, callback=callback)
         logging.debug(job_info)
 
         for project in self.project_names:
@@ -210,26 +210,26 @@ class FastQCJob(Job):
         lines.append("#!/bin/bash")
 
         job_name = f'{self.qiita_job_id}_{self.job_name}'
-        lines.append(f"#PBS -N {job_name}")
-        lines.append("#PBS -q %s" % self.queue_name)
-        lines.append("#PBS -l nodes=%d:ppn=%d" % (self.node_count,
-                                                  self.nprocs))
-        lines.append("#PBS -V")
-        lines.append("#PBS -l walltime=%d:00:00" % self.wall_time_limit)
-        lines.append(f"#PBS -l mem={self.jmem}")
+        lines.append(f"#SBATCH --job-name {job_name}")
+        lines.append(f"#SBATCH -p {self.queue_name}")
+        lines.append(f"#SBATCH -N {self.node_count}")
+        lines.append(f"#SBATCH -n {self.nprocs}")
+        lines.append("#SBATCH --time %d:00:00" % self.wall_time_limit)
+        lines.append(f"#SBATCH --mem {self.jmem}")
 
-        lines.append("#PBS -t 1-%d%%%d" % (len(self.commands), self.pool_size))
+        lines.append("#SBATCH --array 1-%d%%%d" % (
+            len(self.commands), self.pool_size))
 
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
-        lines.append('echo ${PBS_JOBID} ${PBS_ARRAYID}')
+        lines.append('echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}')
         lines.append(f'cd {self.output_path}')
 
         if self.modules_to_load:
             lines.append("module load " + ' '.join(self.modules_to_load))
 
-        lines.append('offset=${PBS_ARRAYID}')
+        lines.append('offset=${SLURM_ARRAY_TASK_ID}')
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
