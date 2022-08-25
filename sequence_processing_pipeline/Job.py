@@ -4,14 +4,13 @@ from os.path import basename, exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
-import xml.dom.minidom
 import logging
 from inspect import stack
 
 
 class Job:
-    job_state_map = {'Q': 'queued', 'R': 'running', 'E': 'Error',
-                     'C': 'completed'}
+    job_state_map = {'Q': 'QUEUED', 'R': 'RUNNING', 'E': 'ERROR',
+                     'C': 'COMPLETED'}
 
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
@@ -243,68 +242,34 @@ class Job:
 
         while wait:
             # wait for the job to complete. Periodically check on the status
-            # of the job using the 'qstat' command before sleep()ing again.
-            # Recently completed and exited jobs appear in qstat for only a
-            # short period of time. If job_id is not found, treat this as a\
-            # job finishing, rather than an error. qstat returns code 153 when
-            # this occurs, so we'll allow it in this instance.
+            # of the job before sleep()ing again.
 
-            results = self._system_call("qstat -x %s" % job_id,
-                                        allow_return_codes=[153])
-            stdout = results['stdout']
-            stderr = results['stderr']
+            result = self._system_call(f"sacct -P -n --job {job_id} --format "
+                                       "JobID,JobName,State,Elapsed,ExitCode")
 
-            if stderr.startswith("qstat: Unknown Job Id Error"):
-                break
+            if result['return_code'] != 0:
+                raise ValueError(result['stderr'])
 
-            # update job_info
-            # even though job_id doesn't change, use this update as evidence
-            # job_id was once in the queue.
-            doc = xml.dom.minidom.parseString(stdout)
-            jobs = doc.getElementsByTagName("Job")
-            for some_job in jobs:
-                tmp = some_job.getElementsByTagName("Job_Id")[0]
-                some_job_id = tmp.firstChild.nodeValue
-                if some_job_id == job_id:
-                    job_info['job_id'] = some_job_id
-
-                    tmp = some_job.getElementsByTagName("Job_Name")[0]
-                    job_info['job_name'] = tmp.firstChild.nodeValue
-
-                    tmp = some_job.getElementsByTagName("job_state")[0]
-                    job_info['job_state'] = tmp.firstChild.nodeValue
-
-                    if callback is not None:
-                        # use the callback to update the user on the current
-                        # status of the running job. Use the job_state_map
-                        # to map one letter state codes to human-readable text
-                        # strings.
-                        state = job_info['job_state']
-                        callback(id=job_id, status=Job.job_state_map[state])
-
-                    tmp = some_job.getElementsByTagName("etime")[0]
-                    job_info['elapsed_time'] = tmp.firstChild.nodeValue
-
-                    # We cannot rely solely on exit_status as it appears for
-                    # regular jobs but not for job-arrays. We can look for
-                    # it and consider it, if it exists. Otherwise, we'll have
-                    # to rely solely on status = 'C' instead.
-                    tmp = some_job.getElementsByTagName("exit_status")
-                    if tmp:
-                        val = int(tmp[0].firstChild.nodeValue)
-                        job_info['exit_status'] = val
-
+            # [-1] remove the extra \n
+            jobs_data = result['stdout'].split('\n')[:-1]
+            for jd in jobs_data:
+                jid, jname, jstate, etime, estatus = jd.split('|')
+                if job_id == jd:
+                    job_info['job_id'] = jd
+                    job_info['job_name'] = jname
+                    job_info['job_state'] = jstate
+                    callback(id=job_id, status=job_info['job_state'])
+                    job_info['elapsed_time'] = etime
+                    job_info['exit_status'] = estatus
                     break
 
             logging.debug("Job info: %s" % job_info)
 
             # if job is completed after having run or exited after having
             # run, then stop waiting.
-            if job_info['job_state'] in ['C', 'E']:
+            if job_info['job_state'] not in ['QUEUED', 'RUNNING']:
                 break
 
-            # check once every minute - job info records should stay in the
-            # queue that long after finishing.
             sleep(30)
 
         if job_info['job_id']:
