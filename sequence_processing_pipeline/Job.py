@@ -9,9 +9,6 @@ from inspect import stack
 
 
 class Job:
-    job_state_map = {'Q': 'QUEUED', 'R': 'RUNNING', 'E': 'ERROR',
-                     'C': 'COMPLETED'}
-
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
         """
@@ -157,7 +154,7 @@ class Job:
                      stdout=PIPE, stderr=PIPE)
 
         if callback is not None:
-            callback(id=proc.pid, status=Job.job_state_map['R'])
+            callback(id=proc.pid, status='RUNNING')
 
         # Communicate pulls all stdout/stderr from the PIPEs
         # This call blocks until the command is done
@@ -172,7 +169,7 @@ class Job:
 
         if return_code not in acceptable_return_codes:
             if callback is not None:
-                callback(id=proc.pid, status=Job.job_state_map['E'])
+                callback(id=proc.pid, status='ERROR')
             msg = (
                 'Execute command-line statement failure:\n'
                 f'Command: {cmd}\n'
@@ -183,7 +180,7 @@ class Job:
             raise PipelineError(message=msg)
 
         if callback is not None:
-            callback(id=proc.pid, status=Job.job_state_map['C'])
+            callback(id=proc.pid, status='COMPLETED')
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
@@ -220,16 +217,14 @@ class Job:
         results = self._system_call(cmd)
         stdout = results['stdout']
 
-        # extract the first line only. This will be the fully-qualified Torque
-        # job id.
-        job_id = stdout.split('\n')[0]
+        job_id = stdout.split()[-1]
 
         if callback is not None:
             # if a callback function has been supplied to periodically update
             # the status of the job with, then perform the first callback,
             # returning the job_id to the user, and assume the job is still
             # 'queued'.
-            callback(id=job_id, status=Job.job_state_map['Q'])
+            callback(id=job_id, status='QUEUED')
 
         # job_info acts as a sentinel value, as well as a return value.
         # if job_id is not None, then that means the job has appeared in qstat
@@ -258,16 +253,17 @@ class Job:
                     job_info['job_id'] = jd
                     job_info['job_name'] = jname
                     job_info['job_state'] = jstate
-                    callback(id=job_id, status=job_info['job_state'])
                     job_info['elapsed_time'] = etime
                     job_info['exit_status'] = estatus
+                    if callback is not None:
+                        callback(id=job_id, status=jstate)
                     break
 
             logging.debug("Job info: %s" % job_info)
 
             # if job is completed after having run or exited after having
             # run, then stop waiting.
-            if job_info['job_state'] not in ['QUEUED', 'RUNNING']:
+            if job_info['job_state'] in ['COMPLETED', 'ERROR']:
                 break
 
             sleep(30)
@@ -275,12 +271,11 @@ class Job:
         if job_info['job_id']:
             # job was once in the queue
             if callback is not None:
-                state = job_info['job_state']
-                callback(id=job_id, status=Job.job_state_map[state])
+                callback(id=job_id, status=job_info['job_state'])
 
-            if job_info['job_state'] == 'C':
+            if job_info['job_state'] == 'COMPLETED':
                 if 'exit_status' in job_info:
-                    if job_info['exit_status'] == 0:
+                    if job_info['exit_status'] == '0.0':
                         # job completed successfully
                         return job_info
                     else:
@@ -297,7 +292,7 @@ class Job:
         else:
             # job was never in the queue - return an error.
             if callback is not None:
-                callback(id=job_id, status=Job.job_state_map['E'])
+                callback(id=job_id, status='ERROR')
 
             raise PipelineError("job %s never appeared in the queue." % job_id)
 
