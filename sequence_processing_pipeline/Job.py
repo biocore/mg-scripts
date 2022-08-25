@@ -217,28 +217,11 @@ class Job:
         results = self._system_call(cmd)
         stdout = results['stdout']
 
-        job_id = stdout.split()[-1]
+        job_id = stdout.strip().split()[-1]
 
-        if callback is not None:
-            # if a callback function has been supplied to periodically update
-            # the status of the job with, then perform the first callback,
-            # returning the job_id to the user, and assume the job is still
-            # 'queued'.
-            callback(id=job_id, status='QUEUED')
-
-        # job_info acts as a sentinel value, as well as a return value.
-        # if job_id is not None, then that means the job has appeared in qstat
-        # at least once. This helps us distinguish between two states -
-        # one where the loop is starting and the job has never appeared in
-        # qstat yet, and the second where we slept too long in between
-        # checking and the job has disappeared from qstat().
         job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
-
         while wait:
-            # wait for the job to complete. Periodically check on the status
-            # of the job before sleep()ing again.
-
             result = self._system_call(f"sacct -P -n --job {job_id} --format "
                                        "JobID,JobName,State,Elapsed,ExitCode")
 
