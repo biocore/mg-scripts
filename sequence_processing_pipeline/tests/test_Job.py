@@ -52,7 +52,7 @@ class TestJob(unittest.TestCase):
 
         for item in callback_results:
             self.assertTrue(isinstance(item[0], int))
-            self.assertIn(item[1], ['running', 'completed'])
+            self.assertIn(item[1], ['RUNNING', 'COMPLETED'])
 
         with self.assertRaises(PipelineError) as e:
             job._system_call('error')
