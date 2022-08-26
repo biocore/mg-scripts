@@ -197,9 +197,9 @@ class FastQCJob(Job):
         return failed_indexes
 
     def run(self, callback=None):
-        job_info = self.submit_job(self.job_script_path, None, None,
-                                   exec_from=self.log_path, callback=callback)
-        logging.debug(job_info)
+        job_id = self.submit_job(self.job_script_path, None, None,
+                                 exec_from=self.log_path, callback=callback)
+        logging.debug(job_id)
 
         for project in self.project_names:
             # MultiQC doesn't like input paths that don't exist. Simply add
