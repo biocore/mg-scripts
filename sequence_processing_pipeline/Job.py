@@ -4,15 +4,11 @@ from os.path import basename, exists, split, join
 from sequence_processing_pipeline.PipelineError import PipelineError
 from subprocess import Popen, PIPE
 from time import sleep
-import xml.dom.minidom
 import logging
 from inspect import stack
 
 
 class Job:
-    job_state_map = {'Q': 'queued', 'R': 'running', 'E': 'Error',
-                     'C': 'completed'}
-
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
         """
@@ -74,7 +70,7 @@ class Job:
 
     def run(self):
         """
-        Since a Job object can encapsulate one or more qsub() or system()
+        Since a Job object can encapsulate one or more submit_job() or system()
         calls, the base run() method remains unimplemented. It is the job of
         each sub-class to define what needs to be run in order to generate the
         expected output.
@@ -158,7 +154,7 @@ class Job:
                      stdout=PIPE, stderr=PIPE)
 
         if callback is not None:
-            callback(id=proc.pid, status=Job.job_state_map['R'])
+            callback(id=proc.pid, status='RUNNING')
 
         # Communicate pulls all stdout/stderr from the PIPEs
         # This call blocks until the command is done
@@ -173,7 +169,7 @@ class Job:
 
         if return_code not in acceptable_return_codes:
             if callback is not None:
-                callback(id=proc.pid, status=Job.job_state_map['E'])
+                callback(id=proc.pid, status='ERROR')
             msg = (
                 'Execute command-line statement failure:\n'
                 f'Command: {cmd}\n'
@@ -184,16 +180,17 @@ class Job:
             raise PipelineError(message=msg)
 
         if callback is not None:
-            callback(id=proc.pid, status=Job.job_state_map['C'])
+            callback(id=proc.pid, status='COMPLETED')
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def qsub(self, script_path, qsub_parameters=None, script_parameters=None,
-             wait=True, exec_from=None, callback=None):
+    def submit_job(self, script_path, job_parameters=None,
+                   script_parameters=None, wait=True, exec_from=None,
+                   callback=None):
         """
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
-        :param qsub_parameters: Optional parameters for qsub.
+        :param job_parameters: Optional parameters for scheduler submission.
         :param script_parameters: Optional parameters for your job script.
         :param wait: Set to False to submit job and not wait.
         :param exec_from: Set working directory to execute command from.
@@ -202,10 +199,10 @@ class Job:
         elapsed time. Raises PipelineError if job could not be submitted or
         if job was unsuccessful.
         """
-        if qsub_parameters:
-            cmd = 'qsub %s %s' % (qsub_parameters, script_path)
+        if job_parameters:
+            cmd = 'sbatch %s %s' % (job_parameters, script_path)
         else:
-            cmd = 'qsub %s' % (script_path)
+            cmd = 'sbatch %s' % (script_path)
 
         if script_parameters:
             cmd += ' %s' % script_parameters
@@ -213,108 +210,55 @@ class Job:
         if exec_from:
             cmd = f'cd {exec_from};' + cmd
 
-        logging.debug("qsub call: %s" % cmd)
-        # if system_call does not raise a PipelineError(), then the qsub
-        # successfully submitted the job. In this case, qsub should return
+        logging.debug("job scheduler call: %s" % cmd)
+        # if system_call does not raise a PipelineError(), then the scheduler
+        # successfully submitted the job. In this case, it should return
         # the id of the job in stdout.
         results = self._system_call(cmd)
         stdout = results['stdout']
 
-        # extract the first line only. This will be the fully-qualified Torque
-        # job id.
-        job_id = stdout.split('\n')[0]
+        job_id = stdout.strip().split()[-1]
 
-        if callback is not None:
-            # if a callback function has been supplied to periodically update
-            # the status of the job with, then perform the first callback,
-            # returning the job_id to the user, and assume the job is still
-            # 'queued'.
-            callback(id=job_id, status=Job.job_state_map['Q'])
-
-        # job_info acts as a sentinel value, as well as a return value.
-        # if job_id is not None, then that means the job has appeared in qstat
-        # at least once. This helps us distinguish between two states -
-        # one where the loop is starting and the job has never appeared in
-        # qstat yet, and the second where we slept too long in between
-        # checking and the job has disappeared from qstat().
         job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
-
         while wait:
-            # wait for the job to complete. Periodically check on the status
-            # of the job using the 'qstat' command before sleep()ing again.
-            # Recently completed and exited jobs appear in qstat for only a
-            # short period of time. If job_id is not found, treat this as a\
-            # job finishing, rather than an error. qstat returns code 153 when
-            # this occurs, so we'll allow it in this instance.
+            result = self._system_call(f"sacct -P -n --job {job_id} --format "
+                                       "JobID,JobName,State,Elapsed,ExitCode")
 
-            results = self._system_call("qstat -x %s" % job_id,
-                                        allow_return_codes=[153])
-            stdout = results['stdout']
-            stderr = results['stderr']
+            if result['return_code'] != 0:
+                raise ValueError(result['stderr'])
 
-            if stderr.startswith("qstat: Unknown Job Id Error"):
-                break
-
-            # update job_info
-            # even though job_id doesn't change, use this update as evidence
-            # job_id was once in the queue.
-            doc = xml.dom.minidom.parseString(stdout)
-            jobs = doc.getElementsByTagName("Job")
-            for some_job in jobs:
-                tmp = some_job.getElementsByTagName("Job_Id")[0]
-                some_job_id = tmp.firstChild.nodeValue
-                if some_job_id == job_id:
-                    job_info['job_id'] = some_job_id
-
-                    tmp = some_job.getElementsByTagName("Job_Name")[0]
-                    job_info['job_name'] = tmp.firstChild.nodeValue
-
-                    tmp = some_job.getElementsByTagName("job_state")[0]
-                    job_info['job_state'] = tmp.firstChild.nodeValue
-
+            # [-1] remove the extra \n
+            jobs_data = result['stdout'].split('\n')[:-1]
+            for jd in jobs_data:
+                jid, jname, jstate, etime, estatus = jd.split('|')
+                if job_id == jid:
+                    job_info['job_id'] = jd
+                    job_info['job_name'] = jname
+                    job_info['job_state'] = jstate
+                    job_info['elapsed_time'] = etime
+                    job_info['exit_status'] = estatus
                     if callback is not None:
-                        # use the callback to update the user on the current
-                        # status of the running job. Use the qsub_state_map
-                        # to map one letter state codes to human-readable text
-                        # strings.
-                        state = job_info['job_state']
-                        callback(id=job_id, status=Job.job_state_map[state])
-
-                    tmp = some_job.getElementsByTagName("etime")[0]
-                    job_info['elapsed_time'] = tmp.firstChild.nodeValue
-
-                    # We cannot rely solely on exit_status as it appears for
-                    # regular jobs but not for job-arrays. We can look for
-                    # it and consider it, if it exists. Otherwise, we'll have
-                    # to rely solely on status = 'C' instead.
-                    tmp = some_job.getElementsByTagName("exit_status")
-                    if tmp:
-                        val = int(tmp[0].firstChild.nodeValue)
-                        job_info['exit_status'] = val
-
+                        callback(id=job_id, status=jstate)
                     break
 
             logging.debug("Job info: %s" % job_info)
 
             # if job is completed after having run or exited after having
             # run, then stop waiting.
-            if job_info['job_state'] in ['C', 'E']:
+            if job_info['job_state'] in ['COMPLETED', 'ERROR']:
                 break
 
-            # check once every minute - job info records should stay in the
-            # queue that long after finishing.
             sleep(30)
 
         if job_info['job_id']:
             # job was once in the queue
             if callback is not None:
-                state = job_info['job_state']
-                callback(id=job_id, status=Job.job_state_map[state])
+                callback(id=job_id, status=job_info['job_state'])
 
-            if job_info['job_state'] == 'C':
+            if job_info['job_state'] == 'COMPLETED':
                 if 'exit_status' in job_info:
-                    if job_info['exit_status'] == 0:
+                    if job_info['exit_status'] == '0:0':
                         # job completed successfully
                         return job_info
                     else:
@@ -331,7 +275,7 @@ class Job:
         else:
             # job was never in the queue - return an error.
             if callback is not None:
-                callback(id=job_id, status=Job.job_state_map['E'])
+                callback(id=job_id, status='ERROR')
 
             raise PipelineError("job %s never appeared in the queue." % job_id)
 
