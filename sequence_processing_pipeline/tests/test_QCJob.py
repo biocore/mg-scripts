@@ -7,6 +7,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 import re
+from json import load
 
 
 class TestQCJob(unittest.TestCase):
@@ -1197,7 +1198,43 @@ class TestQCJob(unittest.TestCase):
             with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
                 f.write("This is a .completed file.")
 
-        self.assertTrue(job._was_successful('Gerwick_6123'))
+        results = job._get_failed_indexes('Gerwick_6123', "3456.barnacle")
+        self.assertTrue(len(results) == 0)
+
+    def test_completed_file_generation_some_failures(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+
+        job = QCJob(self.fastq_root_path, self.output_path,
+                    self.sample_sheet_path, double_db_paths,
+                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000)
+
+        my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
+                   'QCJob/logs')
+
+        # simulate one job failing and not generating a .completed file by
+        # setting range to (2,9) from (0,9). get_failed_indexes() should
+        # return [0,1] as a result.
+        for i in range(2, 9):
+            with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
+                f.write("This is a .completed file.")
+
+        results = job._get_failed_indexes('Gerwick_6123', "4567.barnacle")
+        self.assertTrue(results, [0, 1])
+
+        # verify that when one or more array jobs have failed to complete,
+        # a file is created that gives a job id and an array index.
+        log_fp = join(my_path, 'failed_indexes_4567.barnacle.json')
+
+        self.assertTrue(exists(log_fp))
+
+        with open(log_fp, 'r') as f:
+            obs = load(f)
+            exp = {"job_id": "4567.barnacle",
+                   "failed_indexes": [0, 1]}
+            self.assertDictEqual(obs, exp)
+
 
     exp_QCJob_1 = [
         '#!/bin/bash',

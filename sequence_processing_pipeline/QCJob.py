@@ -1,11 +1,13 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import walk, stat, listdir, makedirs
-from os.path import exists, join, split
+from os.path import exists, join, split, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from shutil import move
 import logging
 import re
+from json import dumps
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -131,15 +133,39 @@ class QCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
-    def _was_successful(self, project_name):
+    def _get_failed_indexes(self, project_name, job_id):
         completed_files = self._find_files(self.output_path)
         completed_files = [x for x in completed_files if
                            x.endswith('.completed') and project_name in x]
 
-        if len(completed_files) == self.counts[project_name]:
-            return True
+        completed_indexes = []
 
-        return False
+        for completed_file in completed_files:
+            # remove path and .completed extension from file-name. e.g.:
+            # 'project1_0', 'project1_1', ..., 'project1_n'
+            completed_file = basename(completed_file).replace('.completed', '')
+            # extract the line number in the .detailed file corresponding to
+            # the command used for this job
+            completed_indexes.append(int(completed_file.split('_')[-1]))
+
+        # a successfully completed job array should have a list of array
+        # numbers from 0 - len(self.commands).
+        all_indexes = [x for x in range(0, self.counts[project_name])]
+        failed_indexes = list(set(all_indexes) - set(completed_indexes))
+        failed_indexes.sort()
+
+        # generate log-file here instead of in run() where it can be
+        # unittested more easily.
+        log_fp = join(self.output_path,
+                      'logs',
+                      f'failed_indexes_{job_id}.json')
+
+        if failed_indexes:
+            with open(log_fp, 'w') as f:
+                f.write(dumps({'job_id': job_id,
+                               'failed_indexes': failed_indexes}, indent=2))
+
+        return failed_indexes
 
     def run(self, callback=None):
         for project in self.project_data:
@@ -151,7 +177,7 @@ class QCJob(Job):
             logging.debug(f'QCJob {job_id} completed')
             source_dir = join(self.output_path, project_name)
 
-            if not self._was_successful(project_name):
+            if not self._get_failed_indexes(project_name, job_id):
                 raise PipelineError("QCJob did not complete successfully.")
 
             if needs_human_filtering is True:
