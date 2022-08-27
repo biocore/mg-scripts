@@ -1235,7 +1235,6 @@ class TestQCJob(unittest.TestCase):
                    "failed_indexes": [0, 1]}
             self.assertDictEqual(obs, exp)
 
-
     exp_QCJob_1 = [
         '#!/bin/bash',
         ('#SBATCH --job-name abcdabcdabcdabcdabcdabcdabcdabcd_QCJob_NYU_BMS'
