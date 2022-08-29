@@ -230,33 +230,48 @@ class Job:
 
             # [-1] remove the extra \n
             jobs_data = result['stdout'].split('\n')[:-1]
-            for jd in jobs_data:
+            states = dict()
+            estatuses = dict()
+            for i, jd in enumerate(jobs_data):
                 jid, jname, jstate, etime, estatus = jd.split('|')
-                if job_id == jid:
-                    job_info['job_id'] = jd
+                if jid.endswith('.extern') or jid.endswith('.batch'):
+                    continue
+
+                if i == 0:
+                    job_info['job_id'] = jid
                     job_info['job_name'] = jname
-                    job_info['job_state'] = jstate
                     job_info['elapsed_time'] = etime
                     job_info['exit_status'] = estatus
-                    if callback is not None:
-                        callback(id=job_id, status=jstate)
-                    break
+
+                if jstate not in states:
+                    states[jstate] = 0
+                states[jstate] += 1
+
+                if estatus not in estatuses:
+                    estatuses[estatus] = 0
+                estatuses[estatus] += 1
+
+            job_info['job_state'] = f'{states}'
+            job_info['exit_status'] = f'{estatuses}'
+
+            if callback is not None:
+                callback(id=job_id, status=jstate)
 
             logging.debug("Job info: %s" % job_info)
 
             # if job is completed after having run or exited after having
             # run, then stop waiting.
-            if job_info['job_state'] in ['COMPLETED', 'ERROR']:
+            if not set(states) - {'COMPLETED', 'FAILED', 'CANCELLED'}:
                 break
 
-            sleep(30)
+            sleep(5)
 
         if job_info['job_id']:
             # job was once in the queue
             if callback is not None:
                 callback(id=job_id, status=job_info['job_state'])
 
-            if job_info['job_state'] == 'COMPLETED':
+            if set(states) == {'COMPLETED'}:
                 if 'exit_status' in job_info:
                     if job_info['exit_status'] == '0:0':
                         # job completed successfully
