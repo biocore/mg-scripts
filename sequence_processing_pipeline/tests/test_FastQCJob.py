@@ -5,6 +5,7 @@ from sequence_processing_pipeline.FastQCJob import FastQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, listdir, mkdir
 from shutil import rmtree, move
+from json import load
 
 
 class TestFastQCJob(unittest.TestCase):
@@ -1010,6 +1011,62 @@ class TestFastQCJob(unittest.TestCase):
 
         self.assertEqual(str(e.exception), "There are no fastq files for "
                                            "FastQCJob to process.")
+
+    def test_completed_file_generation(self):
+        job = FastQCJob(self.qc_root_path, self.output_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
+                        self.processed_fastq_files_path,
+                        16, 16,
+                        'sequence_processing_pipeline/tests/bin/fastqc', [],
+                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                        self.config_yml, 1000)
+
+        my_path = join(self.output_path, 'FastQCJob', 'logs')
+
+        # since .completed files are generated when jobs are submitted via
+        # the run() method and completed successfully, we must manually
+        # create the files _was_successful() expects to see.
+        for i in range(0, 4):
+            with open(join(my_path, f'project1_{i}.completed'), 'w') as f:
+                f.write("This is a .completed file.")
+
+        self.assertTrue(len(job._get_failed_indexes('1234.barnacle')) == 0)
+
+    def test_completed_file_generation_some_failures(self):
+        job = FastQCJob(self.qc_root_path, self.output_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
+                        self.processed_fastq_files_path,
+                        16, 16,
+                        'sequence_processing_pipeline/tests/bin/fastqc', [],
+                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                        self.config_yml, 1000)
+
+        my_path = join(self.output_path, 'FastQCJob', 'logs')
+
+        # simulate one job failing and not generating a .completed file by
+        # setting range to (0,3) from (0,4). get_failed_indexes() should
+        # return [3] as a result.
+        for i in range(0, 3):
+            with open(join(my_path, f'project1_{i}.completed'), 'w') as f:
+                f.write("This is a .completed file.")
+
+        failed_indexes = job._get_failed_indexes('2345.barnacle')
+        self.assertTrue(failed_indexes, [3])
+
+        # verify that when one or more array jobs have failed to complete,
+        # a file is created that gives a job id and an array index.
+        log_fp = join(self.output_path,
+                      'FastQCJob',
+                      'logs',
+                      'failed_indexes_2345.barnacle.json')
+
+        self.assertTrue(exists(log_fp))
+
+        with open(log_fp, 'r') as f:
+            obs = load(f)
+            exp = {"job_id": "2345.barnacle",
+                   "failed_indexes": [3]}
+            self.assertDictEqual(obs, exp)
 
 
 if __name__ == '__main__':

@@ -49,8 +49,8 @@ pip install -e .
 Change directory to the downloaded repository folder:
 
 ```bash
-cd mg-scripts/sequence_processing_pipeline
-python -m unittest discover tests
+cd mg-scripts
+nosetests --with-coverage --cover-inclusive --cover-package sequence_processing_pipeline
 ```
 
 ## Getting Started

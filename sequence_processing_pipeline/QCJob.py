@@ -1,11 +1,13 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import walk, stat, listdir, makedirs
-from os.path import exists, join, split
+from os.path import exists, join, split, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from shutil import move
 import logging
 import re
+from json import dumps
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -63,6 +65,7 @@ class QCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
         self.suffix = 'fastq.gz'
+        self.counts = {}
 
         self.minimum_bytes = 3100
 
@@ -97,13 +100,14 @@ class QCJob(Job):
             if not isinstance(project['HumanFiltering'], bool):
                 raise ValueError("needs_adapter_trimming must be boolean.")
 
-            script_path = self._generate_job_script(project_name,
-                                                    project['ForwardAdapter'],
-                                                    project['ReverseAdapter'],
-                                                    project['HumanFiltering'],
-                                                    fastq_files)
+            spath, cnt = self._generate_job_script(project_name,
+                                                   project['ForwardAdapter'],
+                                                   project['ReverseAdapter'],
+                                                   project['HumanFiltering'],
+                                                   fastq_files)
 
-            self.script_paths[project_name] = script_path
+            self.script_paths[project_name] = spath
+            self.counts[project_name] = cnt
 
     def _filter(self, filtered_directory, empty_files_directory,
                 minimum_bytes):
@@ -129,6 +133,40 @@ class QCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
+    def _get_failed_indexes(self, project_name, job_id):
+        completed_files = self._find_files(self.output_path)
+        completed_files = [x for x in completed_files if
+                           x.endswith('.completed') and project_name in x]
+
+        completed_indexes = []
+
+        for completed_file in completed_files:
+            # remove path and .completed extension from file-name. e.g.:
+            # 'project1_0', 'project1_1', ..., 'project1_n'
+            completed_file = basename(completed_file).replace('.completed', '')
+            # extract the line number in the .detailed file corresponding to
+            # the command used for this job
+            completed_indexes.append(int(completed_file.split('_')[-1]))
+
+        # a successfully completed job array should have a list of array
+        # numbers from 0 - len(self.commands).
+        all_indexes = [x for x in range(0, self.counts[project_name])]
+        failed_indexes = list(set(all_indexes) - set(completed_indexes))
+        failed_indexes.sort()
+
+        # generate log-file here instead of in run() where it can be
+        # unittested more easily.
+        log_fp = join(self.output_path,
+                      'logs',
+                      f'failed_indexes_{job_id}.json')
+
+        if failed_indexes:
+            with open(log_fp, 'w') as f:
+                f.write(dumps({'job_id': job_id,
+                               'failed_indexes': failed_indexes}, indent=2))
+
+        return failed_indexes
+
     def run(self, callback=None):
         for project in self.project_data:
             project_name = project['Sample_Project']
@@ -138,6 +176,10 @@ class QCJob(Job):
                 exec_from=self.log_path, callback=callback)
             logging.debug(f'QCJob {job_id} completed')
             source_dir = join(self.output_path, project_name)
+
+            if not self._get_failed_indexes(project_name, job_id):
+                raise PipelineError("QCJob did not complete successfully.")
+
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
             else:
@@ -257,6 +299,8 @@ class QCJob(Job):
                                        h_filter, adapter_a, adapter_A)
         cmds = self._group_commands(cmds)
 
+        step_count = len(cmds)
+
         lines.append("#!/bin/bash")
         job_name = f'{self.qiita_job_id}_{self.job_name}_{project_name}'
 
@@ -266,9 +310,7 @@ class QCJob(Job):
         lines.append(f'#SBATCH -n {self.nprocs}')
         lines.append(f"#SBATCH --time {self.wall_time_limit}:00:00")
         lines.append(f"#SBATCH --mem {self.jmem}")
-
         lines.append("#SBATCH --array 1-%d%%%d" % (len(cmds), self.pool_size))
-
         lines.append("set -x")
         lines.append('date')
         lines.append('hostname')
@@ -283,6 +325,9 @@ class QCJob(Job):
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
 
+        sentinel_file = f'{self.job_name}_{project_name}_$step.completed'
+        lines.append(f'echo "Cmd Completed: $cmd0" > logs/{sentinel_file}')
+
         job_script_path = join(self.output_path,
                                f'{self.job_name}_{project_name}.sh')
 
@@ -292,7 +337,7 @@ class QCJob(Job):
         with open(sh_details_fp, 'w') as f:
             f.write('\n'.join(cmds))
 
-        return job_script_path
+        return job_script_path, step_count
 
     def _generate_commands(self, fastq_file_paths, project_name, project_dir,
                            h_filter, adapter_a, adapter_A):
@@ -318,8 +363,8 @@ class QCJob(Job):
                          exist_ok=True)
 
         if self.needs_trimming is True:
-            foo = [x.strip() for x in fastq_file_paths if '_R1_' in x]
-            for fastq_file_path in foo:
+            paths = [x.strip() for x in fastq_file_paths if '_R1_' in x]
+            for fastq_file_path in paths:
                 current_dir = split(fastq_file_path)[0]
                 _, filename1 = split(fastq_file_path)
                 filename2 = filename1.replace('_R1_00', '_R2_00')

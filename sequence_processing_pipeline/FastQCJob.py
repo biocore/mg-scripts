@@ -1,8 +1,9 @@
 from os import listdir, makedirs
-from os.path import exists, join
+from os.path import exists, join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from functools import partial
+from json import dumps
 import logging
 
 
@@ -161,10 +162,44 @@ class FastQCJob(Job):
 
         return fastqc_results, project_names
 
+    def _get_failed_indexes(self, job_id):
+        completed_files = self._find_files(self.output_path)
+        completed_files = [x for x in completed_files if
+                           x.endswith('.completed')]
+
+        completed_indexes = []
+
+        for completed_file in completed_files:
+            # remove path and .completed extension from file-name. e.g.:
+            # 'project1_0', 'project1_1', ..., 'project1_n'
+            completed_file = basename(completed_file).replace('.completed', '')
+            # extract the line number in the .detailed file corresponding to
+            # the command used for this job
+            completed_indexes.append(int(completed_file.split('_')[-1]))
+
+        # a successfully completed job array should have a list of array
+        # numbers from 0 - len(self.commands).
+        all_indexes = [x for x in range(0, len(self.commands))]
+        failed_indexes = list(set(all_indexes) - set(completed_indexes))
+        failed_indexes.sort()
+
+        # generate log-file here instead of in run() where it can be
+        # unittested more easily.
+        log_fp = join(self.output_path,
+                      'logs',
+                      f'failed_indexes_{job_id}.json')
+
+        if failed_indexes:
+            with open(log_fp, 'w') as f:
+                f.write(dumps({'job_id': job_id,
+                               'failed_indexes': failed_indexes}, indent=2))
+
+        return failed_indexes
+
     def run(self, callback=None):
-        job_info = self.submit_job(self.job_script_path, None, None,
-                                   exec_from=self.log_path, callback=callback)
-        logging.debug(job_info)
+        job_id = self.submit_job(self.job_script_path, None, None,
+                                 exec_from=self.log_path, callback=callback)
+        logging.debug(job_id)
 
         for project in self.project_names:
             # MultiQC doesn't like input paths that don't exist. Simply add
@@ -201,6 +236,10 @@ class FastQCJob(Job):
             if results['return_code'] != 0:
                 raise PipelineError("multiqc encountered an error")
 
+        if self._get_failed_indexes(job_id):
+            # raise error if list isn't empty.
+            raise PipelineError("FastQCJob did not complete successfully.")
+
     def _generate_job_script(self):
         lines = []
 
@@ -233,6 +272,9 @@ class FastQCJob(Job):
         lines.append('step=$(( $offset - 0 ))')
         lines.append(f'cmd0=$(head -n $step {sh_details_fp} | tail -n 1)')
         lines.append('eval $cmd0')
+
+        sentinel_file = f'{self.job_name}_$step.completed'
+        lines.append(f'echo "Cmd Completed: $cmd0" > logs/{sentinel_file}')
 
         with open(self.job_script_path, 'w') as f:
             f.write('\n'.join(lines))
