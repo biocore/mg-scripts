@@ -221,6 +221,8 @@ class Job:
 
         job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
+        # Just to give sometime for everything to be set up properly
+        sleep(5)
         while wait:
             result = self._system_call(f"sacct -P -n --job {job_id} --format "
                                        "JobID,JobName,State,Elapsed,ExitCode")
@@ -255,7 +257,7 @@ class Job:
             job_info['exit_status'] = f'{estatuses}'
 
             if callback is not None:
-                callback(id=job_id, status=jstate)
+                callback(id=job_id, status=f'{states}')
 
             logging.debug("Job info: %s" % job_info)
 
@@ -266,14 +268,14 @@ class Job:
 
             sleep(5)
 
-        if job_info['job_id']:
+        if job_info['job_id'] is not None:
             # job was once in the queue
             if callback is not None:
                 callback(id=job_id, status=job_info['job_state'])
 
             if set(states) == {'COMPLETED'}:
                 if 'exit_status' in job_info:
-                    if job_info['exit_status'] == '0:0':
+                    if set(job_info['exit_status']) == {'0:0'}:
                         # job completed successfully
                         return job_info
                     else:
