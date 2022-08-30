@@ -275,7 +275,7 @@ class Job:
 
             if set(states) == {'COMPLETED'}:
                 if 'exit_status' in job_info:
-                    if set(job_info['exit_status']) == {'0:0'}:
+                    if set(estatuses) == {'0:0'}:
                         # job completed successfully
                         return job_info
                     else:

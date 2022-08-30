@@ -179,7 +179,7 @@ class FastQCJob(Job):
 
         # a successfully completed job array should have a list of array
         # numbers from 0 - len(self.commands).
-        all_indexes = [x for x in range(0, len(self.commands))]
+        all_indexes = [x for x in range(1, len(self.commands) + 1)]
         failed_indexes = list(set(all_indexes) - set(completed_indexes))
         failed_indexes.sort()
 
@@ -197,9 +197,9 @@ class FastQCJob(Job):
         return failed_indexes
 
     def run(self, callback=None):
-        job_id = self.submit_job(self.job_script_path, None, None,
-                                 exec_from=self.log_path, callback=callback)
-        logging.debug(job_id)
+        job_info = self.submit_job(self.job_script_path, None, None,
+                                   exec_from=self.log_path, callback=callback)
+        logging.debug(job_info)
 
         for project in self.project_names:
             # MultiQC doesn't like input paths that don't exist. Simply add
@@ -236,7 +236,7 @@ class FastQCJob(Job):
             if results['return_code'] != 0:
                 raise PipelineError("multiqc encountered an error")
 
-        if self._get_failed_indexes(job_id):
+        if self._get_failed_indexes(job_info['job_id']):
             # raise error if list isn't empty.
             raise PipelineError("FastQCJob did not complete successfully.")
 

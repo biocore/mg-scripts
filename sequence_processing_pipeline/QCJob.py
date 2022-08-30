@@ -171,9 +171,10 @@ class QCJob(Job):
         for project in self.project_data:
             project_name = project['Sample_Project']
             needs_human_filtering = project['HumanFiltering']
-            job_id = self.submit_job(
+            job_info = self.submit_job(
                 self.script_paths[project_name], None, None,
                 exec_from=self.log_path, callback=callback)
+            job_id = job_info['job_id']
             logging.debug(f'QCJob {job_id} completed')
             source_dir = join(self.output_path, project_name)
 
