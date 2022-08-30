@@ -54,7 +54,10 @@ class QCJob(Job):
         self.nprocs = 16 if nprocs > 16 else nprocs
         self.chemistry = metadata['chemistry']
         self.minimap_database_paths = minimap_database_paths
-        self.kraken2_database_path = kraken2_database_path
+        if kraken2_database_path == "":
+            self.kraken2_database_path = None
+        else:
+            self.kraken2_database_path = kraken2_database_path
         self.queue_name = queue_name
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
@@ -483,9 +486,10 @@ class QCJob(Job):
         result += f'-1 {path1} -2 {path2}'
 
         # add krakken2
-        result += (f'\nkraken2 --threads {self.nprocs} --db '
-                   f'{self.kraken2_database_path} --report '
-                   f'{kraken_report_path} --unclassified-out '
-                   f'{kraken_output_path} --paired {path1} {path2}')
+        if self.kraken2_database_path is not None:
+            result += (f'; kraken2 --threads {self.nprocs} --db '
+                       f'{self.kraken2_database_path} --report '
+                       f'{kraken_report_path} --unclassified-out '
+                       f'{kraken_output_path} --paired {path1} {path2}')
 
         return result
