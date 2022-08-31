@@ -1148,34 +1148,36 @@ class TestQCJob(unittest.TestCase):
 
         # remove absolute path to kraken2 database so test will work
         # everywhere.
-        obs = re.sub(r"--threads 16 --db .*kraken2.db --report",
-                     r"--threads 16 --db kraken2.db --report", obs)
+        obs = [re.sub(r"--threads 16 --db .*kraken2.db --report",
+                      r"--threads 16 --db kraken2.db --report",
+                      x) for x in obs]
 
-        exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --a"
-               "dapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 -i"
-               " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/Some"
-               "Project_99999/999999_S999_L002_R1_001.fastq.gz -I some_dir/263"
-               "d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/SomeProject_99999"
-               "/999999_S999_L002_R2_001.fastq.gz -w 16 -j SomeProject_99999/f"
-               "astp_reports_dir/json/999999_S999_L002_R1_001.json -h SomeProj"
-               "ect_99999/fastp_reports_dir/html/999999_S999_L002_R1_001.html "
-               "--stdout | minimap2 -ax sr -t 16 db_path/mmi_1.db - -a | samto"
-               "ols fastq -@ 16 -f 12 -F 256 | minimap2 -ax sr -t 16 db_path/m"
-               "mi_2.db - -a | samtools fastq -@ 16 -f 12 -F 256 -1 some_dir/2"
-               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
-               "ltered_sequences/999999_S999_L002_R1_001.trimmed.fastq.gz -2 s"
-               "ome_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject"
-               "_99999/filtered_sequences/999999_S999_L002_R2_001.trimmed.fast"
-               "q.gz\nkraken2 --threads 16 --db kraken2.db --report some_dir/2"
-               "63d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/fi"
-               "ltered_sequences/999999_S999_L002_R1_001.kraken2_report.txt --"
-               "unclassified-out some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2"
-               "/QCJob/SomeProject_99999/filtered_sequences/999999_S999_L002_R"
-               "1_001.kraken2.trimmed.#.fastq --paired some_dir/263d376f-8957-"
-               "5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_sequen"
-               "ces/999999_S999_L002_R1_001.trimmed.fastq.gz some_dir/263d376f"
-               "-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_"
-               "sequences/999999_S999_L002_R2_001.trimmed.fastq.gz")
+        exp = [("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --"
+                "adapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 "
+                "-i some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/S"
+                "omeProject_99999/999999_S999_L002_R1_001.fastq.gz -I some_dir"
+                "/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/SomeProject_"
+                "99999/999999_S999_L002_R2_001.fastq.gz -w 16 -j SomeProject_9"
+                "9999/fastp_reports_dir/json/999999_S999_L002_R1_001.json -h S"
+                "omeProject_99999/fastp_reports_dir/html/999999_S999_L002_R1_0"
+                "01.html --stdout | minimap2 -ax sr -t 16 db_path/mmi_1.db - -"
+                "a | samtools fastq -@ 16 -f 12 -F 256 | minimap2 -ax sr -t 16"
+                " db_path/mmi_2.db - -a | samtools fastq -@ 16 -f 12 -F 256 -1"
+                " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProj"
+                "ect_99999/filtered_sequences/999999_S999_L002_R1_001.trimmed."
+                "fastq.gz -2 some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJ"
+                "ob/SomeProject_99999/filtered_sequences/999999_S999_L002_R2_0"
+                "01.trimmed.fastq.gz"),
+               ("kraken2 --threads 16 --db kraken2.db --report some_dir/263d37"
+                "6f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filter"
+                "ed_sequences/999999_S999_L002_R1_001.kraken2_report.txt --unc"
+                "lassified-out some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/Q"
+                "CJob/SomeProject_99999/filtered_sequences/999999_S999_L002_R1"
+                "_001.kraken2.trimmed.#.fastq --paired some_dir/263d376f-8957-"
+                "5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_seque"
+                "nces/999999_S999_L002_R1_001.trimmed.fastq.gz some_dir/263d37"
+                "6f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filter"
+                "ed_sequences/999999_S999_L002_R2_001.trimmed.fastq.gz")]
 
         self.assertEqual(obs, exp)
 
@@ -1194,7 +1196,7 @@ class TestQCJob(unittest.TestCase):
         # since .completed files are generated when jobs are submitted via
         # the run() method and completed successfully, we must manually
         # create the files _was_successful() expects to see.
-        for i in range(0, 9):
+        for i in range(0, 18):
             with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
                 f.write("This is a .completed file.")
 
@@ -1214,9 +1216,9 @@ class TestQCJob(unittest.TestCase):
                    'QCJob/logs')
 
         # simulate one job failing and not generating a .completed file by
-        # setting range to (2,9) from (0,9). get_failed_indexes() should
+        # setting range to (2, 18) from (0, 18). get_failed_indexes() should
         # return [0,1] as a result.
-        for i in range(2, 9):
+        for i in range(2, 18):
             with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
                 f.write("This is a .completed file.")
 
@@ -1289,7 +1291,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -n 16',
         '#SBATCH --time 24:00:00',
         '#SBATCH --mem 8gb',
-        '#SBATCH --array 1-9%30',
+        '#SBATCH --array 1-18%30',
         'set -x',
         'date',
         'hostname',
@@ -1492,7 +1494,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -n 16',
         '#SBATCH --time 24:00:00',
         '#SBATCH --mem 8gb',
-        '#SBATCH --array 1-9%30',
+        '#SBATCH --array 1-18%30',
         'set -x',
         'date',
         'hostname',
