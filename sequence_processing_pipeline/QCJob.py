@@ -374,10 +374,14 @@ class QCJob(Job):
                 filename2 = filename1.replace('_R1_00', '_R2_00')
 
                 if h_filter is True:
-                    cmds += self._gen_chained_cmd(current_dir, filename1,
-                                                  filename2, fastp_reports_dir,
-                                                  project_name, project_dir,
-                                                  adapter_a, adapter_A)
+                    cmds.append(self._gen_chained_cmd(current_dir,
+                                                      filename1,
+                                                      filename2,
+                                                      fastp_reports_dir,
+                                                      project_name,
+                                                      project_dir,
+                                                      adapter_a,
+                                                      adapter_A))
                 else:
                     cmds.append(self._gen_fastp_cmd(current_dir,
                                                     filename1,
@@ -481,16 +485,11 @@ class QCJob(Job):
         # append the final parameters to write out the final output to disk
         result += f'-1 {path1} -2 {path2}'
 
-        # unlike other cmd-line generators, there's a possibility this method
-        # must return two cmd lines. Hence, return them as a list of either
-        # one or two elements.
-        results = [result]
-
         # add krakken2
         if self.kraken2_database_path is not None:
-            results.append(f'kraken2 --threads {self.nprocs} --db '
-                           f'{self.kraken2_database_path} --report '
-                           f'{kraken_report_path} --unclassified-out '
-                           f'{kraken_output_path} --paired {path1} {path2}')
+            result += (f'; kraken2 --threads {self.nprocs} --db '
+                       f'{self.kraken2_database_path} --report '
+                       f'{kraken_report_path} --unclassified-out '
+                       f'{kraken_output_path} --paired {path1} {path2}')
 
-        return results
+        return result
