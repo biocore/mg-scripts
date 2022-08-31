@@ -1026,7 +1026,7 @@ class TestFastQCJob(unittest.TestCase):
         # since .completed files are generated when jobs are submitted via
         # the run() method and completed successfully, we must manually
         # create the files _was_successful() expects to see.
-        for i in range(0, 4):
+        for i in range(1, 5):
             with open(join(my_path, f'project1_{i}.completed'), 'w') as f:
                 f.write("This is a .completed file.")
 
@@ -1065,7 +1065,7 @@ class TestFastQCJob(unittest.TestCase):
         with open(log_fp, 'r') as f:
             obs = load(f)
             exp = {"job_id": "2345.barnacle",
-                   "failed_indexes": [3]}
+                   "failed_indexes": [3, 4]}
             self.assertDictEqual(obs, exp)
 
 
