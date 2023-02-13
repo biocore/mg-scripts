@@ -547,7 +547,7 @@ class TestFastQCJob(unittest.TestCase):
                       'sequence_processing_pipeline/tests/bin/fastqc', [],
                       self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
                       ('sequence_processing_pipeline/'
-                       'not-multiqc-bclconvert-config.yaml'), 1000)
+                       'not-multiqc-bclconvert-config.yaml'), 1000, False)
 
         self.assertEqual(str(e.exception), "file 'sequence_processing_pipeline"
                                            "/not-multiqc-bclconvert-config."
@@ -560,7 +560,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000)
+                        self.config_yml, 1000, False)
 
         self.assertEqual(exists(join(job.output_path, 'FastQCJob.sh')), True)
         self.assertEqual(exists(join(job.output_path,
@@ -573,7 +573,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000)
+                        self.config_yml, 1000, False)
 
         obs = job.audit(self.sample_ids)
 
@@ -1007,7 +1007,7 @@ class TestFastQCJob(unittest.TestCase):
                       16, 16,
                       'sequence_processing_pipeline/tests/bin/fastqc', [],
                       self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                      self.config_yml, 1000)
+                      self.config_yml, 1000, False)
 
         self.assertEqual(str(e.exception), "There are no fastq files for "
                                            "FastQCJob to process.")
@@ -1019,7 +1019,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000)
+                        self.config_yml, 1000, False)
 
         my_path = join(self.output_path, 'FastQCJob', 'logs')
 
@@ -1039,7 +1039,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000)
+                        self.config_yml, 1000, False)
 
         my_path = join(self.output_path, 'FastQCJob', 'logs')
 

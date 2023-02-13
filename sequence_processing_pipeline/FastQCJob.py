@@ -12,7 +12,7 @@ class FastQCJob(Job):
                  processed_fastq_files_path, nprocs, nthreads, fastqc_path,
                  modules_to_load, qiita_job_id, queue_name, node_count,
                  wall_time_limit, jmem, pool_size, multiqc_config_file_path,
-                 max_array_length):
+                 max_array_length, is_amplicon):
         super().__init__(run_dir,
                          output_path,
                          'FastQCJob',
@@ -32,6 +32,7 @@ class FastQCJob(Job):
         self.pool_size = pool_size
         self.raw_fastq_files_path = raw_fastq_files_path
         self.processed_fastq_files_path = processed_fastq_files_path
+        self.is_amplicon = is_amplicon
 
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
 
@@ -54,13 +55,19 @@ class FastQCJob(Job):
         """
         results = []
 
-        # gather the parameters for processing all relevant raw fastq files.
-        params, project_names = self._scan_fastq_files(True)
+        if self.is_amplicon:
+            # skip this step for amplicon runs since raw and processed are the
+            # same file.
+            project_names = []
+        else:
+            # gather the parameters for processing all relevant raw fastq
+            # files.
+            params, project_names = self._scan_fastq_files(True)
 
-        for fwd_file_path, rev_file_path, output_path in params:
-            command = ['fastqc', '--noextract', '-t', str(self.nthreads),
-                       fwd_file_path, rev_file_path, '-o', output_path]
-            results.append(' '.join(command))
+            for fwd_file_path, rev_file_path, output_path in params:
+                command = ['fastqc', '--noextract', '-t', str(self.nthreads),
+                           fwd_file_path, rev_file_path, '-o', output_path]
+                results.append(' '.join(command))
 
         # next, do the same for the trimmed/filtered fastq files.
         params, additional_project_names = self._scan_fastq_files(False)
@@ -91,14 +98,14 @@ class FastQCJob(Job):
             r1_only = [x for x in files if '_R1_' in x]
             r2_only = [x for x in files if '_R2_' in x]
 
-            if len(r1_only) != len(r2_only):
-                raise PipelineError('counts of R1 and R2 files do not match')
+            # if len(r1_only) != len(r2_only):
+            #    raise PipelineError('counts of R1 and R2 files do not match')
 
             i1_only = [x for x in files if '_I1_' in x]
             i2_only = [x for x in files if '_I2_' in x]
 
-            if len(i1_only) != len(i2_only):
-                raise PipelineError('counts of I1 and I2 files do not match')
+            # if len(i1_only) != len(i2_only):
+            #    raise PipelineError('counts of I1 and I2 files do not match')
 
             if r1_only:
                 tmp = ' '.join(r1_only)
@@ -231,6 +238,7 @@ class FastQCJob(Job):
                         '--interactive']
 
             cmd = ' '.join(cmd_head + input_path_list + cmd_tail)
+
             results = self._system_call(cmd, callback=callback)
 
             if results['return_code'] != 0:

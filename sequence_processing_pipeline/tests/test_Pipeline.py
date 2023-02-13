@@ -83,7 +83,8 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RunInfo.xml"
                                                    "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, self.good_output_file_path,
+                     self.good_sample_sheet_path, None,
+                     self.good_output_file_path,
                      self.good_qiita_id, None)
 
         # delete RTAComplete.txt and recreate RunInfo.txt file to verify that
@@ -94,7 +95,8 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RTAComplete"
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, self.good_output_file_path,
+                     self.good_sample_sheet_path, None,
+                     self.good_output_file_path,
                      self.good_qiita_id, None)
 
         # make RunInfo.xml file unreadable and verify that Pipeline object
@@ -105,7 +107,8 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, bu"
                                                    "t not readable"):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, self.good_output_file_path,
+                     self.good_sample_sheet_path, None,
+                     self.good_output_file_path,
                      self.good_qiita_id, None)
         self.make_runinfo_file_readable()
 
@@ -114,7 +117,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.bad_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path,
+                     self.good_sample_sheet_path, None,
                      self.good_output_file_path,
                      self.good_qiita_id,
                      None)
@@ -130,7 +133,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path,
+                     self.good_sample_sheet_path, None,
                      self.good_output_file_path,
                      self.good_qiita_id,
                      None)
@@ -142,7 +145,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(None,
                      self.good_run_id,
-                     self.good_sample_sheet_path,
+                     self.good_sample_sheet_path, None,
                      self.good_output_file_path,
                      self.good_qiita_id,
                      None)
@@ -154,7 +157,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
-                     self.good_sample_sheet_path,
+                     self.good_sample_sheet_path, None,
                      self.good_output_file_path,
                      self.good_qiita_id,
                      None)
@@ -166,7 +169,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      None,
-                     self.good_sample_sheet_path,
+                     self.good_sample_sheet_path, None,
                      self.good_output_file_path,
                      self.good_qiita_id,
                      None)
@@ -178,7 +181,8 @@ class TestPipeline(unittest.TestCase):
         # contained w/in its 'message' member.
         try:
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, self.good_output_file_path,
+                     self.good_sample_sheet_path, None,
+                     self.good_output_file_path,
                      self.good_qiita_id, None)
         except PipelineError as e:
             self.fail(("test_filter_directories_for_time failed w/PipelineEr"
@@ -187,7 +191,8 @@ class TestPipeline(unittest.TestCase):
         # test unsuccessful validation of a bad sample-sheet
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.bad_sample_sheet_path, self.good_output_file_path,
+                     self.bad_sample_sheet_path, None,
+                     self.good_output_file_path,
                      self.good_qiita_id, None)
         self.assertEqual(str(e.exception), ('ErrorMessage: A sample already e'
                                             'xists with lane 1 and sample-id '
@@ -197,6 +202,7 @@ class TestPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path,
+                            None,
                             self.good_output_file_path, self.good_qiita_id,
                             None)
 
@@ -774,7 +780,7 @@ class TestPipeline(unittest.TestCase):
                           'EP400448B04', 'EP479894B04']
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path,
+                            self.good_sample_sheet_path, None,
                             self.good_output_file_path, self.good_qiita_id,
                             None)
 
@@ -792,7 +798,7 @@ class TestPipeline(unittest.TestCase):
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path,
+                            self.good_sample_sheet_path, None,
                             self.good_output_file_path, self.good_qiita_id,
                             None)
 
