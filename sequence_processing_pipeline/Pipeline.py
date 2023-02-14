@@ -255,11 +255,9 @@ class Pipeline:
         :return: A list of paths to sample-information-files.
         """
         if self.mapping_file is not None:
-            # TODO: Note we may need to introduce a conversion to sample_id
-            #  format from sample_name.
             df = self.mapping_file[['sample_name', 'project_name']]
             samples = list(df.to_records(index=False))
-            samples = [x for x in samples if 'BLANK' in x[0]]
+            samples = [x for x in samples if x[0].startswith('BLANK')]
             projects = list(set([y for x, y in samples]))
         else:
             samples = []
@@ -267,7 +265,6 @@ class Pipeline:
                 if sample['Sample_ID'].startswith('BLANK'):
                     samples.append((sample['Sample_ID'],
                                     sample['Sample_Project']))
-
             projects = list(set([y for x, y in samples]))
 
         paths = []
