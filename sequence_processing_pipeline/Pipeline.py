@@ -11,7 +11,7 @@ from re import sub, findall, search
 import sample_sheet
 import pandas as pd
 
-/
+
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
@@ -123,9 +123,10 @@ class Pipeline:
         except PermissionError:
             raise PipelineError('RunInfo.xml is present, but not readable')
 
-        if self.mapping_file:
+        if self.mapping_file is not None:
             # create dummy sample-sheet
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
+            print(output_fp)
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
 
@@ -249,10 +250,6 @@ class Pipeline:
         raise PipelineError('Sample-sheet has the following errors:\n'
                             '\n'.join([str(x) for x in msgs]))
 
-    def _validate_mapping_file(self, mapping_file_path):
-        # TODO: Add validation
-        return pd.read_csv(mapping_file_path, delimiter='\t')
-
     def generate_sample_information_files(self):
         """
         Generate sample-information files in self.output_path.
@@ -314,7 +311,7 @@ class Pipeline:
     def get_sample_ids(self):
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
-        if self.mapping_file:
+        if self.mapping_file is not None:
             results = []
             sample_project_map = {}
             for sample, project in zip(self.mapping_file.sample_name,
@@ -335,7 +332,7 @@ class Pipeline:
         # defined in both cases.
         results = []
 
-        if self.mapping_file:
+        if self.mapping_file is not None:
             sample_project_map = {}
             for sample, project in zip(self.mapping_file.sample_name,
                                        self.mapping_file.project_name):
@@ -345,8 +342,10 @@ class Pipeline:
 
             # TODO: Replace 'something' w/proper Qiita ID
             for project in sample_project_map:
+                qiita_id = project.split('_')[-1]
                 results.append(
-                    {'project_name': project, 'qiita_id': 'something'})
+                    # assume project names end in qiita ids
+                    {'project_name': project, 'qiita_id': qiita_id})
         else:
             bioinformatics = self.sample_sheet.Bioinformatics
             for result in bioinformatics.to_dict('records'):
@@ -355,31 +354,32 @@ class Pipeline:
 
         return results
 
-    def is_mapping_file(self, fp):
+    def _validate_mapping_file(self, mapping_file_path):
+        exp = {'barcode', 'library_construction_protocol', 'mastermix_lot',
+               'sample_plate', 'center_project_name', 'instrument_model',
+               'tm1000_8_tool', 'well_id', 'tm50_8_tool', 'well_description',
+               'run_prefix', 'run_date', 'center_name', 'tm300_8_tool',
+               'extraction_robot', 'experiment_design_description',
+               'platform', 'water_lot', 'project_name', 'pcr_primers',
+               'sequencing_meth', 'plating', 'orig_name', 'linker', 'runid',
+               'target_subfragment', 'primer', 'primer_plate', 'sample_name',
+               'run_center', 'primer_date', 'target_gene', 'processing_robot',
+               'extractionkit_lot'}
         try:
-            df = pd.read_csv(fp, delimiter='\t')
-            if set(df.columns) == {'barcode', 'library_construction_protocol',
-                                   'mastermix_lot', 'sample_plate',
-                                   'center_project_name', 'instrument_model',
-                                   'tm1000_8_tool', 'well_id', 'tm50_8_tool',
-                                   'well_description', 'run_prefix',
-                                   'run_date',
-                                   'center_name', 'tm300_8_tool',
-                                   'extraction_robot',
-                                   'experiment_design_description', 'platform',
-                                   'water_lot', 'project_name', 'pcr_primers',
-                                   'sequencing_meth', 'plating', 'orig_name',
-                                   'linker', 'runid', 'target_subfragment',
-                                   'primer', 'primer_plate', 'sample_name',
-                                   'run_center', 'primer_date', 'target_gene',
-                                   'processing_robot', 'extractionkit_lot'}:
-                return True
+            df = pd.read_csv(mapping_file_path, delimiter='\t')
+
+            # if the two sets of headers are equal, then return the dataframe
+            # and no error message.
+            if len(exp - set(df.columns)) == 0:
+                return df
+
+            msg = 'missing columns: %s' % ', '.join(exp - set(df.columns))
         except pd.errors.ParserError:
             # ignore parser errors as they obviously prove this is not a
             # valid mapping file.
-            pass
+            msg = 'could not parse file "%s"' % mapping_file_path
 
-        return False
+        raise PipelineError(msg)
 
     def _generate_dummy_sample_sheet(self, first_read, last_read,
                                      indexed_reads, dummy_sample_id):
@@ -439,6 +439,7 @@ class Pipeline:
 
     def generate_dummy_sample_sheet(self, run_dir, output_fp):
         if exists(run_dir):
+            print(join(run_dir, 'RunInfo.xml'))
             reads = self.process_run_info_file(join(run_dir, 'RunInfo.xml'))
         else:
             raise ValueError("run_dir %s not found." % run_dir)
@@ -464,9 +465,6 @@ class Pipeline:
             if read['IsIndexedRead'] is False:
                 raise ValueError("RunInfo.xml contains abnormal reads.")
 
-        # TODO: a dummy sample-id based on project names might be better,
-        # but the fastq files will already be created/copied into project
-        # folders so it's not needed.
         dummy_sample_id = basename(run_dir) + '_SMPL1'
 
         sheet = self._generate_dummy_sample_sheet(first_read['NumCycles'],

@@ -98,14 +98,9 @@ class FastQCJob(Job):
             r1_only = [x for x in files if '_R1_' in x]
             r2_only = [x for x in files if '_R2_' in x]
 
-            # if len(r1_only) != len(r2_only):
-            #    raise PipelineError('counts of R1 and R2 files do not match')
-
+            # amplicon runs may or may not have an i2. this is okay.
             i1_only = [x for x in files if '_I1_' in x]
             i2_only = [x for x in files if '_I2_' in x]
-
-            # if len(i1_only) != len(i2_only):
-            #    raise PipelineError('counts of I1 and I2 files do not match')
 
             if r1_only:
                 tmp = ' '.join(r1_only)
