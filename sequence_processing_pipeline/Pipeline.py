@@ -126,7 +126,6 @@ class Pipeline:
         if self.mapping_file is not None:
             # create dummy sample-sheet
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
-            print(output_fp)
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
 
@@ -255,12 +254,21 @@ class Pipeline:
         Generate sample-information files in self.output_path.
         :return: A list of paths to sample-information-files.
         """
-        samples = []
-        for sample in self.sample_sheet.samples:
-            if sample['Sample_ID'].startswith('BLANK'):
-                samples.append((sample['Sample_ID'], sample['Sample_Project']))
+        if self.mapping_file is not None:
+            # TODO: Note we may need to introduce a conversion to sample_id
+            #  format from sample_name.
+            df = self.mapping_file[['sample_name', 'project_name']]
+            samples = list(df.to_records(index=False))
+            samples = [x for x in samples if 'BLANK' in x[0]]
+            projects = list(set([y for x, y in samples]))
+        else:
+            samples = []
+            for sample in self.sample_sheet.samples:
+                if sample['Sample_ID'].startswith('BLANK'):
+                    samples.append((sample['Sample_ID'],
+                                    sample['Sample_Project']))
 
-        projects = list(set([y for x, y in samples]))
+            projects = list(set([y for x, y in samples]))
 
         paths = []
         for project in projects:
@@ -448,7 +456,6 @@ class Pipeline:
 
     def generate_dummy_sample_sheet(self, run_dir, output_fp):
         if exists(run_dir):
-            print(join(run_dir, 'RunInfo.xml'))
             reads = self.process_run_info_file(join(run_dir, 'RunInfo.xml'))
         else:
             raise ValueError("run_dir %s not found." % run_dir)
