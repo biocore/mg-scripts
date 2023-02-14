@@ -1,13 +1,15 @@
 from json import load as json_load
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
-from os.path import join, exists, isdir
+from os.path import join, exists, isdir, basename
 from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
 from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
-import re
+from re import sub, findall, search
+import sample_sheet
+import pandas as pd
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -29,16 +31,26 @@ class Pipeline:
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 output_path, qiita_job_id, config_dict=None):
+                 mapping_file_path, output_path, qiita_job_id,
+                 config_dict=None):
         """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
         :param run_id: Used w/search_paths to locate input run_directory.
-        :param sample_sheet_path: Path to required sample-sheet.
+        :param sample_sheet_path: Path to sample-sheet.
+        :param mapping_file_path: Path to mapping file.
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
         """
+        if sample_sheet_path is not None and mapping_file_path is not None:
+            raise PipelineError("sample_sheet_path or mapping_file_path "
+                                "must be defined, but not both.")
+
+        if sample_sheet_path is None and mapping_file_path is None:
+            raise PipelineError("sample_sheet_path or mapping_file_path "
+                                "must be defined, but not both.")
+
         if config_dict:
             if 'configuration' in config_dict:
                 self.configuration = config_dict['configuration']
@@ -74,28 +86,26 @@ class Pipeline:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
 
-        # The sample-sheet parameter is now supplied to the Pipeline object
-        # at initialization time. This allows the Pipeline to process the
-        # sample-sheet once and retain the metadata for subsequent method
-        # calls.
-        if sample_sheet_path is None:
-            raise PipelineError('sample_sheet_path cannot be None')
-
-        # Note that any warnings and/or Error messages from our extended
-        # validate() method will now be returned w/
-
         # If our extended validate() method discovers any warnings or
         # Errors, it will raise a PipelineError and return them w/in the
         # error message as a single string separated by '\n'.
         self.warnings = []
-        self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
         self._directory_check(output_path, create=False)
         self.output_path = output_path
-        self.search_paths = config['search_paths']
         self.run_id = run_id
-        self.run_dir = self._search_for_run_dir()
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
+
+        if sample_sheet_path:
+            self.search_paths = config['search_paths']
+            self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
+            self.mapping_file = None
+        else:
+            self.search_paths = config['amplicon_search_paths']
+            self.mapping_file = self._validate_mapping_file(mapping_file_path)
+            self.sample_sheet = None
+
+        self.run_dir = self._search_for_run_dir()
 
         # required files for successful operation
         # both RTAComplete.txt and RunInfo.xml should reside in the root of
@@ -112,6 +122,12 @@ class Pipeline:
             fp.close()
         except PermissionError:
             raise PipelineError('RunInfo.xml is present, but not readable')
+
+        if self.mapping_file is not None:
+            # create dummy sample-sheet
+            output_fp = join(output_path, 'dummy_sample_sheet.csv')
+            self.generate_dummy_sample_sheet(self.run_dir, output_fp)
+            self.sample_sheet = output_fp
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
@@ -238,12 +254,18 @@ class Pipeline:
         Generate sample-information files in self.output_path.
         :return: A list of paths to sample-information-files.
         """
-        samples = []
-        for sample in self.sample_sheet.samples:
-            if sample['Sample_ID'].startswith('BLANK'):
-                samples.append((sample['Sample_ID'], sample['Sample_Project']))
-
-        projects = list(set([y for x, y in samples]))
+        if self.mapping_file is not None:
+            df = self.mapping_file[['sample_name', 'project_name']]
+            samples = list(df.to_records(index=False))
+            samples = [x for x in samples if x[0].startswith('BLANK')]
+            projects = list(set([y for x, y in samples]))
+        else:
+            samples = []
+            for sample in self.sample_sheet.samples:
+                if sample['Sample_ID'].startswith('BLANK'):
+                    samples.append((sample['Sample_ID'],
+                                    sample['Sample_Project']))
+            projects = list(set([y for x, y in samples]))
 
         paths = []
         for project in projects:
@@ -266,7 +288,7 @@ class Pipeline:
 
                     # overwrite default title w/sample_project name, minus
                     # Qiita ID.
-                    row['title'] = re.sub(r'_\d+$', r'', project)
+                    row['title'] = sub(r'_\d+$', r'', project)
 
                     # generate values for the four columns that must be
                     # determined from sample-sheet information.
@@ -292,14 +314,196 @@ class Pipeline:
         return paths
 
     def get_sample_ids(self):
-        return [x.Sample_ID for x in self.sample_sheet.samples]
-
-    def get_project_info(self):
-        bioinformatics = self.sample_sheet.Bioinformatics
-        results = []
-
-        for result in bioinformatics.to_dict('records'):
-            results.append({'project_name': result['Sample_Project'],
-                            'qiita_id': result['QiitaID']})
+        # test for self.mapping_file, since self.sample_sheet will be
+        # defined in both cases.
+        if self.mapping_file is not None:
+            results = list(self.mapping_file.sample_name.unique())
+        else:
+            results = [x.Sample_ID for x in self.sample_sheet.samples]
 
         return results
+
+    def get_project_info(self):
+        # test for self.mapping_file, since self.sample_sheet will be
+        # defined in both cases.
+        results = []
+
+        if self.mapping_file is not None:
+            sample_project_map = {pn: _df.sample_name.values for pn, _df in
+                                  self.mapping_file.groupby('project_name')}
+
+            for project in sample_project_map:
+                qiita_id = project.split('_')[-1]
+                results.append(
+                    # assume project names end in qiita ids
+                    {'project_name': project, 'qiita_id': qiita_id})
+        else:
+            bioinformatics = self.sample_sheet.Bioinformatics
+            for result in bioinformatics.to_dict('records'):
+                results.append({'project_name': result['Sample_Project'],
+                                'qiita_id': result['QiitaID']})
+
+        return results
+
+    @staticmethod
+    def is_mapping_file(mapping_file_path):
+        try:
+            Pipeline._validate_mapping_file(mapping_file_path)
+            return True
+        except PipelineError:
+            return False
+
+    @staticmethod
+    def _validate_mapping_file(mapping_file_path):
+        exp = {'barcode', 'library_construction_protocol', 'mastermix_lot',
+               'sample_plate', 'center_project_name', 'instrument_model',
+               'tm1000_8_tool', 'well_id', 'tm50_8_tool', 'well_description',
+               'run_prefix', 'run_date', 'center_name', 'tm300_8_tool',
+               'extraction_robot', 'experiment_design_description',
+               'platform', 'water_lot', 'project_name', 'pcr_primers',
+               'sequencing_meth', 'plating', 'orig_name', 'linker', 'runid',
+               'target_subfragment', 'primer', 'primer_plate', 'sample_name',
+               'run_center', 'primer_date', 'target_gene', 'processing_robot',
+               'extractionkit_lot'}
+        try:
+            df = pd.read_csv(mapping_file_path, delimiter='\t')
+
+            # if the two sets of headers are equal, then return the dataframe
+            # and no error message.
+            if len(exp - set(df.columns)) == 0:
+                return df
+
+            msg = 'missing columns: %s' % ', '.join(exp - set(df.columns))
+        except pd.errors.ParserError:
+            # ignore parser errors as they obviously prove this is not a
+            # valid mapping file.
+            msg = 'could not parse file "%s"' % mapping_file_path
+
+        raise PipelineError(msg)
+
+    def _generate_dummy_sample_sheet(self, first_read, last_read,
+                                     indexed_reads, dummy_sample_id):
+        # create object and initialize header
+        sheet = KLSampleSheet()
+        sheet.Header['IEMFileVersion'] = '4'
+        sheet.Header['Date'] = '10/27/22'
+        sheet.Header['Workflow'] = 'GenerateFASTQ'
+        sheet.Header['Application'] = 'FASTQ Only'
+        sheet.Header['Assay'] = 'TruSeq HT'
+        sheet.Header['Description'] = 'test_run'
+        sheet.Header['Chemistry'] = 'Amplicon'
+
+        # generate override_cycles string
+        tmp = [f"N{x['NumCycles']}" for x in indexed_reads]
+        tmp = ';'.join(tmp)
+        override_cycles = f"Y{first_read};{tmp};Y{last_read}"
+
+        # set Reads and Settings according to input values
+        # we'll get this from the code on the server
+        sheet.Reads = [first_read, last_read]
+        sheet.Settings['OverrideCycles'] = override_cycles
+        sheet.Settings['MaskShortReads'] = '1'
+        sheet.Settings['CreateFastqForIndexReads'] = '1'
+
+        dummy_samples = {'Sample_ID': dummy_sample_id,
+                         'Sample_Plate': '',
+                         'Sample_Well': '',
+                         'I7_Index_ID': '',
+                         'index': '',
+                         'I5_Index_ID': '',
+                         'index2': ''
+                         }
+        sheet.add_sample(sample_sheet.Sample(dummy_samples))
+
+        # contacts won't matter for the dummy sample-sheet.
+        contacts = [['c2cowart@ucsd.edu', 'SomeProject'],
+                    ['antgonza@gmail.com', 'AnotherProject']]
+
+        # we'll get these from input parameters as well.
+        contacts = pd.DataFrame(columns=['Email', 'Sample_Project'],
+                                data=contacts)
+        sheet.Contact = contacts
+
+        # add a dummy sample.
+        samples = [[dummy_sample_id, 'NA', 'NA',
+                    'FALSE', 'FALSE', '14782']]
+
+        samples = pd.DataFrame(columns=['Project', 'ForwardAdapter',
+                                        'ReverseAdapter', 'PolyGTrimming',
+                                        'HumanFiltering', 'QiitaID'],
+                               data=samples)
+
+        sheet.Bioinformatics = samples
+
+        return sheet
+
+    def generate_dummy_sample_sheet(self, run_dir, output_fp):
+        if exists(run_dir):
+            reads = self.process_run_info_file(join(run_dir, 'RunInfo.xml'))
+        else:
+            raise ValueError("run_dir %s not found." % run_dir)
+
+        # assumptions are first and last reads are non-indexed and there
+        # are always two. Between them there is either 1 or 2 indexed
+        # reads. If this is not true, raise an Error.
+
+        if len(reads) < 3 or len(reads) > 4:
+            # there must be a first and last read w/a minimum of one read
+            # in the middle and maximum two in the middle.
+            raise ValueError("RunInfo.xml contains abnormal reads.")
+
+        first_read = reads.pop(0)
+        last_read = reads.pop()
+
+        if (first_read['IsIndexedRead'] is True or
+                last_read['IsIndexedRead'] is True):
+            raise ValueError("RunInfo.xml contains abnormal reads.")
+
+        # confirm the interior read(s) are indexed ones.
+        for read in reads:
+            if read['IsIndexedRead'] is False:
+                raise ValueError("RunInfo.xml contains abnormal reads.")
+
+        dummy_sample_id = basename(run_dir) + '_SMPL1'
+
+        sheet = self._generate_dummy_sample_sheet(first_read['NumCycles'],
+                                                  last_read['NumCycles'],
+                                                  reads, dummy_sample_id)
+
+        with open(output_fp, 'w') as f:
+            sheet.write(f, 1)
+
+    def process_run_info_file(self, run_info_fp):
+        def process_reads(reads):
+            # extract all read elements as a list.
+            # the contents of each Read element are highly regular.
+            # for now, process w/out installing xml2dict or other
+            # library into Qiita env.
+            found = findall('<Read (.+?) />', reads)
+
+            results = []
+            for item in found:
+                attributes = item.split(' ')
+                d = {}
+                for attribute in attributes:
+                    k, v = attribute.split('=')
+                    if k in ['NumCycles', 'Number']:
+                        v = int(v.strip('"'))
+                    elif k in ['IsIndexedRead']:
+                        v = v.strip('"')
+                        v = False if v == 'N' else True
+                    else:
+                        raise ValueError("Unknown key: %s" % k)
+                    d[k] = v
+                results.append(d)
+
+            return results
+
+        with open(run_info_fp, 'r') as f:
+            s = f.read()
+            reads = search('<Reads>(.+?)</Reads>', s.replace('\n', ''))
+            if reads:
+                result = reads.group(1)
+            else:
+                raise ValueError("Cannot extract read information")
+            return process_reads(result)

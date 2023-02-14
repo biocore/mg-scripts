@@ -1,4 +1,3 @@
-from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os.path import join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -31,6 +30,9 @@ class ConvertJob(Job):
                          1000,
                          modules_to_load=modules_to_load)
 
+        # for metagenomics pipelines, sample_sheet_path will reflect a real
+        # sample_sheet file. For amplicon pipelines, sample_sheet_path will
+        # reference a dummy sample_sheet file.
         self.sample_sheet_path = sample_sheet_path
         self.queue_name = queue_name
         self.node_count = node_count
@@ -54,13 +56,8 @@ class ConvertJob(Job):
 
         self._file_check(self.sample_sheet_path)
 
-        klss = KLSampleSheet(self.sample_sheet_path)
-
-        if not validate_and_scrub_sample_sheet(klss):
-            # if sample sheet is valid, we can assume it has the parameters
-            # that we will need. No need to check for individual params.
-            raise PipelineError(
-                f"Sample sheet {self.sample_sheet_path} is not valid.")
+        # As the sample-sheet is validated by the Pipeline object before
+        # being passed to ConvertJob, additional validation isn't needed.
 
         self._generate_job_script()
 
