@@ -322,7 +322,7 @@ class Pipeline:
                                   self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
-                results += sample_project_map[project]
+                results += list(sample_project_map[project])
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
 
