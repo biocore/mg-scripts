@@ -317,12 +317,7 @@ class Pipeline:
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            results = []
-            sample_project_map = {pn: _df.sample_name.values for pn, _df in
-                                  self.mapping_file.groupby('project_name')}
-
-            for project in sample_project_map:
-                results += list(sample_project_map[project])
+            results = list(self.mapping_file.sample_name.unique())
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
 
@@ -512,15 +507,3 @@ class Pipeline:
             else:
                 raise ValueError("Cannot extract read information")
             return process_reads(result)
-
-    def get_sample_project_map(self, mapping_file_df):
-        sample_project_map = {pn: _df.sample_name.values for pn, _df in
-                              self.mapping_file.groupby('project_name')}
-
-        for sample_name, project_name in zip(mapping_file_df.sample_name,
-                                             mapping_file_df.project_name):
-            if project_name not in sample_project_map:
-                sample_project_map[project_name] = []
-            sample_project_map[project_name].append(sample_name)
-
-        return sample_project_map
