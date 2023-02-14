@@ -318,12 +318,8 @@ class Pipeline:
         # defined in both cases.
         if self.mapping_file is not None:
             results = []
-            sample_project_map = {}
-            for sample, project in zip(self.mapping_file.sample_name,
-                                       self.mapping_file.project_name):
-                if project not in sample_project_map:
-                    sample_project_map[project] = []
-                sample_project_map[project].append(sample)
+            sample_project_map = {pn: _df.sample_name.values for pn, _df in
+                                  self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
                 results += sample_project_map[project]
@@ -518,7 +514,9 @@ class Pipeline:
             return process_reads(result)
 
     def get_sample_project_map(self, mapping_file_df):
-        sample_project_map = {}
+        sample_project_map = {pn: _df.sample_name.values for pn, _df in
+                              self.mapping_file.groupby('project_name')}
+
         for sample_name, project_name in zip(mapping_file_df.sample_name,
                                              mapping_file_df.project_name):
             if project_name not in sample_project_map:
