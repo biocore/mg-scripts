@@ -354,7 +354,16 @@ class Pipeline:
 
         return results
 
-    def _validate_mapping_file(self, mapping_file_path):
+    @staticmethod
+    def is_mapping_file(mapping_file_path):
+        try:
+            Pipeline._validate_mapping_file(mapping_file_path)
+            return True
+        except PipelineError:
+            return False
+
+    @staticmethod
+    def _validate_mapping_file(mapping_file_path):
         exp = {'barcode', 'library_construction_protocol', 'mastermix_lot',
                'sample_plate', 'center_project_name', 'instrument_model',
                'tm1000_8_tool', 'well_id', 'tm50_8_tool', 'well_description',
