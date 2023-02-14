@@ -142,7 +142,7 @@ class FastQCJob(Job):
 
         if projects is None:
             raise PipelineError("There are no fastq files for FastQCJob to "
-                                "process.")
+                                "process in %s." % find_path)
 
         fastqc_results = []
 
