@@ -338,12 +338,8 @@ class Pipeline:
         results = []
 
         if self.mapping_file is not None:
-            sample_project_map = {}
-            for sample, project in zip(self.mapping_file.sample_name,
-                                       self.mapping_file.project_name):
-                if project not in sample_project_map:
-                    sample_project_map[project] = []
-                sample_project_map[project].append(sample)
+            sample_project_map = {pn: _df.sample_name.values for pn, _df in
+                                  self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
                 qiita_id = project.split('_')[-1]

@@ -35,7 +35,7 @@ setup(name='sequence-processing-pipeline',
       setup_requires=['numpy', 'cython'],
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
-        'metapool @ https://github.com/charles-cowart/'
-        'metagenomics_pooling_notebook/archive/amplicon_support.zip'],
+        'metapool @ https://github.com/biocore/'
+        'metagenomics_pooling_notebook/archive/master.zip'],
       classifiers=classifiers
       )
