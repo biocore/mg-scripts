@@ -1010,7 +1010,10 @@ class TestFastQCJob(unittest.TestCase):
                       self.config_yml, 1000, False)
 
         self.assertEqual(str(e.exception), "There are no fastq files for "
-                                           "FastQCJob to process.")
+                                           "FastQCJob to process in sequence"
+                                           "_processing_pipeline/tests/data/"
+                                           "211021_A00000_0000_SAMPLE/Data/"
+                                           "Fastq.")
 
     def test_completed_file_generation(self):
         job = FastQCJob(self.qc_root_path, self.output_path,
