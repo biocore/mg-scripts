@@ -56,8 +56,8 @@ class ConvertJob(Job):
 
         self._file_check(self.sample_sheet_path)
 
-        # assume the sample-sheet is validated by Pipeline object before
-        # being passed to ConvertJob.
+        # As the sample-sheet is validated by the Pipeline object before
+        # being passed to ConvertJob, additional validation isn't needed.
 
         self._generate_job_script()
 

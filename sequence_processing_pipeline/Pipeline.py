@@ -348,7 +348,6 @@ class Pipeline:
                     sample_project_map[project] = []
                 sample_project_map[project].append(sample)
 
-            # TODO: Replace 'something' w/proper Qiita ID
             for project in sample_project_map:
                 qiita_id = project.split('_')[-1]
                 results.append(

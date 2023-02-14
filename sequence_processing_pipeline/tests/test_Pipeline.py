@@ -18,12 +18,12 @@ class TestPipeline(unittest.TestCase):
         self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
         self.good_run_id = '211021_A00000_0000_SAMPLE'
-        # good_qiita_id is randomly-generated and does not match any known
+        # qiita_id is randomly-generated and does not match any known
         # existing qiita job_id.
-        self.good_qiita_id = '077c4da8-74eb-4184-8860-0207f53623be'
+        self.qiita_id = '077c4da8-74eb-4184-8860-0207f53623be'
         self.invalid_run_id = 'not-sample-sequence-directory'
-        self.good_output_file_path = self.path('output_dir')
-        makedirs(self.good_output_file_path, exist_ok=True)
+        self.output_file_path = self.path('output_dir')
+        makedirs(self.output_file_path, exist_ok=True)
         self.maxDiff = None
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
@@ -89,8 +89,8 @@ class TestPipeline(unittest.TestCase):
                                                    "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
 
         # delete RTAComplete.txt and recreate RunInfo.txt file to verify that
         # an Error is raised when only RTAComplete.txt is missing.
@@ -101,8 +101,8 @@ class TestPipeline(unittest.TestCase):
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
 
         # make RunInfo.xml file unreadable and verify that Pipeline object
         # raises the expected Error.
@@ -115,8 +115,8 @@ class TestPipeline(unittest.TestCase):
                                                    "t not readable"):
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
         self.make_runinfo_file_readable()
         '''
 
@@ -126,8 +126,8 @@ class TestPipeline(unittest.TestCase):
             Pipeline(self.bad_config_file,
                      self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         msg = re.sub(r'not a key in .*?/sequence_processing_pipeline',
@@ -142,8 +142,8 @@ class TestPipeline(unittest.TestCase):
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), 'does/not/exist/configuration.json '
@@ -154,8 +154,8 @@ class TestPipeline(unittest.TestCase):
             Pipeline(None,
                      self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), 'configuration_file_path cannot be '
@@ -166,8 +166,8 @@ class TestPipeline(unittest.TestCase):
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), "A run-dir for 'not-sample-sequence"
@@ -178,8 +178,8 @@ class TestPipeline(unittest.TestCase):
             Pipeline(self.good_config_file,
                      None,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
     def test_sample_sheet_validation(self):
@@ -190,8 +190,8 @@ class TestPipeline(unittest.TestCase):
         try:
             Pipeline(self.good_config_file, self.good_run_id,
                      self.good_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
         except PipelineError as e:
             self.fail(("test_filter_directories_for_time failed w/PipelineEr"
                        f"ror: {e.message}"))
@@ -200,8 +200,8 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
                      self.bad_sample_sheet_path, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
         self.assertEqual(str(e.exception), ('ErrorMessage: A sample already e'
                                             'xists with lane 1 and sample-id '
                                             'EP479894B04'))
@@ -211,7 +211,7 @@ class TestPipeline(unittest.TestCase):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path,
                             None,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         paths = pipeline.generate_sample_information_files()
@@ -789,7 +789,7 @@ class TestPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path, None,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         obs = pipeline.get_sample_ids()
@@ -807,7 +807,7 @@ class TestPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path, None,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         obs_proj_info = pipeline.get_project_info()
@@ -832,18 +832,19 @@ class TestAmpliconPipeline(unittest.TestCase):
         self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
         self.good_run_id = '211021_A00000_0000_SAMPLE'
-        # good_qiita_id is randomly-generated and does not match any known
+        # qiita_id is randomly-generated and does not match any known
         # existing qiita job_id.
-        self.good_qiita_id = '077c4da8-74eb-4184-8860-0207f53623be'
+        self.qiita_id = '077c4da8-74eb-4184-8860-0207f53623be'
         self.invalid_run_id = 'not-sample-sequence-directory'
-        self.good_output_file_path = self.path('output_dir')
-        makedirs(self.good_output_file_path, exist_ok=True)
+        self.output_file_path = self.path('output_dir')
+        makedirs(self.output_file_path, exist_ok=True)
         self.maxDiff = None
         self.good_mapping_file_path = self.path('good-mapping-file.txt')
         self.bad_mapping_file_path = self.path('bad-mapping-file.txt')
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
+        self.sample_sheet_path = self.path('good-sample-sheet.csv')
 
         # most of the tests here were written with the assumption that these
         # files already exist.
@@ -902,8 +903,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                                                    "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
 
         # delete RTAComplete.txt and recreate RunInfo.txt file to verify that
         # an Error is raised when only RTAComplete.txt is missing.
@@ -914,8 +915,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
 
         # make RunInfo.xml file unreadable and verify that Pipeline object
         # raises the expected Error.
@@ -927,8 +928,8 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, "
                                                    "but not readable"):
             Pipeline(self.good_config_file, self.good_run_id, None,
-                     self.good_mapping_file_path, self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.good_mapping_file_path, self.output_file_path,
+                     self.qiita_id, None)
             self.make_runinfo_file_readable()
         '''
 
@@ -938,8 +939,8 @@ class TestAmpliconPipeline(unittest.TestCase):
             Pipeline(self.bad_config_file,
                      self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         msg = re.sub(r'not a key in .*?/sequence_processing_pipeline',
@@ -954,8 +955,8 @@ class TestAmpliconPipeline(unittest.TestCase):
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), 'does/not/exist/configuration.json '
@@ -966,8 +967,8 @@ class TestAmpliconPipeline(unittest.TestCase):
             Pipeline(None,
                      self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), 'configuration_file_path cannot be '
@@ -978,8 +979,8 @@ class TestAmpliconPipeline(unittest.TestCase):
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
         self.assertEqual(str(e.exception), "A run-dir for 'not-sample-sequence"
@@ -990,8 +991,8 @@ class TestAmpliconPipeline(unittest.TestCase):
             Pipeline(self.good_config_file,
                      None,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id,
+                     self.output_file_path,
+                     self.qiita_id,
                      None)
 
     def test_mapping_file_validation(self):
@@ -999,8 +1000,8 @@ class TestAmpliconPipeline(unittest.TestCase):
         try:
             Pipeline(self.good_config_file, self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
         except PipelineError as e:
             self.fail(("test_filter_directories_for_time failed w/PipelineEr"
                        f"ror: {e.message}"))
@@ -1009,8 +1010,8 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
                      None, self.bad_mapping_file_path,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
         self.assertEqual(str(e.exception), 'missing columns: tm50_8_tool')
 
     def test_generate_sample_information_files(self):
@@ -1018,12 +1019,12 @@ class TestAmpliconPipeline(unittest.TestCase):
         print(self.good_config_file)
         print(self.good_run_id)
         print(self.good_mapping_file_path)
-        print(self.good_output_file_path)
-        print(self.good_qiita_id)
+        print(self.output_file_path)
+        print(self.qiita_id)
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None,
                             self.good_mapping_file_path,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
         paths = pipeline.generate_sample_information_files()
         print(paths)
@@ -1242,7 +1243,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None, self.good_mapping_file_path,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         obs = pipeline.get_sample_ids()
@@ -1258,7 +1259,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None, self.good_mapping_file_path,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         obs_proj_info = pipeline.get_project_info()
@@ -1281,8 +1282,18 @@ class TestAmpliconPipeline(unittest.TestCase):
                                                     "both.")):
             Pipeline(self.good_config_file, self.good_run_id,
                      None, None,
-                     self.good_output_file_path,
-                     self.good_qiita_id, None)
+                     self.output_file_path,
+                     self.qiita_id, None)
+
+        with self.assertRaisesRegex(PipelineError, ("sample_sheet_path or "
+                                                    "mapping_file_path must "
+                                                    "be defined, but not "
+                                                    "both.")):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.sample_sheet_path,
+                     self.good_mapping_file_path,
+                     self.output_file_path,
+                     self.qiita_id, None)
 
     def test_dummy_sheet_generation(self):
         # generate a RunInfo.xml file w/only one indexed read.
@@ -1290,10 +1301,10 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         _ = Pipeline(self.good_config_file, self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path, self.good_qiita_id,
+                     self.output_file_path, self.qiita_id,
                      None)
 
-        dummy_sheet_path = join(self.good_output_file_path,
+        dummy_sheet_path = join(self.output_file_path,
                                 'dummy_sample_sheet.csv')
 
         with open(dummy_sheet_path) as f:
@@ -1306,10 +1317,10 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         _ = Pipeline(self.good_config_file, self.good_run_id,
                      None, self.good_mapping_file_path,
-                     self.good_output_file_path, self.good_qiita_id,
+                     self.output_file_path, self.qiita_id,
                      None)
 
-        dummy_sheet_path = join(self.good_output_file_path,
+        dummy_sheet_path = join(self.output_file_path,
                                 'dummy_sample_sheet.csv')
 
         with open(dummy_sheet_path) as f:
@@ -1323,7 +1334,7 @@ class TestAmpliconPipeline(unittest.TestCase):
     def test_process_run_info_file(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None, self.good_mapping_file_path,
-                            self.good_output_file_path, self.good_qiita_id,
+                            self.output_file_path, self.qiita_id,
                             None)
 
         obs = pipeline.process_run_info_file('sequence_processing_pipeline/'

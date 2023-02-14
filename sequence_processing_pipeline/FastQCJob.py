@@ -102,6 +102,9 @@ class FastQCJob(Job):
             i1_only = [x for x in files if '_I1_' in x]
             i2_only = [x for x in files if '_I2_' in x]
 
+            if not self.is_amplicon and len(i1_only) != len(i2_only):
+                raise PipelineError('counts of I1 and I2 files do not match')
+
             if r1_only:
                 tmp = ' '.join(r1_only)
                 if 'trimmed_sequences' in tmp:
