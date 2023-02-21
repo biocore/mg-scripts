@@ -410,9 +410,12 @@ class Pipeline:
             # duplicate sample-names and then return the dataframe and no
             # error message.
             if len(exp - set(df.columns)) == 0:
-                sample_names = df['sample_name'].tolist()
-                dupes = Counter(sample_names)
-                dupes = [x for x in dupes if dupes[x] > 1]
+                # count the number of occurances of each sample-name.
+                dupes = df['sample_name'].value_counts()
+                # filter for duplicate sample-names
+                dupes = dupes.loc[lambda x: x > 1]
+                dupes = dupes.index.tolist()
+
                 if dupes:
                     msg = ('duplicate sample-names detected: '
                            '%s' % ', '.join(dupes))
