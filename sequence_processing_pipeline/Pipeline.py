@@ -371,11 +371,8 @@ class Pipeline:
         Returns True if file follows basic sample-sheet format.
         '''
 
-        # Previously SampleSheet() was used to test if file was a sample-
-        # sheet. SampleSheet() does not return an error on arbitrary-text
-        # files however. Checking to see if the file begins w/[Header]
-        # (ignoring any legacy comments) appears to be the best solution
-        # for now.
+        # Check to see if the file begins w/[Header].
+        # Ignoring any legacy comments.
         with open(sample_sheet_path, 'r') as f:
             line = f.readline()
             while line:

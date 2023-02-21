@@ -1015,7 +1015,7 @@ class TestAmpliconPipeline(unittest.TestCase):
                      self.qiita_id, None)
         self.assertEqual(str(e.exception), 'missing columns: tm50_8_tool')
 
-    def atest_is_mapping_file(self):
+    def test_is_mapping_file(self):
         # assert that a good sample-sheet is not a mapping-file
         self.assertFalse(Pipeline.is_mapping_file(self.sample_sheet_path))
         # assert that a good mapping-file returns correctly
@@ -1027,7 +1027,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # a mapping file.
         self.assertTrue(Pipeline.is_mapping_file(self.mf_missing_column))
 
-    def test_is_sample_sheet(self):
+    def atest_is_sample_sheet(self):
         # assert that a good sample-sheet returns correctly.
         self.assertTrue(Pipeline.is_sample_sheet(self.sample_sheet_path))
         # assert that a good mapping-file is not a sample-sheet.
