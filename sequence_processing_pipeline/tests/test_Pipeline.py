@@ -1033,7 +1033,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # assert that a good mapping-file is not a sample-sheet.
         self.assertFalse(Pipeline.is_sample_sheet(self.good_mapping_file_path))
 
-    def atest_generate_sample_information_files(self):
+    def test_generate_sample_information_files(self):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None,
