@@ -1035,18 +1035,12 @@ class TestAmpliconPipeline(unittest.TestCase):
 
     def atest_generate_sample_information_files(self):
         # test sample-information-file generation.
-        print(self.good_config_file)
-        print(self.good_run_id)
-        print(self.good_mapping_file_path)
-        print(self.output_file_path)
-        print(self.qiita_id)
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None,
                             self.good_mapping_file_path,
                             self.output_file_path, self.qiita_id,
                             None)
         paths = pipeline.generate_sample_information_files()
-        print(paths)
 
         # confirm file exists in the expected location and with the expected
         # filename.
