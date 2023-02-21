@@ -378,6 +378,8 @@ class Pipeline:
             while line:
                 if line.startswith('#'):
                     line = f.readline()
+                else:
+                    break
 
             if line.startswith('[Header]'):
                 return True
