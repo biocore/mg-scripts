@@ -840,7 +840,8 @@ class TestAmpliconPipeline(unittest.TestCase):
         makedirs(self.output_file_path, exist_ok=True)
         self.maxDiff = None
         self.good_mapping_file_path = self.path('good-mapping-file.txt')
-        self.bad_mapping_file_path = self.path('bad-mapping-file.txt')
+        self.mf_missing_column = self.path('mf-missing-column.txt')
+        self.mf_duplicate_sample = self.path('mf-duplicate-sample.txt')
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
@@ -1009,25 +1010,37 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test unsuccessful validation of a bad mapping-file.
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.bad_mapping_file_path,
+                     None, self.mf_missing_column,
                      self.output_file_path,
                      self.qiita_id, None)
         self.assertEqual(str(e.exception), 'missing columns: tm50_8_tool')
 
+    def test_is_mapping_file(self):
+        # assert that a good sample-sheet is not a mapping-file
+        self.assertFalse(Pipeline.is_mapping_file(self.sample_sheet_path))
+        # assert that a good mapping-file returns correctly
+        self.assertTrue(Pipeline.is_mapping_file(self.good_mapping_file_path))
+        # assert that a mapping-file w/duplicate samples is still considered
+        # a mapping file.
+        self.assertTrue(Pipeline.is_mapping_file(self.mf_duplicate_sample))
+        # assert that a mapping-file w/a missing columbn is still considered
+        # a mapping file.
+        self.assertTrue(Pipeline.is_mapping_file(self.mf_missing_column))
+
+    def test_is_sample_sheet(self):
+        # assert that a good sample-sheet returns correctly.
+        self.assertTrue(Pipeline.is_sample_sheet(self.sample_sheet_path))
+        # assert that a good mapping-file is not a sample-sheet.
+        self.assertFalse(Pipeline.is_sample_sheet(self.good_mapping_file_path))
+
     def test_generate_sample_information_files(self):
         # test sample-information-file generation.
-        print(self.good_config_file)
-        print(self.good_run_id)
-        print(self.good_mapping_file_path)
-        print(self.output_file_path)
-        print(self.qiita_id)
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             None,
                             self.good_mapping_file_path,
                             self.output_file_path, self.qiita_id,
                             None)
         paths = pipeline.generate_sample_information_files()
-        print(paths)
 
         # confirm file exists in the expected location and with the expected
         # filename.
