@@ -10,6 +10,7 @@ import logging
 from re import sub, findall, search
 import sample_sheet
 import pandas as pd
+from collections import Counter
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -347,11 +348,41 @@ class Pipeline:
 
     @staticmethod
     def is_mapping_file(mapping_file_path):
+        '''
+        Returns true if file is a mapping file.
+        '''
         try:
             Pipeline._validate_mapping_file(mapping_file_path)
             return True
-        except PipelineError:
-            return False
+        except PipelineError as e:
+            # we want to distinguish between a file that is clearly not a
+            # mapping file e.g. sample-file, and a mapping-file that is perhaps
+            # missing a column or has duplicate sample-names.
+            good_messages = ['duplicate sample-names detected:',
+                             'missing columns:']
+            for message in good_messages:
+                if str(e).startswith(message):
+                    return True
+
+        return False
+
+    @staticmethod
+    def is_sample_sheet(sample_sheet_path):
+        '''
+        Returns True if file follows basic sample-sheet format.
+        '''
+
+        # Previously SampleSheet() was used to test if file was a sample-
+        # sheet. SampleSheet() does not return an error on arbitrary-text
+        # files however. Checking to see if the file begins w/[Header]
+        # (ignoring any legacy comments) appears to be the best solution
+        # for now.
+        with open(sample_sheet_path, 'r') as f:
+            lines = f.readlines()
+            lines = [x.strip() for x in lines if not x.startswith('#')]
+            if lines[0].startswith('[Header]'):
+                return True
+        return False
 
     @staticmethod
     def _validate_mapping_file(mapping_file_path):
@@ -365,15 +396,35 @@ class Pipeline:
                'target_subfragment', 'primer', 'primer_plate', 'sample_name',
                'run_center', 'primer_date', 'target_gene', 'processing_robot',
                'extractionkit_lot'}
+
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t')
 
-            # if the two sets of headers are equal, then return the dataframe
-            # and no error message.
-            if len(exp - set(df.columns)) == 0:
-                return df
+            # rename all columns to their lower-case versions.
+            # we will want to return this version to the user.
+            df.columns = df.columns.str.lower()
 
-            msg = 'missing columns: %s' % ', '.join(exp - set(df.columns))
+            # if the two sets of headers are equal, verify there are no
+            # duplicate sample-names and then return the dataframe and no
+            # error message.
+            if len(exp - set(df.columns)) == 0:
+                sample_names = df['sample_name'].tolist()
+                dupes = Counter(sample_names)
+                dupes = [x for x in dupes if dupes[x] > 1]
+                if dupes:
+                    msg = ('duplicate sample-names detected: '
+                           '%s' % ', '.join(dupes))
+                else:
+                    return df
+            else:
+                if exp - set(df.columns) == exp:
+                    # since pandas.read_csv() will successfully open a sample-
+                    # sheet, if none of the expected columns exist then assume
+                    # that this file is not a mapping file.
+                    msg = "not a mapping-file"
+                else:
+                    msg = 'missing columns: %s' % ', '.join(
+                        exp - set(df.columns))
         except pd.errors.ParserError:
             # ignore parser errors as they obviously prove this is not a
             # valid mapping file.
