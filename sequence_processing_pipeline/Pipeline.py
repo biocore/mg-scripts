@@ -358,9 +358,8 @@ class Pipeline:
             # we want to distinguish between a file that is clearly not a
             # mapping file e.g. sample-file, and a mapping-file that is perhaps
             # missing a column or has duplicate sample-names.
-            good_messages = ['duplicate sample-names detected:',
-                             'missing columns:']
-            for message in good_messages:
+            messages = ['duplicate sample-names detected:', 'missing columns:']
+            for message in messages:
                 if str(e).startswith(message):
                     return True
 
@@ -378,10 +377,14 @@ class Pipeline:
         # (ignoring any legacy comments) appears to be the best solution
         # for now.
         with open(sample_sheet_path, 'r') as f:
-            lines = f.readlines()
-            lines = [x.strip() for x in lines if not x.startswith('#')]
-            if lines[0].startswith('[Header]'):
+            line = f.readline()
+            while line:
+                if line.startswith('#'):
+                    line = f.readline()
+
+            if line.startswith('[Header]'):
                 return True
+
         return False
 
     @staticmethod

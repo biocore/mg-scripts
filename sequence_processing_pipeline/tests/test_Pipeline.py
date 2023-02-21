@@ -1017,7 +1017,6 @@ class TestAmpliconPipeline(unittest.TestCase):
 
     def test_is_mapping_file(self):
         # assert that a good sample-sheet is not a mapping-file
-        print(self.sample_sheet_path)
         self.assertFalse(Pipeline.is_mapping_file(self.sample_sheet_path))
         # assert that a good mapping-file returns correctly
         self.assertTrue(Pipeline.is_mapping_file(self.good_mapping_file_path))
