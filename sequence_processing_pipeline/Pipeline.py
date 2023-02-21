@@ -10,7 +10,6 @@ import logging
 from re import sub, findall, search
 import sample_sheet
 import pandas as pd
-from collections import Counter
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
