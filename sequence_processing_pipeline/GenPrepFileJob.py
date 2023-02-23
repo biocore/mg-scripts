@@ -36,7 +36,6 @@ class GenPrepFileJob(Job):
             filtered_seq_dir = src_path('filtered_sequences')
             trimmed_seq_dir = src_path('trimmed_sequences')
             fastp_rept_dir = src_path('fastp_reports_dir', 'json')
-            trimmed_seq_dir = src_path('trimmed_sequences')
             amplicon_seq_dir = join(convert_job_path, project)
 
             dst = join(self.output_path, self.run_id, project)
