@@ -357,7 +357,9 @@ class Pipeline:
             # we want to distinguish between a file that is clearly not a
             # mapping file e.g. sample-file, and a mapping-file that is perhaps
             # missing a column or has duplicate sample-names.
-            messages = ['duplicate sample-names detected:', 'missing columns:']
+            messages = ['duplicate sample-names detected:', 'missing columns:',
+                        'Column names are case-insensitive.']
+
             for message in messages:
                 if str(e).startswith(message):
                     return True
@@ -400,6 +402,12 @@ class Pipeline:
 
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t')
+
+            columns = [x.lower() for x in list(df.columns)]
+            if len(set(columns)) < len(columns):
+                raise PipelineError("Column names are case-insensitive. You "
+                                    "have one or more duplicate columns in "
+                                    "your mapping-file.")
 
             # rename all columns to their lower-case versions.
             # we will want to return this version to the user.
