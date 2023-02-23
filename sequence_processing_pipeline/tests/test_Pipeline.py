@@ -1015,6 +1015,16 @@ class TestAmpliconPipeline(unittest.TestCase):
                      self.qiita_id, None)
         self.assertEqual(str(e.exception), 'missing columns: tm50_8_tool')
 
+        # test unsuccessful validation of a bad mapping-file.
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.good_config_file, self.good_run_id,
+                     None, self.mf_duplicate_sample,
+                     self.output_file_path,
+                     self.qiita_id, None)
+        self.assertEqual(str(e.exception), 'Column names are case-insensitive.'
+                                           ' You have one or more duplicate '
+                                           'columns in your mapping-file.')
+
     def test_is_mapping_file(self):
         # assert that a good sample-sheet is not a mapping-file
         self.assertFalse(Pipeline.is_mapping_file(self.sample_sheet_path))

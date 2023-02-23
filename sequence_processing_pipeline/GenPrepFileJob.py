@@ -9,7 +9,7 @@ from functools import partial
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
                  sample_sheet_path, seqpro_path, project_list, modules_to_load,
-                 qiita_job_id):
+                 qiita_job_id, is_amplicon=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -22,6 +22,7 @@ class GenPrepFileJob(Job):
         self.sample_sheet_path = sample_sheet_path
         self.seqpro_path = seqpro_path
         self.qiita_job_id = qiita_job_id
+        self.is_amplicon = is_amplicon
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
@@ -35,20 +36,26 @@ class GenPrepFileJob(Job):
             filtered_seq_dir = src_path('filtered_sequences')
             trimmed_seq_dir = src_path('trimmed_sequences')
             fastp_rept_dir = src_path('fastp_reports_dir', 'json')
+            amplicon_seq_dir = join(convert_job_path, project)
 
             dst = join(self.output_path, self.run_id, project)
 
-            if exists(filtered_seq_dir):
-                makedirs(dst, exist_ok=True)
-                symlink(filtered_seq_dir, join(dst, 'filtered_sequences'))
+            if self.is_amplicon:
+                if exists(amplicon_seq_dir):
+                    makedirs(dst, exist_ok=True)
+                    symlink(amplicon_seq_dir, join(dst, 'amplicon'))
+            else:
+                if exists(filtered_seq_dir):
+                    makedirs(dst, exist_ok=True)
+                    symlink(filtered_seq_dir, join(dst, 'filtered_sequences'))
 
-            if exists(trimmed_seq_dir):
-                makedirs(dst, exist_ok=True)
-                symlink(trimmed_seq_dir, join(dst, 'trimmed_sequences'))
+                if exists(trimmed_seq_dir):
+                    makedirs(dst, exist_ok=True)
+                    symlink(trimmed_seq_dir, join(dst, 'trimmed_sequences'))
 
-            if exists(fastp_rept_dir):
-                makedirs(dst, exist_ok=True)
-                symlink(fastp_rept_dir, join(dst, 'json'))
+                if exists(fastp_rept_dir):
+                    makedirs(dst, exist_ok=True)
+                    symlink(fastp_rept_dir, join(dst, 'json'))
 
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir
