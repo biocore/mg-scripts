@@ -4,6 +4,7 @@ from os import makedirs, symlink
 from os.path import join, exists, basename
 from shutil import copytree
 from functools import partial
+from collections import defaultdict
 
 
 class GenPrepFileJob(Job):
@@ -73,21 +74,14 @@ class GenPrepFileJob(Job):
                         join(self.output_path, 'PrepFiles')]
 
     def _get_prep_file_paths(self, stdout):
-        tmp_l = stdout.split('\n')
-        tmp_l = [x for x in tmp_l if x != '']
-        tmp_d = {}
-        print(tmp_l)
+        tmp = [x for x in stdout.split('\n') if x != '']
+        results = defaultdict(list)
 
-        for line in tmp_l:
-            # assume search will always yield a result on legit output.
+        for line in tmp:
             qiita_id, prep_file_fp = line.strip().split('\t')
+            results[qiita_id].append(prep_file_fp)
 
-            if qiita_id not in tmp_d:
-                tmp_d[qiita_id] = []
-
-            tmp_d[qiita_id].append(prep_file_fp)
-
-        return tmp_d
+        return results
 
     def run(self, callback=None):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
