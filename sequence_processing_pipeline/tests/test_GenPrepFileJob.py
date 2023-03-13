@@ -90,13 +90,12 @@ class TestGenPrepFileJob(unittest.TestCase):
         # We cannot run the object and test the output that is returned from
         # seqpro, but we can test the helper method against canned stdout and
         # verify the results.
-        stdout = ('metagenomics_pooling_notebook/metapool/tests/VFTEST'
-                  '/200318_A00953_0082_AH5TWYDSXY.Project_1111.1.tsv '
-                  '(1111)\nmetagenomics_pooling_notebook/metapool/'
-                  'tests/VFTEST/200318_A00953_0082_AH5TWYDSXY.Project'
-                  '_1111.3.tsv (1111)\nmetagenomics_pooling_notebook/'
-                  'metapool/tests/VFTEST/200318_A00953_0082_AH5TWYDSXY'
-                  '.Trojecp_666.3.tsv (666)\n')
+        stdout = ('1111\tmetagenomics_pooling_notebook/metapool/tests/VFTEST/'
+                  '200318_A00953_0082_AH5TWYDSXY.Project_1111.1.tsv\n'
+                  '1111\tmetagenomics_pooling_notebook/metapool/tests/VFTEST/'
+                  '200318_A00953_0082_AH5TWYDSXY.Project_1111.3.tsv\n'
+                  '666\tmetagenomics_pooling_notebook/metapool/tests/VFTEST/'
+                  '200318_A00953_0082_AH5TWYDSXY.Trojecp_666.3.tsv')
 
         obs = job._get_prep_file_paths(stdout)
 

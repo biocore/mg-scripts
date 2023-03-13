@@ -4,7 +4,6 @@ from os import makedirs, symlink
 from os.path import join, exists, basename
 from shutil import copytree
 from functools import partial
-import re
 
 
 class GenPrepFileJob(Job):
@@ -77,16 +76,16 @@ class GenPrepFileJob(Job):
         tmp_l = stdout.split('\n')
         tmp_l = [x for x in tmp_l if x != '']
         tmp_d = {}
+        print(tmp_l)
 
         for line in tmp_l:
             # assume search will always yield a result on legit output.
-            qiita_id = re.search(r'\((\d+)\)$', line)[1]
+            qiita_id, prep_file_fp = line.strip().split('\t')
 
             if qiita_id not in tmp_d:
                 tmp_d[qiita_id] = []
 
-            # extract absolute file-path, removing trailing whitespace.
-            tmp_d[qiita_id].append(line.replace(f'({qiita_id})', '').strip())
+            tmp_d[qiita_id].append(prep_file_fp)
 
         return tmp_d
 
