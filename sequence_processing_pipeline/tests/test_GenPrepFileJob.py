@@ -99,7 +99,7 @@ class TestGenPrepFileJob(unittest.TestCase):
                   '.Trojecp_666.3.tsv (666)\n')
 
         obs = job._get_prep_file_paths(stdout)
-        print(obs)
+
         exp = {'1111': [('metagenomics_pooling_notebook/metapool/tests/VFTEST'
                          '/200318_A00953_0082_AH5TWYDSXY.Project_1111.1.tsv'),
                         ('metagenomics_pooling_notebook/metapool/tests/VFTEST'
