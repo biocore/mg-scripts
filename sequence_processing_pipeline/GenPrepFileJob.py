@@ -73,6 +73,23 @@ class GenPrepFileJob(Job):
                         f'"{self.sample_sheet_path}"',
                         join(self.output_path, 'PrepFiles')]
 
+    def _get_prep_file_paths(self, stdout):
+        tmp_l = stdout.split('\n')
+        tmp_l = [x for x in tmp_l if x != '']
+        tmp_d = {}
+
+        for line in tmp_l:
+            # assume search will always yield a result on legit output.
+            qiita_id = re.search(r'\((\d+)\)$', line)[1]
+
+            if qiita_id not in tmp_d:
+                tmp_d[qiita_id] = []
+
+            # extract absolute file-path, removing trailing whitespace.
+            tmp_d[qiita_id].append(line.replace(f'({qiita_id})', '').strip())
+
+        return tmp_d
+
     def run(self, callback=None):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
         # and QCJob currently moves its products to the final location. It
@@ -84,17 +101,5 @@ class GenPrepFileJob(Job):
         if results['return_code'] != 0:
             raise PipelineError("Seqpro encountered an error")
 
-        tmp_l = results['stdout'].split('\n')
-        tmp_d = {}
-
-        for line in tmp_l:
-            # assume search will always yield a result on legit output.
-            qiita_id = re.search(r'\((\d+)\)$', line)[1]
-            if qiita_id not in results:
-                tmp_d[qiita_id] = []
-
-            # extract absolute file-path, removing trailing whitespace.
-            tmp_d[qiita_id].append(line.replace(f'({qiita_id})', '').strip())
-
         # if successful, store results.
-        self.prep_file_paths = tmp_d
+        self.prep_file_paths = self._get_prep_file_paths(results['stdout'])

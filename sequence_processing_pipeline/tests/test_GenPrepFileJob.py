@@ -71,6 +71,44 @@ class TestGenPrepFileJob(unittest.TestCase):
 
         self.assertEquals(obs, exp)
 
+    def test_get_prep_file_paths(self):
+        self.maxDiff = None
+        sample_sheet_path = join(self.package_root, 'tests', 'data',
+                                 'good-sample-sheet.csv')
+
+        # create a sample Job object
+        job = GenPrepFileJob(self.run_dir,
+                             self.convert_job_path,
+                             self.qc_job_path,
+                             join(self.working_directory_root, 'OutputPath'),
+                             sample_sheet_path,
+                             'seqpro',
+                             self.project_list,
+                             [],
+                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+
+        # We cannot run the object and test the output that is returned from
+        # seqpro, but we can test the helper method against canned stdout and
+        # verify the results.
+        stdout = ('metagenomics_pooling_notebook/metapool/tests/VFTEST'
+                  '/200318_A00953_0082_AH5TWYDSXY.Project_1111.1.tsv '
+                  '(1111)\nmetagenomics_pooling_notebook/metapool/'
+                  'tests/VFTEST/200318_A00953_0082_AH5TWYDSXY.Project'
+                  '_1111.3.tsv (1111)\nmetagenomics_pooling_notebook/'
+                  'metapool/tests/VFTEST/200318_A00953_0082_AH5TWYDSXY'
+                  '.Trojecp_666.3.tsv (666)\n')
+
+        obs = job._get_prep_file_paths(stdout)
+        print(obs)
+        exp = {'1111': [('metagenomics_pooling_notebook/metapool/tests/VFTEST'
+                         '/200318_A00953_0082_AH5TWYDSXY.Project_1111.1.tsv'),
+                        ('metagenomics_pooling_notebook/metapool/tests/VFTEST'
+                         '/200318_A00953_0082_AH5TWYDSXY.Project_1111.3.tsv')],
+               '666': [('metagenomics_pooling_notebook/metapool/tests/VFTEST'
+                        '/200318_A00953_0082_AH5TWYDSXY.Trojecp_666.3.tsv')]}
+
+        self.assertDictEqual(obs, exp)
+
 
 if __name__ == '__main__':
     unittest.main()
