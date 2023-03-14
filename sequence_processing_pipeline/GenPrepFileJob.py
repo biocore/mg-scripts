@@ -4,6 +4,7 @@ from os import makedirs, symlink
 from os.path import join, exists, basename
 from shutil import copytree
 from functools import partial
+from collections import defaultdict
 
 
 class GenPrepFileJob(Job):
@@ -23,10 +24,11 @@ class GenPrepFileJob(Job):
         self.seqpro_path = seqpro_path
         self.qiita_job_id = qiita_job_id
         self.is_amplicon = is_amplicon
+        self.prep_file_paths = None
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
-        # copy bcl-convert's Stats-equivalent directory to the the
+        # copy bcl-convert's Stats-equivalent directory to the
         # run_directory
         copytree(join(convert_job_path, 'Reports'),
                  join(self.output_path, self.run_id, 'Reports'))
@@ -66,10 +68,20 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        self.command = [self.seqpro_path,
+        self.command = [self.seqpro_path, '--verbose',
                         join(self.output_path, self.run_id),
                         f'"{self.sample_sheet_path}"',
                         join(self.output_path, 'PrepFiles')]
+
+    def _get_prep_file_paths(self, stdout):
+        tmp = [x for x in stdout.split('\n') if x != '']
+        results = defaultdict(list)
+
+        for line in tmp:
+            qiita_id, prep_file_fp = line.strip().split('\t')
+            results[qiita_id].append(prep_file_fp)
+
+        return results
 
     def run(self, callback=None):
         # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
@@ -81,3 +93,6 @@ class GenPrepFileJob(Job):
 
         if results['return_code'] != 0:
             raise PipelineError("Seqpro encountered an error")
+
+        # if successful, store results.
+        self.prep_file_paths = self._get_prep_file_paths(results['stdout'])
