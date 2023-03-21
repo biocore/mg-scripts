@@ -249,23 +249,44 @@ class Pipeline:
         raise PipelineError('Sample-sheet has the following errors:\n'
                             '\n'.join([str(x) for x in msgs]))
 
-    def generate_sample_information_files(self):
+    def generate_sample_information_files(self, additional_sif_info=None):
         """
         Generate sample-information files in self.output_path.
+        :param additional_sif_info: A df of (sample-name, project-name) pairs.
         :return: A list of paths to sample-information-files.
         """
+
         if self.mapping_file is not None:
+            # Generate a list of BLANKs for each project.
             df = self.mapping_file[['sample_name', 'project_name']]
-            samples = list(df.to_records(index=False))
-            samples = [x for x in samples if x[0].startswith('BLANK')]
-            projects = list(set([y for x, y in samples]))
+            df = df[df["sample_name"].str.startswith("BLANK") is True]
+
+            # convert to set()s for possible union downstream
+            samples = set(list(df.to_records(index=False)))
+            projects = set([y for x, y in samples])
         else:
             samples = []
             for sample in self.sample_sheet.samples:
                 if sample['Sample_ID'].startswith('BLANK'):
                     samples.append((sample['Sample_ID'],
                                     sample['Sample_Project']))
-            projects = list(set([y for x, y in samples]))
+
+            # convert to set()s for possible union downstream
+            samples = set(samples)
+            projects = set([y for x, y in samples])
+
+        if additional_sif_info:
+            df = additional_sif_info
+            df = df[df["sample_name"].str.startswith("BLANK") is True]
+            more_samples = set(list(df.to_records(index=False)))
+            more_projects = set([y for x, y in samples])
+        else:
+            more_samples = {}
+            more_projects = {}
+
+        # take the union of both sets and convert to lists before processing.
+        samples = list(samples | more_samples)
+        projects = list(projects | more_projects)
 
         paths = []
         for project in projects:
@@ -297,21 +318,22 @@ class Pipeline:
                     row['sample_name'] = sample.replace('_', '.')
                     row['host_subject_id'] = sample.replace('_', '.')
                     row['description'] = sample.replace('_', '.')
-
-                    # generate collection_timestamp from self.run_id
-                    # assume all run_ids begin with coded datestamp:
-                    # 210518_...
-                    # allow exception if substrings cannot convert to int
-                    # or if array indexes are out of bounds.
-                    year = int(self.run_id[0:2]) + 2000
-                    month = int(self.run_id[2:4])
-                    day = int(self.run_id[4:6])
-                    row['collection_timestamp'] = f'{year}-{month}-{day}'
+                    row['collection_timestamp'] = self.get_date_from_run_id()
 
                     row = [row[x] for x in Pipeline.sif_header]
                     f.write('\t'.join(row) + '\n')
 
         return paths
+
+    def get_date_from_run_id(self):
+        # assume all run_ids begin with coded datestamp:
+        # 210518_...
+        # allow exception if substrings cannot convert to int
+        # or if array indexes are out of bounds.
+        year = int(self.run_id[0:2]) + 2000
+        month = int(self.run_id[2:4])
+        day = int(self.run_id[4:6])
+        return f'{year}-{month}-{day}'
 
     def get_sample_ids(self):
         # test for self.mapping_file, since self.sample_sheet will be
