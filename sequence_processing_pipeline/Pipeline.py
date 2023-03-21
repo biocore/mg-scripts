@@ -281,8 +281,8 @@ class Pipeline:
             more_samples = set(list(df.to_records(index=False)))
             more_projects = set([y for x, y in samples])
         else:
-            more_samples = {}
-            more_projects = {}
+            more_samples = set()
+            more_projects = set()
 
         # take the union of both sets and convert to lists before processing.
         samples = list(samples | more_samples)
