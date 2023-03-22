@@ -249,10 +249,10 @@ class Pipeline:
         raise PipelineError('Sample-sheet has the following errors:\n'
                             '\n'.join([str(x) for x in msgs]))
 
-    def generate_sample_information_files(self, additional_sif_info=None):
+    def generate_sample_info_files(self, addl_info=None):
         """
         Generate sample-information files in self.output_path.
-        :param additional_sif_info: A df of (sample-name, project-name) pairs.
+        :param addl_info: A df of (sample-name, project-name) pairs.
         :return: A list of paths to sample-information-files.
         """
         if self.mapping_file is not None:
@@ -264,8 +264,10 @@ class Pipeline:
                     x in self.sample_sheet.samples]
             df = pd.DataFrame(data, columns=['sample_name', 'project_name'])
 
-        if additional_sif_info:
-            df = pd.concat([df, additional_sif_info]).drop_duplicates()
+        if addl_info is not None:
+            df = pd.concat([df, addl_info],
+                           ignore_index=True).drop_duplicates()
+            df.reindex()
 
         df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
         samples = list(df.to_records(index=False))
