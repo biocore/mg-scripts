@@ -255,22 +255,21 @@ class Pipeline:
         :param additional_sif_info: A df of (sample-name, project-name) pairs.
         :return: A list of paths to sample-information-files.
         """
-
         if self.mapping_file is not None:
             # Generate a list of BLANKs for each project.
             df = self.mapping_file[['sample_name', 'project_name']]
-            if additional_sif_info:
-                df = pd.concat([df, additional_sif_info]).drop_duplicates()
-            df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
-            samples = list(df.to_records(index=False))
-            projects = set([y for x, y in samples])
         else:
-            samples = []
-            for sample in self.sample_sheet.samples:
-                if sample['Sample_ID'].startswith('BLANK'):
-                    samples.append((sample['Sample_ID'],
-                                    sample['Sample_Project']))
-            projects = set([y for x, y in samples])
+            # Aggregate all data into a DataFrame
+            data = [[x['Sample_ID'], x['Sample_Project']] for
+                    x in self.sample_sheet.samples]
+            df = pd.DataFrame(data, columns=['sample_name', 'project_name'])
+
+        if additional_sif_info:
+            df = pd.concat([df, additional_sif_info]).drop_duplicates()
+
+        df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
+        samples = list(df.to_records(index=False))
+        projects = set([y for x, y in samples])
 
         paths = []
         for project in projects:
