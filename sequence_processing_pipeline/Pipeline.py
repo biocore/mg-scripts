@@ -267,11 +267,10 @@ class Pipeline:
         if addl_info is not None:
             df = pd.concat([df, addl_info],
                            ignore_index=True).drop_duplicates()
-            df.reindex()
 
         df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
         samples = list(df.to_records(index=False))
-        projects = set([y for x, y in samples])
+        projects = df.project_name.unique()
 
         paths = []
         for project in projects:
