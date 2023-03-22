@@ -312,7 +312,9 @@ class TestPipeline(unittest.TestCase):
                 # confirm that the first line of each file is as expected.
                 obs = obs_lines[1].strip()
                 exp = exp_first_lines[some_name]
+
                 self.assertEqual(obs, exp)
+
                 # confirm that the last line of each file is as expected.
                 obs = obs_lines[-1].strip()
                 exp = exp_last_lines[some_name]
@@ -1055,6 +1057,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # confirm file exists in the expected location and with the expected
         # filename.
         obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
+
         exp = [(f'tests/data/output_dir/{self.good_run_id}'
                 '_ABTX_20230208_ABTX_11052_blanks.tsv')]
 

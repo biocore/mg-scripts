@@ -259,10 +259,10 @@ class Pipeline:
         if self.mapping_file is not None:
             # Generate a list of BLANKs for each project.
             df = self.mapping_file[['sample_name', 'project_name']]
+            if additional_sif_info:
+                df = pd.concat([df, additional_sif_info]).drop_duplicates()
             df = df[df["sample_name"].str.startswith("BLANK") is True]
-
-            # convert to set()s for possible union downstream
-            samples = set(list(df.to_records(index=False)))
+            samples = list(df.to_records(index=False))
             projects = set([y for x, y in samples])
         else:
             samples = []
@@ -270,23 +270,7 @@ class Pipeline:
                 if sample['Sample_ID'].startswith('BLANK'):
                     samples.append((sample['Sample_ID'],
                                     sample['Sample_Project']))
-
-            # convert to set()s for possible union downstream
-            samples = set(samples)
             projects = set([y for x, y in samples])
-
-        if additional_sif_info:
-            df = additional_sif_info
-            df = df[df["sample_name"].str.startswith("BLANK") is True]
-            more_samples = set(list(df.to_records(index=False)))
-            more_projects = set([y for x, y in samples])
-        else:
-            more_samples = set()
-            more_projects = set()
-
-        # take the union of both sets and convert to lists before processing.
-        samples = list(samples | more_samples)
-        projects = list(projects | more_projects)
 
         paths = []
         for project in projects:
