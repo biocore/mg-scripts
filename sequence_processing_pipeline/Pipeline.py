@@ -261,7 +261,7 @@ class Pipeline:
             df = self.mapping_file[['sample_name', 'project_name']]
             if additional_sif_info:
                 df = pd.concat([df, additional_sif_info]).drop_duplicates()
-            df = df[df["sample_name"].str.startswith("BLANK") is True]
+            df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
             samples = list(df.to_records(index=False))
             projects = set([y for x, y in samples])
         else:
