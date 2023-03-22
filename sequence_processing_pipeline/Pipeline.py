@@ -249,23 +249,28 @@ class Pipeline:
         raise PipelineError('Sample-sheet has the following errors:\n'
                             '\n'.join([str(x) for x in msgs]))
 
-    def generate_sample_information_files(self):
+    def generate_sample_info_files(self, addl_info=None):
         """
         Generate sample-information files in self.output_path.
+        :param addl_info: A df of (sample-name, project-name) pairs.
         :return: A list of paths to sample-information-files.
         """
         if self.mapping_file is not None:
+            # Generate a list of BLANKs for each project.
             df = self.mapping_file[['sample_name', 'project_name']]
-            samples = list(df.to_records(index=False))
-            samples = [x for x in samples if x[0].startswith('BLANK')]
-            projects = list(set([y for x, y in samples]))
         else:
-            samples = []
-            for sample in self.sample_sheet.samples:
-                if sample['Sample_ID'].startswith('BLANK'):
-                    samples.append((sample['Sample_ID'],
-                                    sample['Sample_Project']))
-            projects = list(set([y for x, y in samples]))
+            # Aggregate all data into a DataFrame
+            data = [[x['Sample_ID'], x['Sample_Project']] for
+                    x in self.sample_sheet.samples]
+            df = pd.DataFrame(data, columns=['sample_name', 'project_name'])
+
+        if addl_info is not None:
+            df = pd.concat([df, addl_info],
+                           ignore_index=True).drop_duplicates()
+
+        df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
+        samples = list(df.to_records(index=False))
+        projects = df.project_name.unique()
 
         paths = []
         for project in projects:
@@ -297,21 +302,22 @@ class Pipeline:
                     row['sample_name'] = sample.replace('_', '.')
                     row['host_subject_id'] = sample.replace('_', '.')
                     row['description'] = sample.replace('_', '.')
-
-                    # generate collection_timestamp from self.run_id
-                    # assume all run_ids begin with coded datestamp:
-                    # 210518_...
-                    # allow exception if substrings cannot convert to int
-                    # or if array indexes are out of bounds.
-                    year = int(self.run_id[0:2]) + 2000
-                    month = int(self.run_id[2:4])
-                    day = int(self.run_id[4:6])
-                    row['collection_timestamp'] = f'{year}-{month}-{day}'
+                    row['collection_timestamp'] = self.get_date_from_run_id()
 
                     row = [row[x] for x in Pipeline.sif_header]
                     f.write('\t'.join(row) + '\n')
 
         return paths
+
+    def get_date_from_run_id(self):
+        # assume all run_ids begin with coded datestamp:
+        # 210518_...
+        # allow exception if substrings cannot convert to int
+        # or if array indexes are out of bounds.
+        year = int(self.run_id[0:2]) + 2000
+        month = int(self.run_id[2:4])
+        day = int(self.run_id[4:6])
+        return f'{year}-{month}-{day}'
 
     def get_sample_ids(self):
         # test for self.mapping_file, since self.sample_sheet will be

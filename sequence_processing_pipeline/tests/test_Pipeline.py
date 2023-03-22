@@ -8,6 +8,7 @@ from os.path import abspath, basename, join
 from functools import partial
 import re
 from shutil import copy
+import pandas as pd
 
 
 class TestPipeline(unittest.TestCase):
@@ -214,7 +215,7 @@ class TestPipeline(unittest.TestCase):
                             self.output_file_path, self.qiita_id,
                             None)
 
-        paths = pipeline.generate_sample_information_files()
+        paths = pipeline.generate_sample_info_files()
 
         # confirm files exist in the expected location and with the expected
         # filenames.
@@ -312,11 +313,79 @@ class TestPipeline(unittest.TestCase):
                 # confirm that the first line of each file is as expected.
                 obs = obs_lines[1].strip()
                 exp = exp_first_lines[some_name]
+
                 self.assertEqual(obs, exp)
+
                 # confirm that the last line of each file is as expected.
                 obs = obs_lines[-1].strip()
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
+
+    def test_generate_sample_information_files_with_additional_meta(self):
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path,
+                            None,
+                            self.output_file_path, self.qiita_id,
+                            None)
+
+        # create a dataframe with duplicate information to pass to
+        # generate_sample_information_files(). Confirm that the duplicates
+        # are dropped. Confirm 'NOTBLANK_999A' is also filtered out.
+        df = pd.DataFrame(data=[('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
+                                ('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
+                                ('NOTBLANK_999A', 'NYU_BMS_Melanoma_13059')],
+                          columns=['sample_name', 'project_name'])
+
+        sif_path = pipeline.generate_sample_info_files(addl_info=df)
+
+        # get the path for the NYU_BMS_Melanoma dataset.
+        sif_path = [x for x in sif_path if 'NYU_BMS_Melanoma' in x][0]
+
+        # we expect one more BLANK than before.
+        exp_lines = 34
+
+        exp_first_line = ('BLANK1.1A\t2021-10-21\t193\t'
+                          'Control\tNegative\tSterile w'
+                          'ater blank\turban biome\tres'
+                          'earch facility\tsterile wate'
+                          'r\tmisc environment\tUSA:CA:'
+                          'San Diego\tBLANK1.1A\t32.5\t'
+                          '-117.25\tcontrol blank\tmeta'
+                          'genome\t256318\tBLANK1.1A\tN'
+                          'YU_BMS_Melanoma\tTRUE\t'
+                          'UCSD\tFALSE')
+
+        # the new last sample should be BLANK999.999A.
+        exp_last_line = ('BLANK999.999A\t2021-10-21\t193\t'
+                         'Control\tNegative\tSterile w'
+                         'ater blank\turban biome\tres'
+                         'earch facility\tsterile wate'
+                         'r\tmisc environment\tUSA:CA:'
+                         'San Diego\tBLANK999.999A\t32.5\t'
+                         '-117.25\tcontrol blank\tmeta'
+                         'genome\t256318\tBLANK999.999A\tN'
+                         'YU_BMS_Melanoma\tTRUE\t'
+                         'UCSD\tFALSE')
+
+        with open(sif_path, 'r') as f:
+            obs_lines = f.readlines()
+            self.assertEqual(len(obs_lines), exp_lines)
+
+            # confirm that each file contains the expected header.
+            header = obs_lines[0].strip()
+            self.assertEqual(header, '\t'.join(Pipeline.sif_header))
+
+            # confirm that the first line of each file is as expected.
+            obs = obs_lines[1].strip()
+            exp = exp_first_line
+
+            self.assertEqual(obs, exp)
+
+            # confirm that the last line of each file is as expected.
+            obs = obs_lines[-1].strip()
+            exp = exp_last_line
+            self.assertEqual(obs, exp)
 
     def test_get_sample_ids(self):
 
@@ -1050,11 +1119,12 @@ class TestAmpliconPipeline(unittest.TestCase):
                             self.good_mapping_file_path,
                             self.output_file_path, self.qiita_id,
                             None)
-        paths = pipeline.generate_sample_information_files()
+        paths = pipeline.generate_sample_info_files()
 
         # confirm file exists in the expected location and with the expected
         # filename.
         obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
+
         exp = [(f'tests/data/output_dir/{self.good_run_id}'
                 '_ABTX_20230208_ABTX_11052_blanks.tsv')]
 

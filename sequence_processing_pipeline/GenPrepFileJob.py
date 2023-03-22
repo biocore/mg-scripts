@@ -9,7 +9,7 @@ from collections import defaultdict
 
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
-                 sample_sheet_path, seqpro_path, project_list, modules_to_load,
+                 sample_sheet_path, seqpro_path, projects, modules_to_load,
                  qiita_job_id, is_amplicon=False):
 
         super().__init__(run_dir,
@@ -33,7 +33,7 @@ class GenPrepFileJob(Job):
         copytree(join(convert_job_path, 'Reports'),
                  join(self.output_path, self.run_id, 'Reports'))
 
-        for project in project_list:
+        for project in projects:
             src_path = partial(join, qc_job_path, project)
             filtered_seq_dir = src_path('filtered_sequences')
             trimmed_seq_dir = src_path('trimmed_sequences')
