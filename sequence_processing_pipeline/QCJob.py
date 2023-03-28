@@ -203,7 +203,7 @@ class QCJob(Job):
         header = valid_sheet.Header
         chemistry = header['chemistry']
         needs_adapter_trimming = (True if
-                                  header['Assay'] == 'Metagenomics'
+                                  header['Assay'] == 'Metagenomic'
                                   else False)
 
         sample_ids = []
