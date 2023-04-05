@@ -29,6 +29,7 @@ class TestPipeline(unittest.TestCase):
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
+        self.bad_assay_type_path = self.path('bad-sample-sheet-metagenomics.csv')
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
@@ -110,8 +111,6 @@ class TestPipeline(unittest.TestCase):
         self.create_rtacomplete_file()
         self.make_runinfo_file_unreadable()
 
-        '''
-        Test appears to fail under ACT but appears correct
         with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, bu"
                                                    "t not readable"):
             Pipeline(self.good_config_file, self.good_run_id,
@@ -119,7 +118,6 @@ class TestPipeline(unittest.TestCase):
                      self.output_file_path,
                      self.qiita_id, None)
         self.make_runinfo_file_readable()
-        '''
 
     def test_creation(self):
         # Pipeline should assert due to config_file
@@ -137,6 +135,17 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(msg, "'search_paths' is not a key in "
                               "sequence_processing_pipeline/tests"
                               "/data/bad_configuration.json")
+
+        # Pipeline should assert due to Assert having a bad value.
+        with self.assertRaises(PipelineError) as e:
+            Pipeline(self.good_config_file,
+                     self.good_run_id,
+                     self.bad_assay_type_path, None,
+                     self.output_file_path,
+                     self.qiita_id, None)
+
+        self.assertTrue("Valid Assay values are ['TruSeq HT', 'Metagenomic']"
+                        in str(e.exception))
 
         # Pipeline should assert due to an invalid config file path.
         with self.assertRaises(PipelineError) as e:

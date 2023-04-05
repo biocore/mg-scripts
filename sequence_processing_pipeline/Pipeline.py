@@ -202,8 +202,6 @@ class Pipeline:
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
 
-        passes_additional_tests = True
-
         if val_sheet is not None:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
@@ -217,6 +215,11 @@ class Pipeline:
                                          "n' not found in Bioinformatics secti"
                                          "on"))
 
+            valid_assay_values = ['TruSeq HT', 'Metagenomic']
+            if val_sheet.Header['Assay'] not in valid_assay_values:
+                msgs.append(ErrorMessage("Valid Assay values are "
+                                         f"{valid_assay_values}"))
+
             # look for duplicate samples. metapool will allow two rows w/the
             # same lane and sample_id if one or more other columns are
             # different. However seqpro expects the tuple (lane, sample_id) to
@@ -225,29 +228,25 @@ class Pipeline:
             for item in val_sheet.samples:
                 unique_index = f'{item.lane}_{item.sample_id}'
                 if unique_index in unique_indexes:
-                    passes_additional_tests = False
                     msgs.append(ErrorMessage("A sample already exists with la"
                                              f"ne {item.lane} and sample-id "
                                              f"{item.sample_id}"))
                 else:
                     unique_indexes.append(unique_index)
 
-            if passes_additional_tests:
-                # return a valid sample-sheet, and preserve any warning
-                # messages
-                self.warnings += [str(x) for x in msgs if
-                                  isinstance(x, WarningMessage)]
-                return val_sheet
+            errors = [x for x in msgs if isinstance(x, ErrorMessage)]
 
-        # if we are here, then val_sheet is None and there are msgs or the
-        # sample-sheet failed to pass our additional tests. In either case we
-        # should raise a PipelineError and return the list of ErrorMessages in
-        # the PipelineError's message member.
-        #
-        # convert msgs from a list of ErrorMessages into a list of strings
-        # before raising the PipelineError. (WarningMessages are included).
-        raise PipelineError('Sample-sheet has the following errors:\n'
-                            '\n'.join([str(x) for x in msgs]))
+            if errors:
+                # return all messages, including ErrorMessages and
+                # WarningMessages.
+                raise PipelineError('Sample-sheet has the following errors:\n'
+                                    '\n'.join([str(x) for x in msgs]))
+
+            # return a valid sample-sheet, and preserve any warning
+            # messages
+            self.warnings += [str(x) for x in msgs if
+                              isinstance(x, WarningMessage)]
+            return val_sheet
 
     def generate_sample_info_files(self, addl_info=None):
         """
