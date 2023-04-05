@@ -3,6 +3,7 @@ from os import walk, stat, listdir, makedirs
 from os.path import exists, join, split, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
+from sequence_processing_pipeline.Pipeline import Pipeline
 from shutil import move
 import logging
 import re
@@ -203,7 +204,7 @@ class QCJob(Job):
         header = valid_sheet.Header
         chemistry = header['chemistry']
 
-        if header['Assay'] not in ['TruSeq HT', 'Metagenomic']:
+        if header['Assay'] not in Pipeline.assay_types:
             s = "Assay value '%s' is not recognized." % header['Assay']
             raise PipelineError(s)
 

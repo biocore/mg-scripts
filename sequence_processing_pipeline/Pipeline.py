@@ -16,6 +16,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class Pipeline:
+    assay_types = ['TruSeq HT', 'Metagenomic']
     sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
                   'empo_2', 'empo_3', 'env_biome', 'env_feature',
                   'env_material', 'env_package', 'geo_loc_name',
@@ -215,10 +216,9 @@ class Pipeline:
                                          "n' not found in Bioinformatics secti"
                                          "on"))
 
-            valid_assay_values = ['TruSeq HT', 'Metagenomic']
-            if val_sheet.Header['Assay'] not in valid_assay_values:
+            if val_sheet.Header['Assay'] not in Pipeline.assay_types:
                 msgs.append(ErrorMessage("Valid Assay values are "
-                                         f"{valid_assay_values}"))
+                                         f"{Pipeline.assay_types}"))
 
             # look for duplicate samples. metapool will allow two rows w/the
             # same lane and sample_id if one or more other columns are
