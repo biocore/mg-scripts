@@ -15,7 +15,9 @@ class TestQCJob(unittest.TestCase):
         # adjustable test_root helps w/testing in different environments.
         package_root = abspath('sequence_processing_pipeline')
         self.path = partial(join, package_root, 'tests', 'data')
-        self.sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.bad_sample_sheet_path = self.path('bad-sample-sheet-'
+                                               'metagenomics.csv')
         self.mmi_db_paths = [self.path('mmi.db')]
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
@@ -33,7 +35,7 @@ class TestQCJob(unittest.TestCase):
             # need to be removed.
             pass
 
-        sheet = KLSampleSheet(self.sample_sheet_path)
+        sheet = KLSampleSheet(self.good_sample_sheet_path)
         valid_sheet = validate_and_scrub_sample_sheet(sheet)
 
         sample_ids = []
@@ -551,9 +553,20 @@ class TestQCJob(unittest.TestCase):
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
 
+    def test_assay_value(self):
+        with self.assertRaises(PipelineError) as e:
+            QCJob(self.fastq_root_path, self.output_path,
+                  self.bad_sample_sheet_path, self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                  1000)
+
+        self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
+                         " recognized.")
+
     def test_split_file_creation(self):
         qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.sample_sheet_path, self.mmi_db_paths,
+                       self.good_sample_sheet_path, self.mmi_db_paths,
                        self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                        'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                        30, 1000)
@@ -627,7 +640,7 @@ class TestQCJob(unittest.TestCase):
         # commands as a single command.
 
         qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.sample_sheet_path, self.mmi_db_paths,
+                       self.good_sample_sheet_path, self.mmi_db_paths,
                        self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                        'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                        30, 250)
@@ -696,7 +709,7 @@ class TestQCJob(unittest.TestCase):
 
     def test_audit(self):
         job = QCJob(self.fastq_root_path, self.output_path,
-                    self.sample_sheet_path, self.mmi_db_paths,
+                    self.good_sample_sheet_path, self.mmi_db_paths,
                     self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
@@ -1126,7 +1139,7 @@ class TestQCJob(unittest.TestCase):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
         job = QCJob(self.fastq_root_path, self.output_path,
-                    self.sample_sheet_path, double_db_paths,
+                    self.good_sample_sheet_path, double_db_paths,
                     self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
@@ -1184,7 +1197,7 @@ class TestQCJob(unittest.TestCase):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
         job = QCJob(self.fastq_root_path, self.output_path,
-                    self.sample_sheet_path, double_db_paths,
+                    self.good_sample_sheet_path, double_db_paths,
                     self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
@@ -1206,7 +1219,7 @@ class TestQCJob(unittest.TestCase):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
         job = QCJob(self.fastq_root_path, self.output_path,
-                    self.sample_sheet_path, double_db_paths,
+                    self.good_sample_sheet_path, double_db_paths,
                     self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)

@@ -202,6 +202,11 @@ class QCJob(Job):
 
         header = valid_sheet.Header
         chemistry = header['chemistry']
+
+        if header['Assay'] not in ['TruSeq HT', 'Metagenomic']:
+            s = "Assay value '%s' is not recognized." % header['Assay']
+            raise PipelineError(s)
+
         needs_adapter_trimming = (True if
                                   header['Assay'] == 'Metagenomic'
                                   else False)
