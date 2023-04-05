@@ -29,7 +29,8 @@ class TestPipeline(unittest.TestCase):
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
-        self.bad_assay_type_path = self.path('bad-sample-sheet-metagenomics.csv')
+        self.bad_assay_type_path = self.path('bad-sample-sheet-metagenomics'
+                                             '.csv')
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
