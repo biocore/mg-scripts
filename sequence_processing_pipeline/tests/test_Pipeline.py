@@ -25,7 +25,6 @@ class TestPipeline(unittest.TestCase):
         self.invalid_run_id = 'not-sample-sequence-directory'
         self.output_file_path = self.path('output_dir')
         makedirs(self.output_file_path, exist_ok=True)
-        self.maxDiff = None
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
@@ -213,9 +212,11 @@ class TestPipeline(unittest.TestCase):
                      self.bad_sample_sheet_path, None,
                      self.output_file_path,
                      self.qiita_id, None)
-        self.assertEqual(str(e.exception), ('ErrorMessage: A sample already e'
-                                            'xists with lane 1 and sample-id '
-                                            'EP479894B04'))
+
+        self.assertEqual(str(e.exception), ('Sample-sheet has the following '
+                                            'errors:\n\nErrorMessage: A sample'
+                                            ' already exists with lane 1 and '
+                                            'sample-id EP479894B04'))
 
     def test_generate_sample_information_files(self):
         # test sample-information-file generation.

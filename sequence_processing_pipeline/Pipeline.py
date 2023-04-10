@@ -240,13 +240,17 @@ class Pipeline:
                 # return all messages, including ErrorMessages and
                 # WarningMessages.
                 raise PipelineError('Sample-sheet has the following errors:\n'
-                                    '\n'.join([str(x) for x in msgs]))
+                                    '\n' + '\n'.join([str(x) for x in msgs]))
 
             # return a valid sample-sheet, and preserve any warning
             # messages
             self.warnings += [str(x) for x in msgs if
                               isinstance(x, WarningMessage)]
             return val_sheet
+        else:
+            # if val_sheet is not None, assume msgs contains Errors.
+            raise PipelineError('Sample-sheet has the following errors:\n\n' +
+                                '\n'.join([str(x) for x in msgs]))
 
     def generate_sample_info_files(self, addl_info=None):
         """
