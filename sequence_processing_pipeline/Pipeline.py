@@ -248,7 +248,7 @@ class Pipeline:
                               isinstance(x, WarningMessage)]
             return val_sheet
         else:
-            # if val_sheet is not None, assume msgs contains Errors.
+            # if val_sheet is None, assume msgs contains Errors.
             raise PipelineError('Sample-sheet has the following errors:\n\n' +
                                 '\n'.join([str(x) for x in msgs]))
 
