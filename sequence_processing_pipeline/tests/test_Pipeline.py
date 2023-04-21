@@ -101,6 +101,7 @@ class TestPipeline(unittest.TestCase):
         df = pd.DataFrame(rows, columns=cols)
         buf = io.StringIO()
         df.to_csv(buf, sep='\t', index=False, header=True)
+        buf.seek(0)
         return buf
 
     def test_validate_mapping_file_numeric_ids(self):
