@@ -1,4 +1,5 @@
 import json
+import io
 import os
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -82,6 +83,33 @@ class TestPipeline(unittest.TestCase):
         except FileNotFoundError:
             # make method idempotent
             pass
+
+    def _make_mapping_file(self):
+        cols = ('sample_name', 'barcode', 'library_construction_protocol',
+                'mastermix_lot', 'sample_plate', 'center_project_name',
+                'instrument_model', 'tm1000_8_tool', 'well_id', 'tm50_8_tool',
+                'well_description', 'run_prefix', 'run_date', 'center_name',
+                'tm300_8_tool', 'extraction_robot',
+                'experiment_design_description', 'platform', 'water_lot',
+                'project_name', 'pcr_primers', 'sequencing_meth', 'plating',
+                'orig_name', 'linker', 'runid', 'target_subfragment', 'primer',
+                'primer_plate', 'run_center', 'primer_date', 'target_gene',
+                'processing_robot', 'extractionkit_lot')
+        rows = [['1.0', ], ['1e-3', ]]
+        rows[0].extend(['foo'] * (len(cols) - 1))
+        rows[1].extend(['foo'] * (len(cols) - 1))
+        df = pd.DataFrame(rows, columns=cols)
+        buf = io.StringIO()
+        df.to_csv(buf, sep='\t', index=False, header=True)
+        buf.seek(0)
+        return buf
+
+    def test_validate_mapping_file_numeric_ids(self):
+        buf = self._make_mapping_file()
+        exp = ['1.0', '1e-3']
+        obs_df = Pipeline._validate_mapping_file(buf)
+
+        self.assertEqual(list(obs_df['sample_name']), exp)
 
     def test_required_file_checks(self):
         # begin this test by deleting the RunInfo.txt file and verifying that
