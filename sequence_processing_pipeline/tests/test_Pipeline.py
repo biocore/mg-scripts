@@ -84,7 +84,7 @@ class TestPipeline(unittest.TestCase):
             # make method idempotent
             pass
 
-    def _make_mapping_file():
+    def _make_mapping_file(self):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
                 'mastermix_lot', 'sample_plate', 'center_project_name',
                 'instrument_model', 'tm1000_8_tool', 'well_id', 'tm50_8_tool',
