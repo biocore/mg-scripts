@@ -96,8 +96,8 @@ class TestPipeline(unittest.TestCase):
                 'primer_plate', 'run_center', 'primer_date', 'target_gene',
                 'processing_robot', 'extractionkit_lot')
         rows = [['1.0', ], ['1e-3', ]]
-        rows[0].extend(['foo'] * len(cols))
-        rows[1].extend(['foo'] * len(cols))
+        rows[0].extend(['foo'] * (len(cols) - 1)
+        rows[1].extend(['foo'] * (len(cols) - 1)
         df = pd.DataFrame(rows, columns=cols)
         buf = io.StringIO()
         df.to_csv(buf, sep='\t', index=False, header=True)
