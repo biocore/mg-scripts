@@ -406,7 +406,7 @@ class Pipeline:
                'extractionkit_lot'}
 
         try:
-            df = pd.read_csv(mapping_file_path, delimiter='\t')
+            df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
 
             columns = [x.lower() for x in list(df.columns)]
             if len(set(columns)) < len(columns):
