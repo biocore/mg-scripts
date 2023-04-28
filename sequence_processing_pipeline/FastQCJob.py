@@ -206,6 +206,11 @@ class FastQCJob(Job):
                                    exec_from=self.log_path, callback=callback)
         logging.debug(job_info)
 
+        # If project-level reports were not needed, MultiQC could simply be
+        # given the path to the run-directory itself and it will discover all
+        # of the relevant data files. Confirmed that for a one-project sample-
+        # sheet, this produces and equivalent report.
+
         for project in self.project_names:
             # MultiQC doesn't like input paths that don't exist. Simply add
             # all paths that do exist as input.
@@ -232,8 +237,9 @@ class FastQCJob(Job):
             cmd_head = ['multiqc', '-c', self.multiqc_config_file_path,
                         '--fullnames', '--force']
 
-            cmd_tail = ['-o', join(self.output_path, 'multiqc', project),
-                        '--interactive']
+            # --interactive graphs is set to True in MultiQC configuration
+            # file and hence this switch was redunant and now removed.
+            cmd_tail = ['-o', join(self.output_path, 'multiqc', project)]
 
             cmd = ' '.join(cmd_head + input_path_list + cmd_tail)
 
