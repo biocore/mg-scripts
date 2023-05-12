@@ -344,7 +344,7 @@ class Pipeline:
                                   self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
-                matches = re.search(r'(.+)_(\d+)$', str(project))
+                matches = search(r'(.+)_(\d+)$', str(project))
                 qiita_id = matches[2]
 
                 if short_names:
@@ -360,7 +360,7 @@ class Pipeline:
                 project = result['Sample_Project']
 
                 if short_names:
-                    matches = re.search(r'(.+)_(\d+)$', str(project))
+                    matches = search(r'(.+)_(\d+)$', str(project))
                     project = matches[1]
 
                 results.append(
