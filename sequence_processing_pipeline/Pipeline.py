@@ -32,7 +32,7 @@ class Pipeline:
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 mapping_file_path, output_path, qiita_job_id,
+                 mapping_file_path, output_path, qiita_job_id, type,
                  config_dict=None):
         """
         Initialize Pipeline object w/configuration information.
@@ -43,6 +43,7 @@ class Pipeline:
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
+        :param type: Pipeline type ('amplicon', 'metagenomic', etc.)
         """
         if sample_sheet_path is not None and mapping_file_path is not None:
             raise PipelineError("sample_sheet_path or mapping_file_path "
@@ -51,6 +52,11 @@ class Pipeline:
         if sample_sheet_path is None and mapping_file_path is None:
             raise PipelineError("sample_sheet_path or mapping_file_path "
                                 "must be defined, but not both.")
+
+        if type not in ['amplicon', 'metagenomic', 'metatranscriptomic']:
+            raise PipelineError(f"'{type}' is not a valid pipeline type.")
+
+        self.type = type
 
         if config_dict:
             if 'configuration' in config_dict:
@@ -328,7 +334,7 @@ class Pipeline:
 
         return results
 
-    def get_project_info(self):
+    def get_project_info(self, short_names=False):
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         results = []
@@ -338,15 +344,28 @@ class Pipeline:
                                   self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
-                qiita_id = project.split('_')[-1]
+                matches = re.search(r'(.+)_(\d+)$', str(project))
+                qiita_id = matches[2]
+
+                if short_names:
+                    project = matches[1]
+
                 results.append(
                     # assume project names end in qiita ids
                     {'project_name': project, 'qiita_id': qiita_id})
         else:
             bioinformatics = self.sample_sheet.Bioinformatics
             for result in bioinformatics.to_dict('records'):
-                results.append({'project_name': result['Sample_Project'],
-                                'qiita_id': result['QiitaID']})
+                qiita_id = result['QiitaID']
+                project = result['Sample_Project']
+
+                if short_names:
+                    matches = re.search(r'(.+)_(\d+)$', str(project))
+                    project = matches[1]
+
+                results.append(
+                    # assume project names end in qiita ids
+                    {'project_name': project, 'qiita_id': qiita_id})
 
         return results
 
