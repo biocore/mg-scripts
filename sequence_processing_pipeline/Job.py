@@ -150,6 +150,10 @@ class Job:
         :return: a dictionary containing stdout, stderr, and return_code as
                  key/value pairs.
         """
+        # when system-wide binaries such as 'sbatch' and 'sacct' are not
+        # present, assume executable w/no path is present in current
+        # directory.
+        cmd = 'export PATH="$PATH:.";' + cmd
         proc = Popen(cmd, universal_newlines=True, shell=True,
                      stdout=PIPE, stderr=PIPE)
 
