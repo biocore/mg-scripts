@@ -252,7 +252,8 @@ class QCJob(Job):
                         join(self.root_dir, 'Data', 'Fastq',
                              re.sub(r'_\d+', r'', project_name))]
 
-        logging.debug("SEARCH PATHS: %s" % search_paths)
+        for search_path in search_paths:
+            logging.debug("SEARCH PATH: %s" % search_path)
 
         lst = []
         for search_path in search_paths:
