@@ -913,6 +913,7 @@ class TestPipeline(unittest.TestCase):
                             Pipeline.METAGENOMIC_PTYPE, None)
 
         obs_proj_info = pipeline.get_project_info()
+
         obs_project_names = []
         for d in obs_proj_info:
             obs_project_names.append(d['project_name'])
@@ -924,6 +925,18 @@ class TestPipeline(unittest.TestCase):
                 if obs_d['project_name'] == exp_d['project_name']:
                     self.assertDictEqual(obs_d, exp_d)
                     break
+
+        # repeat test, but set short_names to True and confirm that the Qiita
+        # IDs are not part of the project_names.
+        exp_project_names = ['NYU_BMS_Melanoma', 'Feist', 'Gerwick']
+
+        obs_proj_info = pipeline.get_project_info(short_names=True)
+
+        obs_project_names = []
+        for d in obs_proj_info:
+            obs_project_names.append(d['project_name'])
+
+        self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
 
 class TestAmpliconPipeline(unittest.TestCase):

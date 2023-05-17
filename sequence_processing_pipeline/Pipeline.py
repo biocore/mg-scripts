@@ -61,7 +61,7 @@ class Pipeline:
             raise PipelineError("sample_sheet_path or mapping_file_path "
                                 "must be defined, but not both.")
 
-        if type not in Pipeline.pipeline_types:
+        if pipeline_type not in Pipeline.pipeline_types:
             raise PipelineError(f"'{type}' is not a valid pipeline type.")
 
         self.pipeline_type = pipeline_type
@@ -361,11 +361,11 @@ class Pipeline:
             raise ValueError(f"'{project_name}' does not contain a Qiita-ID.")
 
         if short_names is True:
-            # return the fully-qualified project name w/Qiita ID.
-            return project_name, matches[0]
-        else:
             # return the project's name and qiita_id
-            return matches[1], matches[0]
+            return matches[1], matches[2]
+        else:
+            # return the fully-qualified project name w/Qiita ID.
+            return project_name, matches[2]
 
     def get_project_info(self, short_names=False):
         # test for self.mapping_file, since self.sample_sheet will be
