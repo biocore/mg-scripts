@@ -36,8 +36,8 @@ class Pipeline:
     METATRANSCRIPTOMIC_PTYPE = 'metatranscriptomic'
     AMPLICON_PTYPE = 'amplicon'
 
-    pipeline_types = [METAGENOMIC_PTYPE, AMPLICON_PTYPE,
-                      METATRANSCRIPTOMIC_PTYPE]
+    pipeline_types = {METAGENOMIC_PTYPE, AMPLICON_PTYPE,
+                      METATRANSCRIPTOMIC_PTYPE}
 
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
                  mapping_file_path, output_path, qiita_job_id, pipeline_type,
