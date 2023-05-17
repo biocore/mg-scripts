@@ -360,12 +360,12 @@ class Pipeline:
         if matches is None:
             raise ValueError(f"'{project_name}' does not contain a Qiita-ID.")
 
-        if short_names is True:
-            # return the project's name and qiita_id
-            return matches[1], matches[2]
-        else:
+        if short_names is False:
             # return the fully-qualified project name w/Qiita ID.
             return project_name, matches[2]
+        else:
+            # return the project's name and qiita_id
+            return matches[1], matches[2]
 
     def get_project_info(self, short_names=False):
         # test for self.mapping_file, since self.sample_sheet will be

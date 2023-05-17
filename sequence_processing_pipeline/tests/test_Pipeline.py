@@ -938,6 +938,39 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
+    def test_parse_project_name(self):
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE, None)
+
+        tests = {
+            'True': [('NYU_BMS_Melanoma_13059', ('NYU_BMS_Melanoma', '13059')),
+                     ('Feist_11661', ('Feist', '11661')),
+                     ('Gerwick_6123', ('Gerwick', '6123')),
+                     ('bar.baz_123', ('bar.baz', '123')),
+                     ('Foobar', None),
+                     ('', None),
+                     (None, None)],
+            'False': [('NYU_BMS_Mel_13059', ('NYU_BMS_Mel_13059', '13059')),
+                      ('Feist_11661', ('Feist_11661', '11661')),
+                      ('Gerwick_6123', ('Gerwick_6123', '6123')),
+                      ('bar.baz_123', ('bar.baz_123', '123')),
+                      ('Foobar', None),
+                      ('', None),
+                      (None, None)]
+            }
+
+        for t_set in tests:
+            for test, exp in tests[t_set]:
+                if exp is None:
+                    with self.assertRaises(ValueError):
+                        pipeline._parse_project_name(test, t_set == 'True')
+                else:
+                    obs = pipeline._parse_project_name(test, t_set == 'True')
+                    self.assertEqual(obs, exp)
+
 
 class TestAmpliconPipeline(unittest.TestCase):
     def setUp(self):

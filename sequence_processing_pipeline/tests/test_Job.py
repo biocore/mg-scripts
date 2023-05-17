@@ -58,8 +58,8 @@ class TestJob(unittest.TestCase):
             job._system_call('error')
 
         self.assertRegex(str(e.exception), (r'^Execute command-line statement'
-                                            r' failure:\nCommand: export PATH'
-                                            r'="\$PATH:.";error\nreturn code:'
+                                            r' failure:\nCommand: '
+                                            r'error\nreturn code:'
                                             r' 127'))
 
         self.remove_these.append(output_dir)
