@@ -17,6 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 class Pipeline:
     assay_types = ['TruSeq HT', 'Metagenomic']
+
     sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
                   'empo_2', 'empo_3', 'env_biome', 'env_feature',
                   'env_material', 'env_package', 'geo_loc_name',
@@ -31,8 +32,15 @@ class Pipeline:
                     None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
+    METAGENOMIC_PTYPE = 'metagenomic'
+    METATRANSCRIPTOMIC_PTYPE = 'metatranscriptomic'
+    AMPLICON_PTYPE = 'amplicon'
+
+    pipeline_types = [METAGENOMIC_PTYPE, AMPLICON_PTYPE,
+                      METATRANSCRIPTOMIC_PTYPE]
+
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 mapping_file_path, output_path, qiita_job_id, type,
+                 mapping_file_path, output_path, qiita_job_id, pipeline_type,
                  config_dict=None):
         """
         Initialize Pipeline object w/configuration information.
@@ -43,7 +51,7 @@ class Pipeline:
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
-        :param type: Pipeline type ('amplicon', 'metagenomic', etc.)
+        :param pipeline_type: Pipeline type ('amplicon', 'metagenomic', etc.)
         """
         if sample_sheet_path is not None and mapping_file_path is not None:
             raise PipelineError("sample_sheet_path or mapping_file_path "
@@ -53,10 +61,10 @@ class Pipeline:
             raise PipelineError("sample_sheet_path or mapping_file_path "
                                 "must be defined, but not both.")
 
-        if type not in ['amplicon', 'metagenomic', 'metatranscriptomic']:
+        if type not in Pipeline.pipeline_types:
             raise PipelineError(f"'{type}' is not a valid pipeline type.")
 
-        self.type = type
+        self.pipeline_type = pipeline_type
 
         if config_dict:
             if 'configuration' in config_dict:
@@ -334,6 +342,31 @@ class Pipeline:
 
         return results
 
+    def _parse_project_name(self, project_name, short_names):
+        '''
+        Split fully-qualified project_name into a project_name and a qiita-id
+        if possible. Else return project_name and None.
+        :param project_name: A fully-qualified project name e.g: Feist_1161.
+        :param short_names: True returns orig. value. False returns name only.
+        :return: Tuple (project-name, qiita-id)
+        '''
+        # This functionality could be folded into metapool package's
+        # remove_qiita_id() in the future.
+        if project_name is None or project_name == '':
+            raise ValueError("project_name cannot be None or empty string")
+
+        matches = search(r'^(.+)_(\d+)$', str(project_name))
+
+        if matches is None:
+            raise ValueError(f"'{project_name}' does not contain a Qiita-ID.")
+
+        if short_names is True:
+            # return the fully-qualified project name w/Qiita ID.
+            return project_name, matches[0]
+        else:
+            # return the project's name and qiita_id
+            return matches[1], matches[0]
+
     def get_project_info(self, short_names=False):
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
@@ -344,28 +377,16 @@ class Pipeline:
                                   self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
-                matches = search(r'(.+)_(\d+)$', str(project))
-                qiita_id = matches[2]
-
-                if short_names:
-                    project = matches[1]
-
+                p_name, q_id = self._parse_project_name(project, short_names)
                 results.append(
-                    # assume project names end in qiita ids
-                    {'project_name': project, 'qiita_id': qiita_id})
+                    {'project_name': p_name, 'qiita_id': q_id})
         else:
             bioinformatics = self.sample_sheet.Bioinformatics
-            for result in bioinformatics.to_dict('records'):
-                qiita_id = result['QiitaID']
-                project = result['Sample_Project']
-
-                if short_names:
-                    matches = search(r'(.+)_(\d+)$', str(project))
-                    project = matches[1]
-
-                results.append(
-                    # assume project names end in qiita ids
-                    {'project_name': project, 'qiita_id': qiita_id})
+            for res in bioinformatics.to_dict('records'):
+                p_name, q_id = self._parse_project_name(res['Sample_Project'],
+                                                        short_names)
+                results.append({'project_name': p_name,
+                                'qiita_id': q_id})
 
         return results
 
