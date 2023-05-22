@@ -172,7 +172,8 @@ class TestPipeline(unittest.TestCase):
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE, None)
 
-        self.assertTrue("Valid Assay values are ['TruSeq HT', 'Metagenomic']"
+        self.assertTrue("Valid Assay values are ['TruSeq HT', 'Metagenomic', "
+                        "'Metatranscriptomic']"
                         in str(e.exception))
 
         # Pipeline should assert due to an invalid config file path.
