@@ -16,7 +16,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class Pipeline:
-    assay_types = ['TruSeq HT', 'Metagenomic']
+    assay_types = ['TruSeq HT', 'Metagenomic', 'Metatranscriptomic']
 
     sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
                   'empo_2', 'empo_3', 'env_biome', 'env_feature',
