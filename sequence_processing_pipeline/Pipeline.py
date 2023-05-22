@@ -217,7 +217,16 @@ class Pipeline:
         sheet = KLSampleSheet(sample_sheet_path)
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
 
-        if val_sheet is not None:
+        if val_sheet is None:
+            errors = [x for x in msgs if isinstance(x, ErrorMessage)]
+
+            if errors:
+                msgs = [str(x).replace('ErrorMessage: ', '') for x in msgs]
+                msgs = 'Sample-sheet contains errors:\n' + '\n'.join(msgs)
+                raise PipelineError(msgs)
+            else:
+                raise PipelineError('Cannot parse sample-sheet.')
+        else:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
             bioinformatics = val_sheet.Bioinformatics
@@ -251,10 +260,9 @@ class Pipeline:
             errors = [x for x in msgs if isinstance(x, ErrorMessage)]
 
             if errors:
-                # return all messages, including ErrorMessages and
-                # WarningMessages.
-                raise PipelineError('Sample-sheet has the following errors:\n'
-                                    '\n'.join([str(x) for x in msgs]))
+                msgs = [str(x).replace('ErrorMessage: ', '') for x in msgs]
+                msgs = 'Sample-sheet contains errors:\n' + '\n'.join(msgs)
+                raise PipelineError(msgs)
 
             # return a valid sample-sheet, and preserve any warning
             # messages

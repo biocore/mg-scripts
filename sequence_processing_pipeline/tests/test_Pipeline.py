@@ -236,8 +236,9 @@ class TestPipeline(unittest.TestCase):
                      self.bad_sample_sheet_path, None,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE, None)
-        self.assertEqual(str(e.exception), ('ErrorMessage: A sample already e'
-                                            'xists with lane 1 and sample-id '
+        self.assertEqual(str(e.exception), ('Sample-sheet contains errors:\n'
+                                            'A sample already exists with '
+                                            'lane 1 and sample-id '
                                             'EP479894B04'))
 
     def test_generate_sample_information_files(self):
