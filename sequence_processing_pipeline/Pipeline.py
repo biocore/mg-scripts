@@ -346,6 +346,11 @@ class Pipeline:
         return f'{year}-{month}-{day}'
 
     def get_sample_ids(self):
+        '''
+        Returns list of sample-ids sourced from sample-sheet or pre-prep file
+        :return: list of sample-ids
+        '''
+
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
@@ -356,6 +361,11 @@ class Pipeline:
         return results
 
     def get_sample_names(self):
+        '''
+        Returns list of sample-names sourced from sample-sheet or pre-prep file
+        :return: list of sample-names
+        '''
+
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
