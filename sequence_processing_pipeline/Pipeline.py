@@ -32,9 +32,9 @@ class Pipeline:
                     None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
-    METAGENOMIC_PTYPE = 'metagenomic'
-    METATRANSCRIPTOMIC_PTYPE = 'metatranscriptomic'
-    AMPLICON_PTYPE = 'amplicon'
+    METAGENOMIC_PTYPE = 'Metagenomic'
+    METATRANSCRIPTOMIC_PTYPE = 'Metatranscriptomic'
+    AMPLICON_PTYPE = 'Amplicon'
 
     pipeline_types = {METAGENOMIC_PTYPE, AMPLICON_PTYPE,
                       METATRANSCRIPTOMIC_PTYPE}
@@ -51,7 +51,7 @@ class Pipeline:
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param config_dict: (Optional) Dict used instead of config file.
-        :param pipeline_type: Pipeline type ('amplicon', 'metagenomic', etc.)
+        :param pipeline_type: Pipeline type ('Amplicon', 'Metagenomic', etc.)
         """
         if sample_sheet_path is not None and mapping_file_path is not None:
             raise PipelineError("sample_sheet_path or mapping_file_path "
@@ -118,6 +118,11 @@ class Pipeline:
         else:
             self.search_paths = config['amplicon_search_paths']
             self.mapping_file = self._validate_mapping_file(mapping_file_path)
+            # unlike _validate_sample_sheet() which returns a SampleSheet
+            # object that stores the path to the file it was created from,
+            # _validate_mapping_file() just returns a DataFrame. Store the
+            # path to the original mapping file itself as well.
+            self.mapping_file_path = mapping_file_path
             self.sample_sheet = None
 
         self.run_dir = self._search_for_run_dir()
@@ -347,6 +352,16 @@ class Pipeline:
             results = list(self.mapping_file.sample_name.unique())
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
+
+        return results
+
+    def get_sample_names(self):
+        # test for self.mapping_file, since self.sample_sheet will be
+        # defined in both cases.
+        if self.mapping_file is not None:
+            results = list(self.mapping_file.sample_name.unique())
+        else:
+            results = [x.Sample_Name for x in self.sample_sheet.samples]
 
         return results
 
