@@ -8,12 +8,15 @@ run_modules:
     - fastqc
     - fastp
 
-# don't show any blanks
+# including BLANKs in reports is now default operation for the pipeline
 sample_names_ignore:
-    - "blank*"
-    - "BLANK*"
+#     - "blank*"
+#     - "BLANK*"
 
-# Opt-out of remotely checking that you're running the latest version
+# This can optionally be set to True. When version-checking is enabled,
+# a message will appear in stdout as well as in the log-file. If these are not
+# reviewed then the effort will be wasted. Note FastQCJob calls multiqc
+# multiple times, once for each project specified in the sample-sheet.
 no_version_check: False
 
 # How to plot graphs. Different templates can override these settings, but

@@ -57,9 +57,10 @@ class TestJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             job._system_call('error')
 
-        self.assertRegex(str(e.exception), (r"^Execute command-line statement"
-                                            r" failure:\nCommand: error\nretur"
-                                            r"n code: 127"))
+        self.assertRegex(str(e.exception), (r'^Execute command-line statement'
+                                            r' failure:\nCommand: '
+                                            r'error\nreturn code:'
+                                            r' 127'))
 
         self.remove_these.append(output_dir)
 
