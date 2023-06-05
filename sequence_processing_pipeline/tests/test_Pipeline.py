@@ -1376,6 +1376,12 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(sorted(obs), sorted(exp_sample_ids))
 
+        exp = {'3A', '4A', '5B', '6A', 'BLANK.41.12G', '7A', '8A', 'ISB',
+               'GFR'}
+
+        obs = set(pipeline.get_sample_names('Gerwick'))
+        self.assertEqual(obs, exp)
+
     def test_get_project_info(self):
         exp_proj_info = [
             {'project_name': 'NYU_BMS_Melanoma_13059', 'qiita_id': '13059'},
