@@ -355,7 +355,7 @@ class Pipeline:
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            results = list(self.mapping_file.sample_name.unique())
+            results = list(self.mapping_file.sample_name)
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
 
@@ -387,11 +387,11 @@ class Pipeline:
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
-            return list(self.mapping_file.sample_name.unique())
+            return list(self.mapping_file.sample_name)
         else:
-            df = self.mapping_file.sample_name
-            df = df.loc[df['project_name'] == project_name]
-            return list(df['Sample_Name'].unique())
+            df = self.mapping_file[self.mapping_file['project_name'] ==
+                                   project_name]
+            return list(df['sample_name'])
 
     def _parse_project_name(self, project_name, short_names):
         '''
