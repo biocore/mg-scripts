@@ -1,4 +1,5 @@
 from json import load as json_load
+from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, basename
@@ -354,26 +355,43 @@ class Pipeline:
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            results = list(self.mapping_file.sample_name.unique())
+            results = list(self.mapping_file.sample_name)
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
 
         return results
 
-    def get_sample_names(self):
+    def get_sample_names(self, project_name=None):
         '''
         Returns list of sample-names sourced from sample-sheet or pre-prep file
+        :param project_name: If None, return all sample-names.
         :return: list of sample-names
         '''
-
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            results = list(self.mapping_file.sample_name.unique())
+            return self._get_sample_names_from_mapping_file(project_name)
         else:
-            results = [x.Sample_Name for x in self.sample_sheet.samples]
+            return self._get_sample_names_from_sample_sheet(project_name)
 
-        return results
+    def _get_sample_names_from_sample_sheet(self, project_name):
+        if project_name is None:
+            return [x.Sample_Name for x in self.sample_sheet.samples]
+        else:
+            # Since the project-name is stored in an internal variable
+            # in a third-party library, convert the data structure to
+            # JSON using the exposed method and obtain from the result.
+            jsn = json_loads(self.sample_sheet.to_json())
+            return [x['Sample_Name'] for x in jsn['Data'] if
+                    f'{project_name}_' in x['Sample_Project']]
+
+    def _get_sample_names_from_mapping_file(self, project_name):
+        if project_name is None:
+            return list(self.mapping_file.sample_name)
+        else:
+            df = self.mapping_file[self.mapping_file['project_name'] ==
+                                   project_name]
+            return list(df['sample_name'])
 
     def _parse_project_name(self, project_name, short_names):
         '''
