@@ -208,9 +208,9 @@ class QCJob(Job):
             s = "Assay value '%s' is not recognized." % header['Assay']
             raise PipelineError(s)
 
-        needs_adapter_trimming = (True if
-                                  header['Assay'] == 'Metagenomic'
-                                  else False)
+        needs_adapter_trimming = (
+                    header['Assay'] in [Pipeline.METAGENOMIC_PTYPE,
+                                        Pipeline.METATRANSCRIPTOMIC_PTYPE])
 
         sample_ids = []
         for sample in valid_sheet.samples:
