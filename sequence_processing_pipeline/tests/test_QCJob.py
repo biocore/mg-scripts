@@ -564,10 +564,10 @@ class TestQCJob(unittest.TestCase):
             sheet.write(f)
 
         qcjob = QCJob(self.fastq_root_path, self.output_path,
-                  self.tmp_file_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                  30, 1000)
+                      self.tmp_file_path, self.mmi_db_paths,
+                      self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000)
 
         self.assertFalse(qcjob is None)
 
