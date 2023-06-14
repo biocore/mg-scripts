@@ -209,9 +209,8 @@ class QCJob(Job):
             raise PipelineError(s)
 
         needs_adapter_trimming = (
-            True if header['Assay'] in [Pipeline.METAGENOMIC_PTYPE,
-                                        Pipeline.METATRANSCRIPTOMIC_PTYPE]
-            else False)
+                    header['Assay'] in [Pipeline.METAGENOMIC_PTYPE,
+                                        Pipeline.METATRANSCRIPTOMIC_PTYPE])
 
         sample_ids = []
         for sample in valid_sheet.samples:
