@@ -4,7 +4,7 @@ from os.path import join, abspath, exists, basename
 from functools import partial
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os import makedirs
+from os import makedirs, remove
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 import re
 from json import load
@@ -26,6 +26,7 @@ class TestQCJob(unittest.TestCase):
         self.output_path = self.path('output_dir')
         self.fastq_root_path = join(self.output_path, 'ConvertJob')
         self.kraken2_db_path = self.path('kraken2.db')
+        self.tmp_file_path = self.path('tmp-sample-sheet.csv')
 
         try:
             shutil.rmtree(self.output_path)
@@ -541,6 +542,8 @@ class TestQCJob(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.output_path)
+        if exists(self.tmp_file_path):
+            remove(self.tmp_file_path)
 
     def test_qcjob_creation(self):
         with self.assertRaises(PipelineError) as e:
@@ -552,6 +555,38 @@ class TestQCJob(unittest.TestCase):
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
+
+        # use good-sample-sheet as the basis for a sample Metatranscriptomic
+        # sample-sheet.
+        with open(self.tmp_file_path, 'w') as f:
+            sheet = KLSampleSheet(self.good_sample_sheet_path)
+            sheet.Header['Assay'] = 'Metatranscriptomic'
+            sheet.write(f)
+
+        qcjob = QCJob(self.fastq_root_path, self.output_path,
+                  self.tmp_file_path, self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                  30, 1000)
+
+        self.assertFalse(qcjob is None)
+
+        # use good-sample-sheet as the basis for a sample-sheet with a
+        # bad assay type
+        with open(self.tmp_file_path, 'w') as f:
+            sheet = KLSampleSheet(self.good_sample_sheet_path)
+            sheet.Header['Assay'] = 'NotMetagenomic'
+            sheet.write(f)
+
+        with self.assertRaises(PipelineError) as e:
+            QCJob(self.fastq_root_path, self.output_path,
+                  self.tmp_file_path, self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                  30, 1000)
+
+        self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
+                                            "not recognized."))
 
     def test_assay_value(self):
         with self.assertRaises(PipelineError) as e:
