@@ -33,7 +33,6 @@ class TestGenPrepFileJob(unittest.TestCase):
         shutil.rmtree(self.working_directory_root)
 
     def test_creation(self):
-        self.maxDiff = None
         sample_sheet_path = join(self.package_root, 'tests', 'data',
                                  'good-sample-sheet.csv')
 
