@@ -6,7 +6,8 @@ from shutil import copytree
 from functools import partial
 from collections import defaultdict
 from metapool import (KLSampleSheet, demux_sample_sheet, parse_prep,
-                      demux_pre_prep)
+                      demux_pre_prep, pre_prep_needs_demuxing,
+                      sheet_needs_demuxing)
 
 
 class GenPrepFileJob(Job):
@@ -72,15 +73,20 @@ class GenPrepFileJob(Job):
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
 
-        # demux_*() methods support legacy pre-prep files and sample-sheets;
-        # that is, files w/out replicates.
+        # by default, set file_paths to the default:
+        file_paths = [self.input_file_path]
+
         if self.is_amplicon:
             # parse_prep extended to support parsing pre-prep files as well.
-            demuxed = demux_pre_prep(parse_prep(self.input_file_path))
+            fp = parse_prep(self.input_file_path)
+            if pre_prep_needs_demuxing(fp):
+                # overwrite default setting
+                file_paths = self._write_to_file(demux_pre_prep(fp))
         else:
-            demuxed = demux_sample_sheet(KLSampleSheet(self.input_file_path))
-
-        file_paths = self._write_to_file(demuxed)
+            fp = KLSampleSheet(self.input_file_path)
+            if sheet_needs_demuxing(fp):
+                # overwrite default setting
+                file_paths = self._write_to_file(demux_sample_sheet(fp))
 
         for fp in file_paths:
             # generate a seqpro command-line using the new sample-sheet.

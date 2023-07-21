@@ -108,5 +108,124 @@ class TestGenPrepFileJob(unittest.TestCase):
         self.assertDictEqual(obs, exp)
 
 
+class TestReplication(unittest.TestCase):
+    def setUp(self):
+        self.package_root = 'sequence_processing_pipeline'
+        self.qiita_job_id = 'b197f317-1c06-4619-9af3-65721149c1e8'
+        self.working_directory_root = join(self.package_root,
+                                           self.qiita_job_id)
+        try:
+            shutil.rmtree(self.working_directory_root)
+        except FileNotFoundError:
+            # Clean up test directory just in case
+            pass
+        makedirs(self.working_directory_root)
+        self.run_id = '210518_A00953_0305_TEST'
+        self.run_dir = join(self.working_directory_root, self.run_id)
+        self.convert_job_path = join(self.run_dir, 'ConvertJob')
+        makedirs(join(self.convert_job_path, 'Reports'), exist_ok=True)
+        self.qc_job_path = join(self.run_dir, 'QCJob')
+        self.project_list = ['Project1']
+        makedirs(join(self.qc_job_path, self.project_list[0],
+                      'filtered_sequences'))
+        makedirs(join(self.qc_job_path, self.project_list[0],
+                      'fastp_reports_dir', 'json'))
+
+    def tearDown(self):
+        shutil.rmtree(self.working_directory_root)
+
+    def test_sample_sheet_replicate_file_creation(self):
+        # since the GenPrepFileJob tests do not run seqpro (this is done in
+        # qp-klp tests), the main objective of these tests is to confirm that
+        # given a known good input, the right methods from metapool are called
+        # and the correct number of output files are created.
+        sample_sheet_path = join(self.package_root, 'tests', 'data',
+                                 'good_sheet_w_replicates.csv')
+
+        job = GenPrepFileJob(self.run_dir,
+                             self.convert_job_path,
+                             self.qc_job_path,
+                             join(self.working_directory_root, 'OutputPath'),
+                             sample_sheet_path,
+                             'seqpro',
+                             self.project_list,
+                             [],
+                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+
+        exp = [['seqpro', '--verbose',
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                 '_TEST'),
+                ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet1.csv"'),
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+               ['seqpro', '--verbose',
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                 '_TEST'),
+                ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet2.csv"'),
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+               ['seqpro', '--verbose',
+                'sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                '_TEST',
+                '"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                '65721149c1e8/OutputPath/GenPrepFileJob/sheet3.csv"',
+                'sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles']]
+
+        self.assertEqual(job.commands, exp)
+
+    def test_pre_prep_replicate_file_creation(self):
+        # since the GenPrepFileJob tests do not run seqpro (this is done in
+        # qp-klp tests), the main objective of these tests is to confirm that
+        # given a known good input, the right methods from metapool are called
+        # and the correct number of output files are created.
+        sample_sheet_path = join(self.package_root, 'tests', 'data',
+                                 'pre_prep_w_replicates.csv')
+
+        job = GenPrepFileJob(self.run_dir,
+                             self.convert_job_path,
+                             self.qc_job_path,
+                             join(self.working_directory_root,
+                                  'OutputPath'),
+                             sample_sheet_path,
+                             'seqpro',
+                             self.project_list,
+                             [],
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             is_amplicon=True)
+
+        exp = [['seqpro', '--verbose',
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                 '_TEST'),
+                ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet1.txt"'),
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+               ['seqpro', '--verbose',
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                 '_TEST'),
+                ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet2.txt"'),
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+               ['seqpro', '--verbose',
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
+                 '_TEST'),
+                ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet3.txt"'),
+                ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')]]
+
+        self.assertEqual(job.commands, exp)
+
+
 if __name__ == '__main__':
     unittest.main()
