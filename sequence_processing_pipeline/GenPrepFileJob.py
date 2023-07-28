@@ -13,7 +13,7 @@ from metapool import (KLSampleSheet, demux_sample_sheet, parse_prep,
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
                  input_file_path, seqpro_path, projects, modules_to_load,
-                 qiita_job_id, is_amplicon=False):
+                 qiita_job_id, is_amplicon=False, has_replicates=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -29,6 +29,8 @@ class GenPrepFileJob(Job):
         self.is_amplicon = is_amplicon
         self.prep_file_paths = None
         self.commands = []
+        self.has_replicates = has_replicates
+        self.replicate_count = 0
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
@@ -90,10 +92,18 @@ class GenPrepFileJob(Job):
 
         for fp in file_paths:
             # generate a seqpro command-line using the new sample-sheet.
+            if self.has_replicates:
+                self.replicate_count += 1
+                out_path = join(self.output_path,
+                                'PrepFiles',
+                                str(self.replicate_count))
+            else:
+                out_path = join(self.output_path, 'PrepFiles')
+
             self.commands.append([self.seqpro_path, '--verbose',
                                   join(self.output_path, self.run_id),
                                   f'"{fp}"',
-                                  join(self.output_path, 'PrepFiles')])
+                                  out_path])
 
     def _write_to_file(self, demuxed):
         '''
@@ -119,7 +129,10 @@ class GenPrepFileJob(Job):
         return results
 
     def _get_prep_file_paths(self, stdout):
-        tmp = [x for x in stdout.split('\n') if x != '']
+        # Strip UserWarnings and empty lines that appear on stdout.
+        tmp = [x for x in stdout.split('\n') if x != ''
+               and 'UserWarning' not in x]
+
         results = defaultdict(list)
 
         for line in tmp:
@@ -129,6 +142,8 @@ class GenPrepFileJob(Job):
         return results
 
     def run(self, callback=None):
+        results = defaultdict(list)
+
         for command in self.commands:
             # note that if GenPrepFileJob will be run after QCJob in a
             # Pipeline, and QCJob currently moves its products to the final
@@ -136,14 +151,15 @@ class GenPrepFileJob(Job):
             # currently that is how it's done. Hence, self.output_directory
             # and the path to run_dir might be different locations than the
             # others.
-            res = self._system_call(' '.join(command),
-                                    callback=callback)
+            res = self._system_call(' '.join(command), callback=callback)
 
             if res['return_code'] != 0:
                 raise PipelineError("Seqpro encountered an error")
 
-            if self.prep_file_paths is None:
-                self.prep_file_paths = []
-
             # if successful, store results.
-            self.prep_file_paths += self._get_prep_file_paths(res['stdout'])
+            cmd_results = self._get_prep_file_paths(res['stdout'])
+
+            for qiita_id in cmd_results:
+                results[qiita_id] += cmd_results[qiita_id]
+
+        self.prep_file_paths = results
