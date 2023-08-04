@@ -5,12 +5,15 @@ from os.path import join, exists, basename
 from shutil import copytree
 from functools import partial
 from collections import defaultdict
+from metapool import (KLSampleSheet, demux_sample_sheet, parse_prep,
+                      demux_pre_prep, pre_prep_needs_demuxing,
+                      sheet_needs_demuxing)
 
 
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
-                 sample_sheet_path, seqpro_path, projects, modules_to_load,
-                 qiita_job_id, is_amplicon=False):
+                 input_file_path, seqpro_path, projects, modules_to_load,
+                 qiita_job_id, is_amplicon=False, has_replicates=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -20,11 +23,14 @@ class GenPrepFileJob(Job):
                          modules_to_load=modules_to_load)
 
         self.run_id = basename(run_dir)
-        self.sample_sheet_path = sample_sheet_path
+        self.input_file_path = input_file_path
         self.seqpro_path = seqpro_path
         self.qiita_job_id = qiita_job_id
         self.is_amplicon = is_amplicon
         self.prep_file_paths = None
+        self.commands = []
+        self.has_replicates = has_replicates
+        self.replicate_count = 0
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
@@ -68,13 +74,63 @@ class GenPrepFileJob(Job):
         # for us. A single call to seqpro will generate n output files, one
         # for each project described in the sample-sheet's Bioinformatics
         # heading.
-        self.command = [self.seqpro_path, '--verbose',
-                        join(self.output_path, self.run_id),
-                        f'"{self.sample_sheet_path}"',
-                        join(self.output_path, 'PrepFiles')]
+
+        # by default, set file_paths to the default:
+        file_paths = [self.input_file_path]
+
+        if self.is_amplicon:
+            # parse_prep extended to support parsing pre-prep files as well.
+            fp = parse_prep(self.input_file_path)
+            if pre_prep_needs_demuxing(fp):
+                # overwrite default setting
+                file_paths = self._write_to_file(demux_pre_prep(fp))
+        else:
+            fp = KLSampleSheet(self.input_file_path)
+            if sheet_needs_demuxing(fp):
+                # overwrite default setting
+                file_paths = self._write_to_file(demux_sample_sheet(fp))
+
+        for fp in file_paths:
+            # generate a seqpro command-line using the new sample-sheet.
+            if self.has_replicates:
+                self.replicate_count += 1
+                out_path = join(self.output_path,
+                                'PrepFiles',
+                                str(self.replicate_count))
+            else:
+                out_path = join(self.output_path, 'PrepFiles')
+
+            self.commands.append([self.seqpro_path, '--verbose',
+                                  join(self.output_path, self.run_id),
+                                  f'"{fp}"',
+                                  out_path])
+
+    def _write_to_file(self, demuxed):
+        '''
+        Saves the new plate-replicate-specific sample-sheet or pre-prep file
+        w/a unique name.
+        :param demuxed:
+        :return:
+        '''
+        results = []
+        for count, replicate in enumerate(demuxed, 1):
+            if self.is_amplicon:
+                fp = join(self.output_path, f"sheet_{count}.txt")
+                replicate.to_csv(fp, sep='\t', index=False, header=True)
+                results.append(fp)
+            else:
+                fp = join(self.output_path, f"sheet_{count}.csv")
+                with open(fp, 'w') as f:
+                    replicate.write(f)
+                results.append(fp)
+
+        return results
 
     def _get_prep_file_paths(self, stdout):
-        tmp = [x for x in stdout.split('\n') if x != '']
+        # Strip UserWarnings and empty lines that appear on stdout.
+        tmp = [x for x in stdout.split('\n') if x != ''
+               and 'UserWarning' not in x]
+
         results = defaultdict(list)
 
         for line in tmp:
@@ -84,15 +140,24 @@ class GenPrepFileJob(Job):
         return results
 
     def run(self, callback=None):
-        # note that if GenPrepFileJob will be run after QCJob in a Pipeline,
-        # and QCJob currently moves its products to the final location. It
-        # would be cleaner if it did not do this, but currently that is how
-        # it's done. Hence, self.output_directory and the path to run_dir
-        # might be different locations than the others.
-        results = self._system_call(' '.join(self.command), callback=callback)
+        results = defaultdict(list)
 
-        if results['return_code'] != 0:
-            raise PipelineError("Seqpro encountered an error")
+        for command in self.commands:
+            # note that if GenPrepFileJob will be run after QCJob in a
+            # Pipeline, and QCJob currently moves its products to the final
+            # location. It would be cleaner if it did not do this, but
+            # currently that is how it's done. Hence, self.output_directory
+            # and the path to run_dir might be different locations than the
+            # others.
+            res = self._system_call(' '.join(command), callback=callback)
 
-        # if successful, store results.
-        self.prep_file_paths = self._get_prep_file_paths(results['stdout'])
+            if res['return_code'] != 0:
+                raise PipelineError("Seqpro encountered an error")
+
+            # if successful, store results.
+            cmd_results = self._get_prep_file_paths(res['stdout'])
+
+            for qiita_id in cmd_results:
+                results[qiita_id] += cmd_results[qiita_id]
+
+        self.prep_file_paths = results

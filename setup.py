@@ -37,5 +37,4 @@ setup(name='sequence-processing-pipeline',
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
         'metapool @ https://github.com/biocore/'
         'metagenomics_pooling_notebook/archive/master.zip'],
-      classifiers=classifiers
       )
