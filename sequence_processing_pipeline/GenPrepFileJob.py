@@ -112,10 +112,8 @@ class GenPrepFileJob(Job):
         :param demuxed:
         :return:
         '''
-        count = 0
         results = []
-        for replicate in demuxed:
-            count += 1
+        for count, replicate in enumerate(demuxed, 1):
             if self.is_amplicon:
                 fp = join(self.output_path, f"sheet_{count}.txt")
                 replicate.to_csv(fp, sep='\t', index=False, header=True)
