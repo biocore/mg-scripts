@@ -157,7 +157,7 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet1.csv"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_1.csv"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
                ['seqpro', '--verbose',
@@ -165,7 +165,7 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet2.csv"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_2.csv"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
                ['seqpro', '--verbose',
@@ -173,7 +173,7 @@ class TestReplication(unittest.TestCase):
                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                 '_TEST',
                 '"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                '65721149c1e8/OutputPath/GenPrepFileJob/sheet3.csv"',
+                '65721149c1e8/OutputPath/GenPrepFileJob/sheet_3.csv"',
                 'sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles']]
 
@@ -204,7 +204,7 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet1.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_1.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
                ['seqpro', '--verbose',
@@ -212,7 +212,7 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet2.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_2.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
                ['seqpro', '--verbose',
@@ -220,7 +220,7 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet3.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_3.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')]]
 

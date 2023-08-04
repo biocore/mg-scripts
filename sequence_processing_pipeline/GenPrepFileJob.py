@@ -117,11 +117,11 @@ class GenPrepFileJob(Job):
         for replicate in demuxed:
             count += 1
             if self.is_amplicon:
-                fp = join(self.output_path, f"sheet{count}.txt")
+                fp = join(self.output_path, f"sheet_{count}.txt")
                 replicate.to_csv(fp, sep='\t', index=False, header=True)
                 results.append(fp)
             else:
-                fp = join(self.output_path, f"sheet{count}.csv")
+                fp = join(self.output_path, f"sheet_{count}.csv")
                 with open(fp, 'w') as f:
                     replicate.write(f)
                 results.append(fp)
