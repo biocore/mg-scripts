@@ -549,7 +549,7 @@ class TestQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             QCJob(self.fastq_root_path, self.output_path,
                   'not/path/to/sample/sheet', self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                   1000)
 
@@ -565,7 +565,7 @@ class TestQCJob(unittest.TestCase):
 
         qcjob = QCJob(self.fastq_root_path, self.output_path,
                       self.tmp_file_path, self.mmi_db_paths,
-                      self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                      self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       30, 1000)
 
@@ -581,7 +581,7 @@ class TestQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             QCJob(self.fastq_root_path, self.output_path,
                   self.tmp_file_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                   30, 1000)
 
@@ -592,7 +592,7 @@ class TestQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             QCJob(self.fastq_root_path, self.output_path,
                   self.bad_sample_sheet_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                   1000)
 
@@ -602,7 +602,7 @@ class TestQCJob(unittest.TestCase):
     def test_split_file_creation(self):
         qc_job = QCJob(self.fastq_root_path, self.output_path,
                        self.good_sample_sheet_path, self.mmi_db_paths,
-                       self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                       self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                        'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                        30, 1000)
 
@@ -676,7 +676,7 @@ class TestQCJob(unittest.TestCase):
 
         qc_job = QCJob(self.fastq_root_path, self.output_path,
                        self.good_sample_sheet_path, self.mmi_db_paths,
-                       self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                       self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                        'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                        30, 250)
 
@@ -745,7 +745,7 @@ class TestQCJob(unittest.TestCase):
     def test_audit(self):
         job = QCJob(self.fastq_root_path, self.output_path,
                     self.good_sample_sheet_path, self.mmi_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
 
@@ -1175,7 +1175,7 @@ class TestQCJob(unittest.TestCase):
 
         job = QCJob(self.fastq_root_path, self.output_path,
                     self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
 
@@ -1233,7 +1233,7 @@ class TestQCJob(unittest.TestCase):
 
         job = QCJob(self.fastq_root_path, self.output_path,
                     self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
 
@@ -1255,7 +1255,7 @@ class TestQCJob(unittest.TestCase):
 
         job = QCJob(self.fastq_root_path, self.output_path,
                     self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 24, '8gb',
+                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000)
 
@@ -1291,7 +1291,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-384%30',
         'set -x',
@@ -1314,7 +1314,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-432%30',
         'set -x',
@@ -1336,7 +1336,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-9%30',
         'set -x',
@@ -1526,7 +1526,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-250%30',
         'set -x',
@@ -1549,7 +1549,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-250%30',
         'set -x',
@@ -1571,7 +1571,7 @@ class TestQCJob(unittest.TestCase):
         '#SBATCH -p queue_name',
         '#SBATCH -N 1',
         '#SBATCH -n 16',
-        '#SBATCH --time 24:00:00',
+        '#SBATCH --time 1440',
         '#SBATCH --mem 8gb',
         '#SBATCH --array 1-9%30',
         'set -x',

@@ -31,7 +31,7 @@ class QCJob(Job):
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
         :param nprocs: Number of processes to use in runing env.
-        :param wall_time_limit: Hard wall-clock-time limit for processes.
+        :param wall_time_limit: Hard wall-clock-time limit (in min) for procs.
         :param jmem: String representing total memory limit for entire job.
         :param fastp_path: The path to the fastp executable
         :param minimap2_path: The path to the minimap2 executable
@@ -319,7 +319,7 @@ class QCJob(Job):
         lines.append(f"#SBATCH -p {self.queue_name}")
         lines.append(f'#SBATCH -N {self.node_count}')
         lines.append(f'#SBATCH -n {self.nprocs}')
-        lines.append(f"#SBATCH --time {self.wall_time_limit}:00:00")
+        lines.append(f"#SBATCH --time {self.wall_time_limit}")
         lines.append(f"#SBATCH --mem {self.jmem}")
         lines.append("#SBATCH --array 1-%d%%%d" % (len(cmds), self.pool_size))
         lines.append("set -x")

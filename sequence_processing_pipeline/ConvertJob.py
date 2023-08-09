@@ -18,7 +18,7 @@ class ConvertJob(Job):
         :param queue_name: The name of the Torque queue to use for processing.
         :param node_count: The number of nodes to request.
         :param nprocs: The maximum number of parallel processes to use.
-        :param wall_time_limit: A hard time limit to bound processing.
+        :param wall_time_limit: A hard time limit (in min) to bound processing.
         :param bcl_tool_path: The path to either bcl2fastq or bcl-convert.
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
@@ -73,7 +73,7 @@ class ConvertJob(Job):
         lines.append(f"#SBATCH -p {self.queue_name}")
         lines.append(f'#SBATCH -N {self.node_count}')
         lines.append(f'#SBATCH -n {self.nprocs}')
-        lines.append("#SBATCH --time %d:00:00" % self.wall_time_limit)
+        lines.append("#SBATCH --time %d" % self.wall_time_limit)
 
         # send an email to the list of users defined below when a job starts,
         # terminates, or aborts. This is used to confirm that the package's
