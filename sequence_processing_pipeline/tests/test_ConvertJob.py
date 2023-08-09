@@ -905,7 +905,7 @@ class TestConvertJob(unittest.TestCase):
         # ConvertJob should assert due to invalid_input_directory.
         with self.assertRaises(PipelineError) as e:
             ConvertJob(inv_input_directory, self.good_output_path,
-                       self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+                       self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
                        'tests/bin/bcl-convert', [], qiita_id)
 
         self.assertEqual(str(e.exception),
@@ -913,7 +913,7 @@ class TestConvertJob(unittest.TestCase):
                          self.base_path('inv_input_directory'))
 
         job = ConvertJob(run_dir, self.good_output_path,
-                         self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+                         self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
                          'tests/bin/bcl-convert', [], qiita_id)
 
         job._generate_job_script()
@@ -936,7 +936,7 @@ class TestConvertJob(unittest.TestCase):
         # correct path to the faked output is self.good_output_path, rather
         # than faked_output_path.
         job = ConvertJob(self.good_input_path, self.good_output_path,
-                         self.sample_sheet_path, 'qiita', 1, 16, 24, '10gb',
+                         self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
                          'tests/bin/bcl-convert', [], 'some_qiita_id')
 
         obs = job.audit(self.sample_ids)
@@ -954,7 +954,7 @@ SCRIPT_EXP = ''.join([
     '#SBATCH -p qiita\n',
     '#SBATCH -N 1\n',
     '#SBATCH -n 16\n',
-    '#SBATCH --time 24:00:00\n',
+    '#SBATCH --time 1440\n',
     '#SBATCH --mail-type=ALL\n',
     '#SBATCH --mail-user qiita.help@gmail.com\n',
     '#SBATCH --mem-per-cpu 10gb\n',
