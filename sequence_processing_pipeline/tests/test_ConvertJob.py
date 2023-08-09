@@ -925,9 +925,6 @@ class TestConvertJob(unittest.TestCase):
         # ssp should be just the value of the self.path() partial function by
         # itself. For readability, SCRIPT_EXP addresses the '/' separator.
         # Hence, the trailing '/' is redundant and should be removed here.
-        import json
-        print("FFF")
-        print(obs)
         self.assertEqual(obs,
                          SCRIPT_EXP.format(ssp=self.base_path('').rstrip('/'),
                                            gop=self.good_output_path,
