@@ -118,7 +118,14 @@ class Pipeline:
             self.mapping_file = None
         else:
             self.search_paths = config['amplicon_search_paths']
-            self.mapping_file = self._validate_mapping_file(mapping_file_path)
+            df, msg = self._validate_mapping_file(mapping_file_path)
+            if df is None or msg is not None:
+                # raise an error if mapping_file_path is not a mapping_file
+                # or if other errors were found.
+                raise PipelineError(msg)
+            else:
+                self.mapping_file = df
+
             # unlike _validate_sample_sheet() which returns a SampleSheet
             # object that stores the path to the file it was created from,
             # _validate_mapping_file() just returns a DataFrame. Store the
@@ -446,21 +453,11 @@ class Pipeline:
         '''
         Returns true if file is a mapping file.
         '''
-        try:
-            Pipeline._validate_mapping_file(mapping_file_path)
-            return True
-        except PipelineError as e:
-            # we want to distinguish between a file that is clearly not a
-            # mapping file e.g. sample-file, and a mapping-file that is perhaps
-            # missing a column or has duplicate sample-names.
-            messages = ['duplicate sample-names detected:', 'missing columns:',
-                        'Column names are case-insensitive.']
+        df, _ = Pipeline._validate_mapping_file(mapping_file_path)
+        if df is None:
+            return False
 
-            for message in messages:
-                if str(e).startswith(message):
-                    return True
-
-        return False
+        return True
 
     @staticmethod
     def is_sample_sheet(sample_sheet_path):
@@ -498,47 +495,49 @@ class Pipeline:
 
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
-
-            columns = [x.lower() for x in list(df.columns)]
-            if len(set(columns)) < len(columns):
-                raise PipelineError("Column names are case-insensitive. You "
-                                    "have one or more duplicate columns in "
-                                    "your mapping-file.")
-
-            # rename all columns to their lower-case versions.
-            # we will want to return this version to the user.
-            df.columns = df.columns.str.lower()
-
-            # if the two sets of headers are equal, verify there are no
-            # duplicate sample-names and then return the dataframe and no
-            # error message.
-            if len(exp - set(df.columns)) == 0:
-                # count the number of occurances of each sample-name.
-                dupes = df['sample_name'].value_counts()
-                # filter for duplicate sample-names
-                dupes = dupes.loc[lambda x: x > 1]
-                dupes = dupes.index.tolist()
-
-                if dupes:
-                    msg = ('duplicate sample-names detected: '
-                           '%s' % ', '.join(dupes))
-                else:
-                    return df
-            else:
-                if exp - set(df.columns) == exp:
-                    # since pandas.read_csv() will successfully open a sample-
-                    # sheet, if none of the expected columns exist then assume
-                    # that this file is not a mapping file.
-                    msg = "not a mapping-file"
-                else:
-                    msg = 'missing columns: %s' % ', '.join(
-                        exp - set(df.columns))
         except pd.errors.ParserError:
             # ignore parser errors as they obviously prove this is not a
-            # valid mapping file.
-            msg = 'could not parse file "%s"' % mapping_file_path
+            # valid mapping file. Return None w/error message
+            return None, 'Could not parse file "%s"' % mapping_file_path
 
-        raise PipelineError(msg)
+        columns = [x.lower() for x in list(df.columns)]
+        if len(set(columns)) < len(columns):
+            # return an invalid mapping file w/error message
+            return df, ("Column names are case-insensitive. You "
+                        "have one or more duplicate columns in "
+                        "your mapping-file.")
+
+        # rename all columns to their lower-case versions.
+        # we will want to return this version to the user.
+        df.columns = df.columns.str.lower()
+
+        # if the two sets of headers are equal, verify there are no
+        # duplicate sample-names and then return the dataframe and no
+        # error message.
+        if len(exp - set(df.columns)) == 0:
+            # count the number of occurances of each sample-name.
+            dupes = df['sample_name'].value_counts()
+            # filter for duplicate sample-names
+            dupes = dupes.loc[lambda x: x > 1]
+            dupes = dupes.index.tolist()
+
+            if dupes:
+                # return an invalid mapping file w/error message
+                return df, ("Duplicate sample-names detected: '%s'" %
+                            ', '.join(dupes))
+
+            # return a valid mapping file w/no errors detected
+            return df, None
+        else:
+            if exp - set(df.columns) == exp:
+                # since pandas.read_csv() will successfully open a sample-
+                # sheet, if none of the expected columns exist then assume
+                # that this file is not a mapping file.
+                return None, 'Not a mapping file'
+            else:
+                # return an invalid mapping file w/error message
+                return df, ('Missing columns: %s' %
+                            ', '.join(exp - set(df.columns)))
 
     def _generate_dummy_sample_sheet(self, first_read, last_read,
                                      indexed_reads, dummy_sample_id):
