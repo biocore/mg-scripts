@@ -89,7 +89,7 @@ class TestPipeline(unittest.TestCase):
                 'mastermix_lot', 'sample_plate', 'center_project_name',
                 'instrument_model', 'tm1000_8_tool', 'well_id', 'tm50_8_tool',
                 'well_description', 'run_prefix', 'run_date', 'center_name',
-                'tm300_8_tool', 'extraction_robot',
+                'tm300_8_tool', 'extraction_robot', 'qiita_prep_id',
                 'experiment_design_description', 'platform', 'water_lot',
                 'project_name', 'pcr_primers', 'sequencing_meth', 'plating',
                 'orig_name', 'linker', 'runid', 'target_subfragment', 'primer',

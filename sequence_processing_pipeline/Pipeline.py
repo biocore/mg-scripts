@@ -491,7 +491,7 @@ class Pipeline:
                'sequencing_meth', 'plating', 'orig_name', 'linker', 'runid',
                'target_subfragment', 'primer', 'primer_plate', 'sample_name',
                'run_center', 'primer_date', 'target_gene', 'processing_robot',
-               'extractionkit_lot'}
+               'extractionkit_lot', 'qiita_prep_id'}
 
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
