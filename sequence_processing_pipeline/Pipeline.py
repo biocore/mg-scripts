@@ -516,15 +516,11 @@ class Pipeline:
         # error message.
         if exp == set(df.columns):
             # count the number of occurances of each sample-name.
-            dupes = df['sample_name'].value_counts()
-            # filter for duplicate sample-names
-            dupes = dupes.loc[lambda x: x > 1]
-            dupes = dupes.index.tolist()
-
-            if dupes:
-                # return an invalid mapping file w/error message
+            duplicates = df['sample_name'].duplicated()
+            if duplicates.sum() > 0:
+                dupes = df['sample_name'][duplicates].unique()
                 return df, ("Duplicate sample-names detected: '%s'" %
-                            ', '.join(dupes))
+                            ', '.join(sorted(dupes)))
 
             # return a valid mapping file w/no errors detected
             return df, None
