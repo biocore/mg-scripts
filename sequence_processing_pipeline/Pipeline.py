@@ -530,7 +530,8 @@ class Pipeline:
                 # sheet, if none of the expected columns exist then assume
                 # that this file is not a mapping file.
                 return None, 'Not a mapping file'
-            else:
+            elif exp.issuperset(set(df.columns)):
+                # handle the case where some columns are present but not others
                 # return an invalid mapping file w/error message
                 return df, ('Missing columns: %s' %
                             ', '.join(exp - set(df.columns)))
