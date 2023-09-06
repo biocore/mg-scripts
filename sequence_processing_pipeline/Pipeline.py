@@ -514,7 +514,7 @@ class Pipeline:
         # if the two sets of headers are equal, verify there are no
         # duplicate sample-names and then return the dataframe and no
         # error message.
-        if len(exp - set(df.columns)) == 0:
+        if exp == set(df.columns):
             # count the number of occurances of each sample-name.
             dupes = df['sample_name'].value_counts()
             # filter for duplicate sample-names
