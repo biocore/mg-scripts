@@ -1,5 +1,4 @@
 import json
-import io
 import os
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -10,6 +9,7 @@ from functools import partial
 import re
 from shutil import copy
 import pandas as pd
+from tempfile import NamedTemporaryFile
 
 
 class TestPipeline(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestPipeline(unittest.TestCase):
             # make method idempotent
             pass
 
-    def _make_mapping_file(self):
+    def _make_mapping_file(self, output_file_path):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
                 'mastermix_lot', 'sample_plate', 'center_project_name',
                 'instrument_model', 'tm1000_8_tool', 'well_id', 'tm50_8_tool',
@@ -99,18 +99,22 @@ class TestPipeline(unittest.TestCase):
         rows[0].extend(['foo'] * (len(cols) - 1))
         rows[1].extend(['foo'] * (len(cols) - 1))
         df = pd.DataFrame(rows, columns=cols)
-        buf = io.StringIO()
-        df.to_csv(buf, sep='\t', index=False, header=True)
-        buf.seek(0)
-        return buf
+        df.to_csv(output_file_path, sep='\t', index=False, header=True)
 
     def test_validate_mapping_file_numeric_ids(self):
-        buf = self._make_mapping_file()
-        exp = ['1.0', '1e-3']
-        obs_df, msg = Pipeline._validate_mapping_file(buf)
+        with NamedTemporaryFile() as tmp:
+            self._make_mapping_file(tmp.name)
+            exp = ['1.0', '1e-3']
+            pipeline = Pipeline(self.good_config_file, self.good_run_id, None,
+                                tmp.name, self.output_file_path, self.qiita_id,
+                                Pipeline.AMPLICON_PTYPE, None)
 
-        self.assertEqual(msg, None)
-        self.assertEqual(list(obs_df['sample_name']), exp)
+            # explicitly call _validate_mapping_file() for testing purposes.
+            # Note that currently this method was already called once during
+            # the Pipeline object's initialization, implying that tmp.name was
+            # validated successfully.
+            obs_df = pipeline._validate_mapping_file(tmp.name)
+            self.assertEqual(list(obs_df['sample_name']), exp)
 
     def test_required_file_checks(self):
         # begin this test by deleting the RunInfo.txt file and verifying that
@@ -1639,7 +1643,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                      None, self.mf_missing_column,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE, None)
-        self.assertEqual(str(e.exception), 'Missing columns: tm50_8_tool')
+        self.assertEqual(str(e.exception), ('Mapping-file contains missing '
+                                            'columns: tm50_8_tool'))
 
         # test unsuccessful validation of a bad mapping-file.
         with self.assertRaises(PipelineError) as e:
@@ -1647,9 +1652,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                      None, self.mf_duplicate_sample,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE, None)
-        self.assertEqual(str(e.exception), 'Column names are case-insensitive.'
-                                           ' You have one or more duplicate '
-                                           'columns in your mapping-file.')
+        self.assertEqual(str(e.exception), ("Mapping-file contains duplicate "
+                                            "columns: ['barcode', 'Barcode']"))
 
     def test_is_mapping_file(self):
         # assert that a good sample-sheet is not a mapping-file
