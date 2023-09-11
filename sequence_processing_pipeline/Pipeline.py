@@ -311,7 +311,19 @@ class Pipeline:
             # valid mapping file. Return None w/error message
             raise PipelineError('Cannot parse mapping-file.')
 
-        dupes = Pipeline._identify_duplicate_columns(df.columns)
+        # first, detect any duplicate column names, regardless of any mixed-
+        # capitalization, and notify the user.
+        d = defaultdict(list)
+        for column in df.columns:
+            d[column.lower()].append(column)
+
+        # generate a list of all unique column names that appear more than
+        # once, regardless of capitalization.
+        duplicate_columns = [col for col in d.keys() if len(d[col]) > 1]
+
+        # generate a list containing lists of duplicate column names in their
+        # original case to report to the user.
+        dupes = [d[column] for column in duplicate_columns]
 
         if dupes:
             # column-names are case-insensitive, and must be unique.
@@ -320,7 +332,9 @@ class Pipeline:
             raise PipelineError("Mapping-file contains duplicate columns: "
                                 "%s" % ', '.join([str(tpl) for tpl in dupes]))
 
-        obs = {column.lower() for column in df.columns}
+        # if columns are unique, determine if any columns are missing and/or
+        # unexpected and notify the user.
+        obs = set(df.columns.str.lower())
         exp = {column.lower() for column in Pipeline.mapping_file_columns}
 
         # if an expected column is missing in observed, that is an error.
@@ -331,7 +345,7 @@ class Pipeline:
         # file is a mapping-file already.
         missing_columns = exp - obs
         if missing_columns:
-            raise PipelineError("Mapping-file contains missing columns: "
+            raise PipelineError("Mapping-file is missing columns: "
                                 "%s" % ', '.join(missing_columns))
 
         # if an observed column is unexpected, that is a warning.
@@ -518,17 +532,17 @@ class Pipeline:
         '''
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
-
-            # if the expected subset of columns required for a mapping-file
-            # are present, then consider this a mapping file, even if it's
-            # an invalid one.
-            exp_columns = frozenset({'barcode', 'tm1000_8_tool',
-                                     'extraction_robot', 'pcr_primers'})
-
-            if {col.lower() for col in df.columns}.issuperset(exp_columns):
-                return True
         except pd.errors.ParserError:
-            pass
+            return False
+
+        # if the expected subset of columns required for a mapping-file
+        # are present, then consider this a mapping file, even if it's
+        # an invalid one.
+        exp_columns = frozenset({'barcode', 'tm1000_8_tool',
+                                 'extraction_robot', 'pcr_primers'})
+
+        if set(df.columns.str.lower()).issuperset(exp_columns):
+            return True
 
         return False
 
@@ -552,20 +566,6 @@ class Pipeline:
                 return True
 
         return False
-
-    @staticmethod
-    def _identify_duplicate_columns(lst):
-        d = defaultdict(list)
-        for column in lst:
-            d[column.lower()].append(column)
-
-        # generate a list of all unique column names that appear more than
-        # once, regardless of capitalization.
-        duplicate_columns = [col for col in d.keys() if len(d[col]) > 1]
-
-        # generate a list containing lists of duplicate column names in their
-        # original case to report to the user.
-        return [d[column] for column in duplicate_columns]
 
     def _generate_dummy_sample_sheet(self, first_read, last_read,
                                      indexed_reads, dummy_sample_id):

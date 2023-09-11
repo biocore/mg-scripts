@@ -1643,7 +1643,7 @@ class TestAmpliconPipeline(unittest.TestCase):
                      None, self.mf_missing_column,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE, None)
-        self.assertEqual(str(e.exception), ('Mapping-file contains missing '
+        self.assertEqual(str(e.exception), ('Mapping-file is missing '
                                             'columns: tm50_8_tool'))
 
         # test unsuccessful validation of a bad mapping-file.
