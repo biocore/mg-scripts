@@ -35,23 +35,17 @@ class Pipeline:
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
     mapping_file_columns = {'barcode', 'library_construction_protocol',
-                            'mastermix_lot',
-                            'sample_plate', 'center_project_name',
-                            'instrument_model',
+                            'mastermix_lot', 'sample_plate',
+                            'center_project_name', 'instrument_model',
                             'tm1000_8_tool', 'well_id', 'tm50_8_tool',
-                            'well_description',
-                            'run_prefix', 'run_date', 'center_name',
-                            'tm300_8_tool',
-                            'extraction_robot',
-                            'experiment_design_description',
-                            'platform', 'water_lot', 'project_name',
-                            'pcr_primers',
+                            'well_description', 'run_prefix', 'run_date',
+                            'center_name', 'tm300_8_tool', 'extraction_robot',
+                            'experiment_design_description', 'platform',
+                            'water_lot', 'project_name', 'pcr_primers',
                             'sequencing_meth', 'plating', 'orig_name',
-                            'linker', 'runid',
-                            'target_subfragment', 'primer', 'primer_plate',
-                            'sample_name',
-                            'run_center', 'primer_date', 'target_gene',
-                            'processing_robot',
+                            'linker', 'runid', 'target_subfragment', 'primer',
+                            'primer_plate', 'sample_name', 'run_center',
+                            'primer_date', 'target_gene', 'processing_robot',
                             'extractionkit_lot', 'qiita_prep_id'}
 
     METAGENOMIC_PTYPE = 'Metagenomic'
@@ -245,6 +239,11 @@ class Pipeline:
         msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
 
         if val_sheet is None:
+            # msgs will contain both ErrorMessages and WarningMessages.
+            # we want to identify if there are any messages and if so, create
+            # a separate list for them. An Error should only be raised on
+            # Error messages and in this case, all error messages should be
+            # concatenated.
             errors = [x for x in msgs if isinstance(x, ErrorMessage)]
 
             if errors:
@@ -307,8 +306,6 @@ class Pipeline:
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
         except pd.errors.ParserError:
-            # ignore parser errors as they obviously prove this is not a
-            # valid mapping file. Return None w/error message
             raise PipelineError('Cannot parse mapping-file.')
 
         # first, detect any duplicate column names, regardless of any mixed-
@@ -318,12 +315,11 @@ class Pipeline:
             d[column.lower()].append(column)
 
         # generate a list of all unique column names that appear more than
-        # once, regardless of capitalization.
-        duplicate_columns = [col for col in d.keys() if len(d[col]) > 1]
-
-        # generate a list containing lists of duplicate column names in their
-        # original case to report to the user.
-        dupes = [d[column] for column in duplicate_columns]
+        # once, regardless of capitalization. Then generate a list containing
+        # lists of duplicate column names in their original case to report to
+        # the user.
+        dupes = [d[column] for column in
+                 [col for col in d.keys() if len(d[col]) > 1]]
 
         if dupes:
             # column-names are case-insensitive, and must be unique.
@@ -335,7 +331,9 @@ class Pipeline:
         # if columns are unique, determine if any columns are missing and/or
         # unexpected and notify the user.
         obs = set(df.columns.str.lower())
-        exp = {column.lower() for column in Pipeline.mapping_file_columns}
+
+        # Note that Pipeline.mapping_file_columns is expected to be all lower-
+        # case.
 
         # if an expected column is missing in observed, that is an error.
         # Note that since a mapping-file is just a DataFrame, there isn't a
@@ -343,13 +341,13 @@ class Pipeline:
         # n additional columns and a dataframe that is not a mapping-file at
         # all. This method assumes an external test has determined that the
         # file is a mapping-file already.
-        missing_columns = exp - obs
+        missing_columns = Pipeline.mapping_file_columns - obs
         if missing_columns:
             raise PipelineError("Mapping-file is missing columns: "
                                 "%s" % ', '.join(missing_columns))
 
         # if an observed column is unexpected, that is a warning.
-        unexpected_columns = obs - exp
+        unexpected_columns = obs - Pipeline.mapping_file_columns
         if unexpected_columns:
             self.warnings += [("Mapping-file contains additional columns: "
                                "%s" % ', '.join(unexpected_columns))]
@@ -541,10 +539,7 @@ class Pipeline:
         exp_columns = frozenset({'barcode', 'tm1000_8_tool',
                                  'extraction_robot', 'pcr_primers'})
 
-        if set(df.columns.str.lower()).issuperset(exp_columns):
-            return True
-
-        return False
+        return set(df.columns.str.lower()).issuperset(exp_columns)
 
     @staticmethod
     def is_sample_sheet(sample_sheet_path):
