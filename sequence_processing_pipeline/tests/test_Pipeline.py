@@ -169,7 +169,7 @@ class TestPipeline(unittest.TestCase):
                               "sequence_processing_pipeline/tests"
                               "/data/bad_configuration.json")
 
-        # Pipeline should assert due to Assert having a bad value.
+        # Pipeline should assert due to Assay having a bad value.
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      self.good_run_id,
@@ -429,7 +429,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_get_sample_ids(self):
 
-        exp_sample_ids = ['CDPH-SAL_Salmonella_Typhi_MDL-143',
+        exp_sample_ids = ['CDPH-SAL__Salmonella__Typhi__MDL-143',
                           'CDPH-SAL_Salmonella_Typhi_MDL-144',
                           'CDPH-SAL_Salmonella_Typhi_MDL-145',
                           'CDPH-SAL_Salmonella_Typhi_MDL-146',
@@ -905,7 +905,7 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(sorted(obs), sorted(exp_sample_ids))
 
     def test_get_sample_names(self):
-        exp_sample_ids = ['CDPH-SAL.Salmonella.Typhi.MDL-143',
+        exp_sample_ids = ['CDPH-SAL..Salmonella..Typhi..MDL-143',
                           'CDPH-SAL.Salmonella.Typhi.MDL-144',
                           'CDPH-SAL.Salmonella.Typhi.MDL-145',
                           'CDPH-SAL.Salmonella.Typhi.MDL-146',

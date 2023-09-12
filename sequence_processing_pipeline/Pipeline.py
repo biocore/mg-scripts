@@ -236,9 +236,9 @@ class Pipeline:
     def _validate_sample_sheet(self, sample_sheet_path):
         """
         Performs additional validation for sample-sheet on top of metapool.
-        :return: If successful, an empty list of strings and a valid
-                 sample-sheet. If unsuccessful, a list of warning and error
-                 messages and None.
+        :return: If successful, a valid sample-sheet. Raises descriptive
+                 PipelineError() on all failures. Warning messages are
+                 appended to self.warnings.
         """
         # validate the sample-sheet using metapool package.
         sheet = KLSampleSheet(sample_sheet_path)
@@ -300,9 +300,9 @@ class Pipeline:
     def _validate_mapping_file(self, mapping_file_path):
         """
         Performs validation for mapping-files.
-        :return: If successful, an empty list of strings and a valid
-                 mapping-file. If unsuccessful, a list of warning and error
-                 messages and None.
+        :return: If successful, a valid mapping-file. Raises descriptive
+                 PipelineError() on all failures. Warning messages are
+                 appended to self.warnings.
         """
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
