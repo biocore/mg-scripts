@@ -3,7 +3,8 @@
     "pipeline": {
       "archive_path": "sequence_processing_pipeline/tests/data/sequencing/knight_lab_completed_runs",
       "search_paths": [ "/tmp", "sequence_processing_pipeline/tests/data"],
-      "amplicon_search_paths": [ "/tmp", "sequence_processing_pipeline/tests/data"]
+      "amplicon_search_paths": [ "/tmp", "sequence_processing_pipeline/tests/data"],
+      "lock_file_path": "/tmp/spp_locks"
     },
     "bcl2fastq": {
       "nodes": 1,

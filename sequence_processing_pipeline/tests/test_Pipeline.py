@@ -4,10 +4,10 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 import unittest
 from os import makedirs
-from os.path import abspath, basename, join
+from os.path import abspath, basename, join, exists
 from functools import partial
 import re
-from shutil import copy
+from shutil import copy, copytree, rmtree
 import pandas as pd
 from tempfile import NamedTemporaryFile
 
@@ -20,6 +20,7 @@ class TestPipeline(unittest.TestCase):
         self.bad_config_file = self.path('bad_configuration.json')
         self.invalid_config_file = 'does/not/exist/configuration.json'
         self.good_run_id = '211021_A00000_0000_SAMPLE'
+        self.another_good_run_id = '230101_A00000_0000_SAMPLE2'
         # qiita_id is randomly-generated and does not match any known
         # existing qiita job_id.
         self.qiita_id = '077c4da8-74eb-4184-8860-0207f53623be'
@@ -33,6 +34,7 @@ class TestPipeline(unittest.TestCase):
         self.bad_assay_type_path = self.path('bad-sample-sheet-metagenomics'
                                              '.csv')
         self.good_run_dir = self.path(self.good_run_id)
+        self.another_good_run_dir = self.path(self.another_good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
 
@@ -46,11 +48,15 @@ class TestPipeline(unittest.TestCase):
         with open(self.good_config_file, 'r') as f:
             self.good_config = json.load(f)
 
+        copytree(self.good_run_dir, self.another_good_run_dir)
+
     def tearDown(self):
         # Pipeline is now the only class aware of these files, hence they
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
+        if exists(self.another_good_run_dir):
+            rmtree(self.another_good_run_dir)
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -1461,6 +1467,46 @@ class TestPipeline(unittest.TestCase):
                     obs = pipeline._parse_project_name(test, t_set == 'True')
                     self.assertEqual(obs, exp)
 
+    def test_run_id_lock(self):
+        pl1 = Pipeline(self.good_config_file, self.good_run_id,
+                       self.good_sample_sheet_path, None,
+                       self.output_file_path, self.qiita_id,
+                       Pipeline.METAGENOMIC_PTYPE, None)
+
+        self.assertIsNotNone(pl1)
+
+        # the above statement shouldn't be successful a second time, until
+        # pl1 falls out of scope.
+        with self.assertRaisesRegex(PipelineError, "The run-identifier '211021"
+                                                   "_A00000_0000_SAMPLE' is "
+                                                   "already being used by "
+                                                   "another pipeline."):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path, self.qiita_id,
+                     Pipeline.METAGENOMIC_PTYPE, None)
+
+        # manually deleting pl1 should allow the original statement to be run
+        # successfully a second time.
+        del pl1
+
+        pl2 = Pipeline(self.good_config_file, self.good_run_id,
+                       self.good_sample_sheet_path, None,
+                       self.output_file_path, self.qiita_id,
+                       Pipeline.METAGENOMIC_PTYPE, None)
+
+        self.assertIsNotNone(pl2)
+
+        pl3 = Pipeline(self.good_config_file, self.another_good_run_id,
+                       self.good_sample_sheet_path, None,
+                       self.output_file_path, self.qiita_id,
+                       Pipeline.METAGENOMIC_PTYPE, None)
+
+        # demonstrate that a pipeline can be created concurrently with pl2
+        # if it uses a different run-directory. Note that pl2 is still in
+        # scope.
+        self.assertIsNotNone(pl3)
+
 
 class TestAmpliconPipeline(unittest.TestCase):
     def setUp(self):
@@ -2093,14 +2139,14 @@ class TestAmpliconPipeline(unittest.TestCase):
         # generate a RunInfo.xml file w/only one indexed read.
         self.create_runinfo_file(four_reads=False)
 
-        _ = Pipeline(self.good_config_file,
-                     self.good_run_id,
-                     None,
-                     self.good_mapping_file_path,
-                     self.output_file_path,
-                     self.qiita_id,
-                     Pipeline.AMPLICON_PTYPE,
-                     None)
+        pl1 = Pipeline(self.good_config_file,
+                       self.good_run_id,
+                       None,
+                       self.good_mapping_file_path,
+                       self.output_file_path,
+                       self.qiita_id,
+                       Pipeline.AMPLICON_PTYPE,
+                       None)
 
         dummy_sheet_path = join(self.output_file_path,
                                 'dummy_sample_sheet.csv')
@@ -2110,17 +2156,22 @@ class TestAmpliconPipeline(unittest.TestCase):
             obs = [x.strip() for x in obs]
             self.assertEqual(obs, good_dummy_sheet1)
 
+        # manually delete pl1 so we can reuse the run-id for the next test
+        del pl1
+
         # generate a RunInfo.xml file w/two indexed reads.
         self.create_runinfo_file(four_reads=True)
 
-        _ = Pipeline(self.good_config_file,
-                     self.good_run_id,
-                     None,
-                     self.good_mapping_file_path,
-                     self.output_file_path,
-                     self.qiita_id,
-                     Pipeline.AMPLICON_PTYPE,
-                     None)
+        pl2 = Pipeline(self.good_config_file,
+                       self.good_run_id,
+                       None,
+                       self.good_mapping_file_path,
+                       self.output_file_path,
+                       self.qiita_id,
+                       Pipeline.AMPLICON_PTYPE,
+                       None)
+
+        self.assertIsNotNone(pl2)
 
         dummy_sheet_path = join(self.output_file_path,
                                 'dummy_sample_sheet.csv')

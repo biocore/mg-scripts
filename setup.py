@@ -34,7 +34,7 @@ setup(name='sequence-processing-pipeline',
       packages=['sequence_processing_pipeline'],
       setup_requires=['numpy', 'cython'],
       install_requires=[
-        'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
+        'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage', 'filelock',
         'metapool @ https://github.com/biocore/'
         'metagenomics_pooling_notebook/archive/master.zip'],
       )

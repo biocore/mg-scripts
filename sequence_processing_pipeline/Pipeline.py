@@ -12,6 +12,7 @@ from re import sub, findall, search
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
+from filelock import Timeout, FileLock
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -117,6 +118,22 @@ class Pipeline:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
 
+        # unpredictable results can occur when two or more pipelines are
+        # created using the same run_directory and subsequently run. To
+        # prevent this, create a lock-file named after the provided run-id
+        # and raise an Error if such a file already exists.
+        lock_file_path = join(config['lock_file_path'], run_id, 'lock')
+
+        try:
+            self.run_dir_lock = FileLock(lock_file_path)
+            # don't wait TIMEOUT seconds for lock to release. If another job is
+            # already using the run_id directory, abort creating this pipeline
+            # immediately.
+            self.run_dir_lock.acquire(blocking=False)
+        except Timeout:
+            raise PipelineError(f"The run-identifier '{run_id}' is already "
+                                "being used by another pipeline.")
+
         # If our extended validate() method discovers any warnings or
         # Errors, it will raise a PipelineError and return them w/in the
         # error message as a single string separated by '\n'.
@@ -164,6 +181,12 @@ class Pipeline:
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
+
+    def __del__(self):
+        # release the lock on the run-id/run_dir when the Pipeline falls out
+        # of scope.
+        if hasattr(self, "run_dir_lock"):
+            self.run_dir_lock.release()
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
