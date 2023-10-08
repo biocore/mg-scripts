@@ -63,16 +63,16 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
         #  0238_BC008YACXX_s_8_rg.sorted.filtered.R1.trimmed.fastq.gz
         # b: /some_path/13722/115207/TCGA-05-4395-01A-01D-1203_110913_SN208_
         #  0238_BC008YACXX_s_8_rg.sorted.filtered.R2.trimmed.fastq.gz
-        if not 'R1' in a:
-            raise ValueError(f"{a} is not a forward-read fastq file.")
-
-        if not 'R2' in b:
-            raise ValueError(f"{b} is not a reverse-read fastq file.")
-
-        # assert that paths a and b are identical up to where R1 and R2 are
-        # present.
-        if not a[:a.find('.R1')] == b[:b.find('.R2')]:
-            raise ValueError(f"{a} and {b} are not paired fastq files.")
+        matched = False                                                             
+        for pattern, r1_exp, r2_exp in (r1_underscore, r1_dot):                     
+            if pattern.search(a):                                                  
+                assert r2_exp in b                                                 
+                assert a[:a.find(r1_exp)] == b[:b.find(r2_exp)]                 
+                matched = True                                                      
+                break                                                               
+                                                                                
+        if not matched:                                                             
+            raise ValueError(f"Unable to match:\n{a}\n{b}") 
 
         r1_size = os.stat(a).st_size
 
