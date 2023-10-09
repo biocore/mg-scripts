@@ -1,14 +1,14 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import stat, listdir, makedirs
-from os.path import join, basename
+from os.path import join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 from shutil import move
 import logging
-from json import dumps
 from datetime import date
 from sequence_processing_pipeline.Commands import split_similar_size_bins
+from jinja2 import Environment, FileSystemLoader
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -27,7 +27,7 @@ class NuQCJob(Job):
                  minimap_database_paths, queue_name,
                  node_count, nprocs, wall_time_limit, jmem, fastp_path,
                  minimap2_path, samtools_path, modules_to_load, qiita_job_id,
-                 pool_size, max_array_length):
+                 pool_size, max_array_length, known_adapters_path):
         """
         Submit a Torque job where the contents of fastq_root_dir are processed
         using fastp, minimap, and samtools. Human-genome sequences will be
@@ -47,6 +47,7 @@ class NuQCJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param pool_size: The number of jobs to process concurrently.
+        :param known_adapters_path: The path to an .fna file of known adapters.
 
         """
         super().__init__(fastq_root_dir,
@@ -76,25 +77,34 @@ class NuQCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
         self.suffix = 'fastq.gz'
+        self.jinja_env = Environment(loader=FileSystemLoader("templates/"))
+
+        # 'fastp_known_adapters_formatted.fna'
+        self.known_adapters_path = known_adapters_path
 
         ### BEGIN NEW PARAMS
         # sizes in GB
-        self.max_file_list_size_in_gb = 2  # max size of GB data to process in a job
-        self.data_location = "/panfs/dtmcdonald/human-depletion/t2t-only/*/*"
+        # max size of GB data to process in a job
+        self.max_file_list_size_in_gb = 2
 
         datestamp = date.today().strftime("%Y.%m.%d")
 
         self.batch_prefix = join(self.output_path,
                                  f"1-hd-split-pangenome-pe-{datestamp}")
 
-        self.output = "/panfs/dtmcdonald/human-depletion/pangenome-adapter-filter"
-        self.tmpdir = "/scratch/tcga_compute/tmp"
+        self.temp_dir = join(self.output_path, 'tmp')
+        makedirs(self.temp_dir, exist_ok=True)
         ### END NEW PARAMS
 
         self.minimum_bytes = 3100
 
         if not isinstance(self.needs_trimming, bool):
             raise ValueError("needs_adapter_trimming must be boolean.")
+
+        # These values are no longer needed as Daniel and Caitlin's new
+        # method handles these situations more intelligently. However this
+        # code is needed to identify and raise Errors when sample-sheets and
+        # pre-prep files are given invalid values.
 
         # Validate project settings in [Bioinformatics]
         for project in self.project_data:
@@ -129,6 +139,9 @@ class NuQCJob(Job):
         '''
         empty_list = []
 
+        # TODO: runprefix could contain _R1_ and so this should be rwritten to
+        #  be a little more robust. Also there can be instances of .R1. in
+        #  file-names.
         for entry in listdir(filtered_directory):
             if '_R1_' in entry:
                 reverse_entry = entry.replace('_R1_', '_R2_')
@@ -155,13 +168,14 @@ class NuQCJob(Job):
         # as well as human-filtering.
         job_script_path = self._generate_job_script()
 
-        batch_count = split_similar_size_bins(self.data_location,
+        batch_count = split_similar_size_bins(self.root_dir,
                                               self.max_file_list_size_in_gb,
                                               self.batch_prefix)
 
         export_params = [f"MMI={self.minimap_database_paths}",
                          f"PREFIX={self.batch_prefix}",
-                         f"OUTPUT={self.output}", f"TMPDIR={self.tmpdir}"]
+                         f"OUTPUT={self.output_path}",
+                         f"TMPDIR={self.temp_dir}"]
 
         job_params = ['-J', self.batch_prefix, '--array', batch_count,
                       '--mem', '20G', '--export', ','.join(export_params)]
@@ -225,9 +239,9 @@ class NuQCJob(Job):
             s = "Assay value '%s' is not recognized." % header['Assay']
             raise PipelineError(s)
 
-        needs_adapter_trimming = (
-                    header['Assay'] in [Pipeline.METAGENOMIC_PTYPE,
-                                        Pipeline.METATRANSCRIPTOMIC_PTYPE])
+        # Adapter trimming is not appropriate for metatranscriptomics, so it
+        # is not included here.
+        needs_adapter_trimming = header['Assay'] == Pipeline.METAGENOMIC_PTYPE
 
         sample_ids = []
         for sample in valid_sheet.samples:
@@ -256,113 +270,19 @@ class NuQCJob(Job):
                 }
 
     def _generate_job_script(self):
-        # TODO: Move environment variables into params?
-        lines = []
-        lines.append("#!/bin/bash -l\n")
-        lines.append("#SBATCH -J pangenome-filtering\n")
-        lines.append("#SBATCH --time 96:00:00\n")
-        lines.append("#SBATCH --mem 20gb\n")
-        lines.append("#SBATCH -N 1\n")
-        lines.append("#SBATCH -c 8\n")
-        lines.append("#SBATCH --output %x-%A_%a.out\n")
-        lines.append("#SBATCH --error %x-%A_%a.err\n")
-        lines.append("\n")
-        lines.append("if [[ -z \"${SLURM_ARRAY_TASK_ID}\" ]]; then\n")
-        lines.append("\techo \"Not operating within an array\"\n")
-        lines.append("\texit 1\n")
-        lines.append("fi\n")
-        lines.append("\n")
-        lines.append("mamba activate human-depletion\n")
-        lines.append("\n")
-        lines.append("set -x\n")
-        lines.append("set -e\n")
-        lines.append("\n")
-        lines.append("# set a temp directory, make a new unique one under it"
-                     " and\n")
-        lines.append("# make sure we clean up as we're dumping to shm\n")
-        lines.append("# DO NOT do this casually. Only do a clean up like this"
-                     " if\n")
-        lines.append("# you know for sure TMPDIR is what you want.\n")
-        lines.append("\n")
-        lines.append("mkdir -p {TMPDIR}\n")
-        lines.append("export TMPDIR=${TMPDIR}\n")
-        lines.append("export TMPDIR=$(mktemp -d)\n")
-        lines.append("echo $TMPDIR\n")
-        lines.append("\n")
-        lines.append("function cleanup {\n")
-        lines.append("\techo \"Removing $TMPDIR\"\n")
-        lines.append("\trm -fr $TMPDIR\n")
-        lines.append("\tunset TMPDIR\n")
-        lines.append("}\n")
-        lines.append("trap cleanup EXIT\n")
-        lines.append("\n")
-        lines.append("export FILES=$(pwd)/$(printf \"%s-%d\" ${PREFIX} "
-                     "${SLURM_ARRAY_TASK_ID})\n")
-        lines.append("if [[ ! -f ${FILES} ]]; then\n")
-        lines.append("\tlogger ${FILES} not found\n")
-        lines.append("\texit 1\n")
-        lines.append("fi\n")
-        lines.append("\n")
-        lines.append("delimiter=::MUX::\n")
-        lines.append("n=$(wc -l ${FILES} | cut -f 1 -d\" \")\n")
-        lines.append("\n")
-        lines.append("for i in $(seq 1 ${n})\n")
-        lines.append("do\n")
-        lines.append("\tline=$(head -n ${i} ${FILES} | tail -n 1)\n")
-        lines.append("\tr1=$(echo ${line} | cut -f 1 -d\" \")\n")
-        lines.append("\tr2=$(echo ${line} | cut -f 2 -d\" \")\n")
-        lines.append("\tbase=$(echo ${line} | cut -f 3 -d\" \")\n")
-        lines.append("\tr1_name=$(basename ${r1} .fastq.gz)\n")
-        lines.append("\tr2_name=$(basename ${r2} .fastq.gz)\n")
-        lines.append("\n")
-        lines.append("\techo \"${i}	${r1_name}	${r2_name}	${base}\" >> "
-                     "${TMPDIR}/id_map\n")
-        lines.append("\n")
-        lines.append("\tfastp \\\n")
-        lines.append("\t\t-l 45 \\\n")
-        lines.append("\t\t-i ${r1} \\\n")
-        lines.append("\t\t-I ${r2} \\\n")
-        lines.append("\t\t-w 7 \\\n")
-        lines.append("\t\t--adapter_fasta fastp_known_adapters_formatted.fna"
-                     " \\\n")
-        lines.append("\t\t--html /dev/null \\\n")
-        lines.append("\t\t--json /dev/null \\\n")
-        lines.append("\t\t--stdout | \\\n")
-        lines.append("\t\tsed -r \"1~4s/^@(.*)/@${i}${delimiter}\\1/\"\n")
-        lines.append("done > ${TMPDIR}/seqs.fastq\n")
-        lines.append("\n")
-        lines.append("for mmi in ${MMI}/*.mmi\n")
-        lines.append("do\n")
-        lines.append("\techo \"$(date) :: $(basename ${mmi})\"\n")
-        lines.append("\tminimap2 -2 -ax sr -t 7 ${mmi} ${TMPDIR}/seqs.fastq |"
-                     " \\\n")
-        lines.append("\t\tsamtools fastq -@ 1 -f 12 -F 256 > "
-                     "${TMPDIR}/seqs_new.fastq\n")
-        lines.append("\techo $(du -sh ${TMPDIR})\n")
-        lines.append("\tmv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq\n")
-        lines.append("done\n")
-        lines.append("\n")
-        lines.append("mkdir -p ${OUTPUT}\n")
-        lines.append("\n")
-        lines.append("function runner () {\n")
-        lines.append("\ti=${1}\n")
-        lines.append("\tpython demux-inline.py ${TMPDIR}/id_map "
-                     "${TMPDIR}/seqs.fastq ${OUTPUT} ${i}\n")
-        lines.append("}\n")
-        lines.append("\n")
-        lines.append("export -f runner\n")
-        lines.append("jobs=${SLURM_JOB_CPUS_PER_NODE}\n")
-        lines.append("\n")
-        lines.append("echo \"$(date) :: demux start\"\n")
-        lines.append("# let it do its thing\n")
-        lines.append("seq 1 ${n} | parallel -j ${jobs} runner\n")
-        lines.append("echo \"$(date) :: demux stop\"\n")
-        lines.append("\n")
-        lines.append("rm -fr ${TMPDIR}\n")
-
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
+        template = self.jinja_env.get_template("nuqc_job.sh")
 
-        with open(job_script_path, 'w') as f:
-            f.write('\n'.join(lines))
+        job_name = f'{self.qiita_job_id}_{self.job_name}'
+
+        with open(job_script_path, mode="w", encoding="utf-8") as f:
+            f.write(template.render(job_name=job_name,
+                                    wall_time_limit_in_min=5760,
+                                    # for NuQC, mem should be 20GB
+                                    mem_in_gb=self.jmem,
+                                    # should be 1
+                                    node_count=self.node_count,
+                                    cores_per_task=8,
+                                    known_adapters_path=self.known_adapters_path))
 
         return job_script_path

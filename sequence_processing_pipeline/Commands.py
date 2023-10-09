@@ -1,24 +1,8 @@
 import glob
-import gzip
+import pgzip
 import os
-from os.path import split, join, isdir
-from os import makedirs
-
-
-def fake_directory_structure_for_testing():
-    with open('X.decimated', 'r') as f:
-        count = 0
-        for line in f:
-            count += 1
-            line = line.strip()
-            print(count)
-            spath, sfile = split(line)
-            makedirs(spath, exist_ok=True)
-            if not isdir(line):
-                with open(line, 'w') as f2:
-                    f2.write("Hello")
-            else:
-                print(".")
+from os.path import split
+import re
 
 
 def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
@@ -57,6 +41,9 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # ensure we are max-sized to start.
     current_size = max_size * 10
     fp = None
+
+    r1_underscore = (re.compile(r'_R1_'), '_R1_', '_R2_')
+    r1_dot = (re.compile(r'\.R1\.'), '.R1.', '.R2.')
 
     for a, b in zip(r1, r2):
         # a: /some_path/13722/115207/TCGA-05-4395-01A-01D-1203_110913_SN208_
@@ -125,8 +112,11 @@ def demux_inline(argv1, argv2, argv3, argv4):
     fullname_r2 = outdir + sep + fname_r2 + ext
 
     os.makedirs(outdir, exist_ok=True)
-    current_fp_r1 = gzip.open(fullname_r1, mode)
-    current_fp_r2 = gzip.open(fullname_r2, mode)
+    current_fp_r1 = pgzip.open(fullname_r1, mode, thread=8,
+                               blocksize=2 * 10 ** 8)
+    current_fp_r2 = pgzip.open(fullname_r2, mode, thread=8,
+                               blocksize=2 * 10 ** 8)
+
     current_fp = (current_fp_r1, current_fp_r2)
 
     # we assume R1 comes first...
