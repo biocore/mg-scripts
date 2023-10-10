@@ -12,7 +12,32 @@ if [[ -z "${SLURM_ARRAY_TASK_ID}" ]]; then
     exit 1
 fi
 
-mamba activate human-depletion
+if [[ "${SLURM_ARRAY_TASK_MIN}" -ne 1 ]]; then
+    echo "Min array ID is not 1"
+    exit 1
+fi
+
+if [[ -z ${MMI} ]]; then
+    echo "MMI is not set"
+    exit 1
+fi
+
+if [[ -z ${PREFIX} ]]; then
+    echo "PREFIX is not set"
+    exit 1
+fi
+
+if [[ -z ${OUTPUT} ]]; then
+    echo "OUTPUT is not set"
+    exit 1
+fi
+
+if [[ -z ${TMPDIR} ]]; then
+    echo "TMPDIR is not set"
+    exit 1
+fi
+
+conda activate human-depletion
 
 set -x
 set -e
@@ -66,23 +91,41 @@ do
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/"
 done > ${TMPDIR}/seqs.fastq
 
-for mmi in ${MMI}/*.mmi
-do
+function minimap2 () {
+    mmi=$1
+    
     echo "$(date) :: $(basename ${mmi})"
     minimap2 -2 -ax sr -t 7 ${mmi} ${TMPDIR}/seqs.fastq | \
         samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/seqs_new.fastq
     echo $(du -sh ${TMPDIR})
     mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq
-done
-
-mkdir -p ${OUTPUT}
+}
 
 function runner () {
     i=${1}
-    python demux-inline.py ${TMPDIR}/id_map ${TMPDIR}/seqs.fastq ${OUTPUT} ${i}
-}
 
+    # with the current proposed resources, we likely do not get
+    # benefit for parallel gzip write
+    mgscripts demux \
+        --id-map ${TMPDIR}/id_map \
+        --infile ${TMPDIR}/seqs.fastq \
+        --output ${OUTPUT} \
+        --encoded-id ${i} \
+        --threads 1
+}
 export -f runner
+
+if [[ -f ${MMI} ]]; then
+    minimap2 ${MMI}
+else
+    for mmi in ${MMI}/*.mmi
+    do
+        minimap2 ${mmi}
+    done
+fi
+
+mkdir -p ${OUTPUT}
+
 jobs=${SLURM_JOB_CPUS_PER_NODE}
 
 echo "$(date) :: demux start"
@@ -90,4 +133,4 @@ echo "$(date) :: demux start"
 seq 1 ${n} | parallel -j ${jobs} runner
 echo "$(date) :: demux stop"
 
-rm -fr ${TMPDIR}
+touch ${OUTPUT}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.completed

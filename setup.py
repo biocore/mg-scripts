@@ -36,6 +36,7 @@ setup(name='sequence-processing-pipeline',
       include_package_data=True,
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
+        'pgzip', 'jinja2',
         'metapool @ https://github.com/biocore/'
         'metagenomics_pooling_notebook/archive/master.zip'],
       entry_points='''
