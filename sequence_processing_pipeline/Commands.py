@@ -39,12 +39,7 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     for a, b in iter_paired_files(fastq_paths):
         r1_size = os.stat(a).st_size
 
-        # output_base is the path up to the beginning of the filename.
-        # we could do this in theory with os.path.split()[0] e.g.:
-        # /panfs/dtmcdonald/human-depletion/t2t-only/13722/115207
-        # /panfs/dtmcdonald/human-depletion/t2t-only/13722/115212
-        output_base = split(a)[0]
-
+        output_base = os.path.dirname(a).split('/')[-1]
         if current_size + r1_size > max_size:
             if fp is not None:
                 fp.close()
@@ -55,27 +50,28 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
             current_size += r1_size
 
         fp.write("%s\t%s\t%s\n" % (a, b, output_base))
-    fp.close()
+
+    if fp is not None:
+        fp.close()
+
+    if split_offset == 0:
+        raise ValueError("No splits made")
 
     return split_offset
 
 
-def demux(id_map, infile, out_d, encoded, threadg):
+def demux(id_map, fp, out_d, encoded, threads):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
     mode = 'wt'
-    ext = '.fastq.gz'
     sep = '/'
     rec = '@'
 
     # load mapping information
     fpmap = {}
-    for l in open(id_map):
+    for l in id_map:
         idx, r1, r2, outbase = l.strip().split('\t')
         fpmap[rec + idx] = (r1, r2, outbase)
-
-    # gather other parameters
-    fp = open(infile)
 
     # this is our encoded file, and the one we care about
     idx = rec + encoded
@@ -83,8 +79,8 @@ def demux(id_map, infile, out_d, encoded, threadg):
 
     # setup output locations
     outdir = out_d + sep + outbase
-    fullname_r1 = outdir + sep + fname_r1 + ext
-    fullname_r2 = outdir + sep + fname_r2 + ext
+    fullname_r1 = outdir + sep + fname_r1
+    fullname_r2 = outdir + sep + fname_r2
 
     os.makedirs(outdir, exist_ok=True)
     current_fp_r1 = pgzip.open(fullname_r1, mode, thread=threads,
