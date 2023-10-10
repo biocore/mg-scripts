@@ -8,9 +8,9 @@ PAIR_TESTS = (PAIR_UNDERSCORE, PAIR_DOT)
 
 def iter_paired_files(files):
     """Yield matched r1/r2 paired files"""
-	files = sorted(files)
+    files = sorted(files)
 
-	if len(files) % 2 != 0:
+    if len(files) % 2 != 0:
         raise ValueError("Files are not paired")
 
     files = iter(files)
