@@ -2,12 +2,12 @@ import glob
 import pgzip
 import os
 from os.path import split
-import re
+from sequence_processing_pipeline.util import iter_paired_files
 
 
 def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
                             batch_prefix):
-    '''
+    '''Partitions input fastqs to coarse bins
 
     :param data_location_path: Path to the ConvertJob directory.
     :param max_file_list_size_in_gb: Upper threshold for file-size.
@@ -22,19 +22,13 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # Each of these directories contain R1 and R2 fastq files. Hence, path
     # is now the following:
     fastq_paths = glob.glob(data_location_path + '*/*.fastq.gz')
-    fastq_paths.sort()
 
     # output_base_count is the number of fastq files in data_location_path.
     # fastq_paths should contain a list of R1 and R2 fastq files only.
     output_base_count = len(fastq_paths)
 
-    files = iter(fastq_paths)
-
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
-
-    r1 = iter(files)
-    r2 = iter(files)
 
     split_offset = 0
 
@@ -42,32 +36,14 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     current_size = max_size * 10
     fp = None
 
-    r1_underscore = (re.compile(r'_R1_'), '_R1_', '_R2_')
-    r1_dot = (re.compile(r'\.R1\.'), '.R1.', '.R2.')
-
-    for a, b in zip(r1, r2):
-        # a: /some_path/13722/115207/TCGA-05-4395-01A-01D-1203_110913_SN208_
-        #  0238_BC008YACXX_s_8_rg.sorted.filtered.R1.trimmed.fastq.gz
-        # b: /some_path/13722/115207/TCGA-05-4395-01A-01D-1203_110913_SN208_
-        #  0238_BC008YACXX_s_8_rg.sorted.filtered.R2.trimmed.fastq.gz
-        matched = False                                                             
-        for pattern, r1_exp, r2_exp in (r1_underscore, r1_dot):                     
-            if pattern.search(a):                                                  
-                assert r2_exp in b                                                 
-                assert a[:a.find(r1_exp)] == b[:b.find(r2_exp)]                 
-                matched = True                                                      
-                break                                                               
-                                                                                
-        if not matched:                                                             
-            raise ValueError(f"Unable to match:\n{a}\n{b}") 
-
+    for a, b in iter_paired_files(fastq_paths):
         r1_size = os.stat(a).st_size
 
         # output_base is the path up to the beginning of the filename.
         # we could do this in theory with os.path.split()[0] e.g.:
         # /panfs/dtmcdonald/human-depletion/t2t-only/13722/115207
         # /panfs/dtmcdonald/human-depletion/t2t-only/13722/115212
-        output_base = split(a)
+        output_base = split(a)[0]
 
         if current_size + r1_size > max_size:
             if fp is not None:
@@ -84,26 +60,25 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     return split_offset
 
 
-def demux_inline(argv1, argv2, argv3, argv4):
-    delimiter = b'::MUX::'
-    mode = 'wb'
-    ext = b'.fastq.gz'
-    sep = b'/'
-    rec = b'@'
+def demux(id_map, infile, out_d, encoded, threadg):
+    """Split infile data based in provided map"""
+    delimiter = '::MUX::'
+    mode = 'wt'
+    ext = '.fastq.gz'
+    sep = '/'
+    rec = '@'
 
     # load mapping information
     fpmap = {}
-    for l in open(argv1, 'rb'):
-        idx, r1, r2, outbase = l.strip().split(b'\t')
-        fpmap[rec + idx] = (
-        r1, r2, outbase)  # append rec in mapping rather than per seq filter
+    for l in open(id_map):
+        idx, r1, r2, outbase = l.strip().split('\t')
+        fpmap[rec + idx] = (r1, r2, outbase)
 
     # gather other parameters
-    fp = open(argv2, 'rb')
-    out_d = argv3.encode('ascii')
+    fp = open(infile)
 
     # this is our encoded file, and the one we care about
-    idx = rec + argv4.encode('ascii')
+    idx = rec + encoded
     fname_r1, fname_r2, outbase = fpmap[idx]
 
     # setup output locations
@@ -112,14 +87,15 @@ def demux_inline(argv1, argv2, argv3, argv4):
     fullname_r2 = outdir + sep + fname_r2 + ext
 
     os.makedirs(outdir, exist_ok=True)
-    current_fp_r1 = pgzip.open(fullname_r1, mode, thread=8,
+    current_fp_r1 = pgzip.open(fullname_r1, mode, thread=threads,
                                blocksize=2 * 10 ** 8)
-    current_fp_r2 = pgzip.open(fullname_r2, mode, thread=8,
+    current_fp_r2 = pgzip.open(fullname_r2, mode, thread=threads,
                                blocksize=2 * 10 ** 8)
 
     current_fp = (current_fp_r1, current_fp_r2)
 
-    # we assume R1 comes first...
+    # we assume R1 comes first... which is safe if data are coming
+    # from samtools
     orientation_offset = 0
 
     # setup a parser
@@ -139,3 +115,6 @@ def demux_inline(argv1, argv2, argv3, argv4):
             current_fp[orientation_offset].write(d)
             current_fp[orientation_offset].write(q)
             orientation_offset = 1 - orientation_offset  # switch between 0 / 1
+
+    for outfp in current_fp:
+        outfp.close()
