@@ -120,8 +120,7 @@ class GenPrepFileJob(Job):
         results = []
         for count, replicate in enumerate(demuxed, 1):
             if self.is_amplicon:
-                # hack to make demuxed pre-prep files comply with the
-                # columns expected for a reglar muxed file.
+                replicate['sample_name'] = replicate['orig_name']
                 fp = join(self.output_path, f"replicate_sheet_{count}.txt")
                 replicate.to_csv(fp, sep='\t', index=False, header=True)
                 results.append(fp)
