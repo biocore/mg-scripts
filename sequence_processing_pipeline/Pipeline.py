@@ -345,7 +345,7 @@ class Pipeline:
         missing_columns = Pipeline.mapping_file_columns - obs
         if missing_columns:
             raise PipelineError("Mapping-file is missing columns: "
-                                "%s" % ', '.join(missing_columns))
+                                "%s" % ', '.join(sorted(missing_columns)))
 
         # if an observed column is unexpected, that is a warning.
         unexpected_columns = obs - Pipeline.mapping_file_columns
