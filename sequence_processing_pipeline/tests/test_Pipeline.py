@@ -87,7 +87,8 @@ class TestPipeline(unittest.TestCase):
     def _make_mapping_file(self, output_file_path):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
                 'mastermix_lot', 'sample_plate', 'center_project_name',
-                'instrument_model', 'tm1000_8_tool', 'well_id', 'tm50_8_tool',
+                'instrument_model', 'tm1000_8_tool', 'well_id_96',
+                'tm50_8_tool', 'tm10_8_tool', 'well_id_384',
                 'well_description', 'run_prefix', 'run_date', 'center_name',
                 'tm300_8_tool', 'extraction_robot', 'qiita_prep_id',
                 'experiment_design_description', 'platform', 'water_lot',
@@ -1644,7 +1645,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE, None)
         self.assertEqual(str(e.exception), ('Mapping-file is missing '
-                                            'columns: tm50_8_tool'))
+                                            'columns: tm10_8_tool, '
+                                            'tm50_8_tool, well_id_384'))
 
         # test unsuccessful validation of a bad mapping-file.
         with self.assertRaises(PipelineError) as e:

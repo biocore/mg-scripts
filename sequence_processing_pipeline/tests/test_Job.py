@@ -40,8 +40,8 @@ class TestJob(unittest.TestCase):
 
         callback_results = []
 
-        def my_callback(id=None, status=None):
-            callback_results.append((id, status))
+        def my_callback(jid=None, status=None):
+            callback_results.append((jid, status))
 
         obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'),
                                callback=my_callback)

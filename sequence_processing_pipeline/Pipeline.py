@@ -34,19 +34,20 @@ class Pipeline:
                     None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
                     None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
 
-    mapping_file_columns = {'barcode', 'library_construction_protocol',
-                            'mastermix_lot', 'sample_plate',
-                            'center_project_name', 'instrument_model',
-                            'tm1000_8_tool', 'well_id', 'tm50_8_tool',
-                            'well_description', 'run_prefix', 'run_date',
-                            'center_name', 'tm300_8_tool', 'extraction_robot',
-                            'experiment_design_description', 'platform',
-                            'water_lot', 'project_name', 'pcr_primers',
-                            'sequencing_meth', 'plating', 'orig_name',
-                            'linker', 'runid', 'target_subfragment', 'primer',
-                            'primer_plate', 'sample_name', 'run_center',
-                            'primer_date', 'target_gene', 'processing_robot',
-                            'extractionkit_lot', 'qiita_prep_id'}
+    mapping_file_columns = {'sample_name', 'barcode', 'center_name',
+                            'center_project_name',
+                            'experiment_design_description',
+                            'instrument_model',
+                            'library_construction_protocol',
+                            'platform', 'run_center', 'run_date', 'run_prefix',
+                            'runid', 'sample_plate', 'sequencing_meth',
+                            'linker', 'primer', 'primer_plate', 'well_id_384',
+                            'plating', 'extractionkit_lot', 'extraction_robot',
+                            'tm1000_8_tool', 'primer_date', 'mastermix_lot',
+                            'water_lot', 'processing_robot', 'tm300_8_tool',
+                            'tm50_8_tool', 'project_name', 'orig_name',
+                            'well_description', 'pcr_primers', 'target_gene',
+                            'tm10_8_tool', 'target_subfragment', 'well_id_96'}
 
     METAGENOMIC_PTYPE = 'Metagenomic'
     METATRANSCRIPTOMIC_PTYPE = 'Metatranscriptomic'
@@ -209,7 +210,7 @@ class Pipeline:
         """
         Run all jobs added to Pipeline in the order they were added.
         :param callback: Optional function to call and upstate status with.
-        :param callback(id=): a string identifying the current running process.
+        :param callback(jid=): string identifying the current running process.
         :param callback(status=): a string message or description.
         :return:
         """
@@ -344,7 +345,7 @@ class Pipeline:
         missing_columns = Pipeline.mapping_file_columns - obs
         if missing_columns:
             raise PipelineError("Mapping-file is missing columns: "
-                                "%s" % ', '.join(missing_columns))
+                                "%s" % ', '.join(sorted(missing_columns)))
 
         # if an observed column is unexpected, that is a warning.
         unexpected_columns = obs - Pipeline.mapping_file_columns

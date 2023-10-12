@@ -157,25 +157,28 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_1.csv"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/'
+                 'replicate_sheet_1.csv"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/1')],
                ['seqpro', '--verbose',
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_2.csv"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/'
+                 'replicate_sheet_2.csv"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/2')],
                ['seqpro', '--verbose',
                 'sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                 '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                 '_TEST',
                 '"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                '65721149c1e8/OutputPath/GenPrepFileJob/sheet_3.csv"',
+                '65721149c1e8/OutputPath/GenPrepFileJob/'
+                'replicate_sheet_3.csv"',
                 'sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles']]
+                '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/3']]
 
         self.assertEqual(job.commands, exp)
 
@@ -204,25 +207,28 @@ class TestReplication(unittest.TestCase):
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_1.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/'
+                 'replicate_sheet_1.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/1')],
                ['seqpro', '--verbose',
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_2.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/'
+                 'replicate_sheet_2.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')],
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/2')],
                ['seqpro', '--verbose',
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
                  '65721149c1e8/OutputPath/GenPrepFileJob/210518_A00953_0305'
                  '_TEST'),
                 ('"sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/sheet_3.txt"'),
+                 '65721149c1e8/OutputPath/GenPrepFileJob/'
+                 'replicate_sheet_3.txt"'),
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
-                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles')]]
+                 '65721149c1e8/OutputPath/GenPrepFileJob/PrepFiles/3')]]
 
         self.assertEqual(job.commands, exp)
 

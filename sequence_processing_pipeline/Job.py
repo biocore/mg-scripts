@@ -154,7 +154,7 @@ class Job:
                      stdout=PIPE, stderr=PIPE)
 
         if callback is not None:
-            callback(id=proc.pid, status='RUNNING')
+            callback(jid=proc.pid, status='RUNNING')
 
         # Communicate pulls all stdout/stderr from the PIPEs
         # This call blocks until the command is done
@@ -169,7 +169,7 @@ class Job:
 
         if return_code not in acceptable_return_codes:
             if callback is not None:
-                callback(id=proc.pid, status='ERROR')
+                callback(jid=proc.pid, status='ERROR')
             msg = (
                 'Execute command-line statement failure:\n'
                 f'Command: {cmd}\n'
@@ -180,7 +180,7 @@ class Job:
             raise PipelineError(message=msg)
 
         if callback is not None:
-            callback(id=proc.pid, status='COMPLETED')
+            callback(jid=proc.pid, status='COMPLETED')
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
@@ -257,7 +257,7 @@ class Job:
             job_info['exit_status'] = f'{estatuses}'
 
             if callback is not None:
-                callback(id=job_id, status=f'{states}')
+                callback(jid=job_id, status=f'{states}')
 
             logging.debug("Job info: %s" % job_info)
 
@@ -271,7 +271,7 @@ class Job:
         if job_info['job_id'] is not None:
             # job was once in the queue
             if callback is not None:
-                callback(id=job_id, status=job_info['job_state'])
+                callback(jid=job_id, status=job_info['job_state'])
 
             if set(states) == {'COMPLETED'}:
                 if 'exit_status' in job_info:
@@ -292,7 +292,7 @@ class Job:
         else:
             # job was never in the queue - return an error.
             if callback is not None:
-                callback(id=job_id, status='ERROR')
+                callback(jid=job_id, status='ERROR')
 
             raise PipelineError("job %s never appeared in the queue." % job_id)
 

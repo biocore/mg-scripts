@@ -13,7 +13,7 @@ from metapool import (KLSampleSheet, demux_sample_sheet, parse_prep,
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
                  input_file_path, seqpro_path, projects, modules_to_load,
-                 qiita_job_id, is_amplicon=False, has_replicates=False):
+                 qiita_job_id, is_amplicon=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -29,7 +29,7 @@ class GenPrepFileJob(Job):
         self.is_amplicon = is_amplicon
         self.prep_file_paths = None
         self.commands = []
-        self.has_replicates = has_replicates
+        self.has_replicates = False
         self.replicate_count = 0
 
         # make the 'root' of your run_directory
@@ -82,11 +82,15 @@ class GenPrepFileJob(Job):
             # parse_prep extended to support parsing pre-prep files as well.
             fp = parse_prep(self.input_file_path)
             if pre_prep_needs_demuxing(fp):
+                self.has_replicates = True
+
                 # overwrite default setting
                 file_paths = self._write_to_file(demux_pre_prep(fp))
         else:
             fp = KLSampleSheet(self.input_file_path)
             if sheet_needs_demuxing(fp):
+                self.has_replicates = True
+
                 # overwrite default setting
                 file_paths = self._write_to_file(demux_sample_sheet(fp))
 
@@ -108,18 +112,20 @@ class GenPrepFileJob(Job):
     def _write_to_file(self, demuxed):
         '''
         Saves the new plate-replicate-specific sample-sheet or pre-prep file
-        w/a unique name.
+        w/a unique name. Assume demuxed is a list of DataFrames originating
+        from a single sample-sheet or pre-prep file.
         :param demuxed:
         :return:
         '''
         results = []
         for count, replicate in enumerate(demuxed, 1):
             if self.is_amplicon:
-                fp = join(self.output_path, f"sheet_{count}.txt")
+                replicate['sample_name'] = replicate['orig_name']
+                fp = join(self.output_path, f"replicate_sheet_{count}.txt")
                 replicate.to_csv(fp, sep='\t', index=False, header=True)
                 results.append(fp)
             else:
-                fp = join(self.output_path, f"sheet_{count}.csv")
+                fp = join(self.output_path, f"replicate_sheet_{count}.csv")
                 with open(fp, 'w') as f:
                     replicate.write(f)
                 results.append(fp)
