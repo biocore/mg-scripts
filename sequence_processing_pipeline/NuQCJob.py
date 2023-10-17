@@ -191,9 +191,10 @@ class NuQCJob(Job):
             if not self._get_failed_indexes(project_name, job_id):
                 raise PipelineError("QCJob did not complete successfully.")
 
-            # i dont understand the implications of this comment
-            ### DANIEL'S NEW CODE DOES NOT APPEAR TO FILTER FOR
-            ##    ZERO-LENGTH FILES ###
+
+            # TODO: IMPLEMNENT A NEW FILTER FOR FILTERED FASTQ.GZ FILES THAT
+            #  ARE BELOW THE MINIMUM FILE SIZE THRESHOLD INTO A NEW FOLDER
+            #  NAMED 'ZERO-LENGTH-FILES'.
 
             # determine where the filtered fastq files can be found and move
             # the 'zero-length' files to another directory.
