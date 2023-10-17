@@ -1,12 +1,11 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os import stat, listdir, makedirs
-from os.path import join, basename
+from os import stat, makedirs
+from os.path import join, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
 from shutil import move
 import logging
-from datetime import date
 from sequence_processing_pipeline.Commands import split_similar_size_bins
 from sequence_processing_pipeline.util import iter_paired_files
 from jinja2 import Environment, FileSystemLoader
@@ -135,7 +134,7 @@ class NuQCJob(Job):
             full_path_reverse = join(filtered_directory, r2)
             if stat(full_path).st_size <= minimum_bytes or stat(
                     full_path_reverse).st_size <= minimum_bytes:
-                logging.debug(f'moving {entry} and {reverse_entry}'
+                logging.debug(f'moving {full_path} and {full_path_reverse}'
                               f' to empty list.')
                 empty_list.append(full_path)
                 empty_list.append(full_path_reverse)
@@ -191,7 +190,6 @@ class NuQCJob(Job):
             if not self._get_failed_indexes(project_name, job_id):
                 raise PipelineError("QCJob did not complete successfully.")
 
-
             # TODO: IMPLEMNENT A NEW FILTER FOR FILTERED FASTQ.GZ FILES THAT
             #  ARE BELOW THE MINIMUM FILE SIZE THRESHOLD INTO A NEW FOLDER
             #  NAMED 'ZERO-LENGTH-FILES'.
@@ -203,7 +201,7 @@ class NuQCJob(Job):
             else:
                 filtered_directory = join(source_dir, 'trimmed_sequences')
 
-            if not os.path.exists(filtered_directory):
+            if not exists(filtered_directory):
                 raise PipelineError(f"{filtered_directory} does not exist")
 
             empty_files_directory = join(source_dir, 'zero_files')
@@ -298,10 +296,11 @@ class NuQCJob(Job):
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
             f.write(template.render(job_name=job_name,
-                                    wall_time_limit_in_min=4 * 24 * 60,  # 4 days
+                                    # should be 4 * 24 * 60 = 4 days
+                                    wall_time_limit=self.wall_time_limit,
                                     mem_in_gb=self.jmem,
                                     node_count=1,
                                     cores_per_task=4,
-                                    known_adapters_path=self.known_adapters_path))
+                                    knwn_adpt_path=self.known_adapters_path))
 
         return job_script_path

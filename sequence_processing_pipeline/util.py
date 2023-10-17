@@ -28,7 +28,8 @@ def iter_paired_files(files):
                 r2_prefix = r2_fp[:r2_fp.find(r2_exp)]
 
                 if r1_prefix != r2_prefix:
-                    raise ValueError(f"Mismatch prefixes:\n{r1_prefix}\n{r2_prefix}")
+                    raise ValueError(f"Mismatch prefixes:\n{r1_prefix}\n"
+                                     f"{r2_prefix}")
 
                 matched = True
                 break

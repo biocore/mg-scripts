@@ -24,9 +24,9 @@ class CommandTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             exp = 2
-            exp_1 = (f'/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
-                     f'/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
-            exp_2 = f'/foo/baz/c_R1_.fastq.gz\t/foo/baz/c_R2_.fastq.gz\tbaz\n'
+            exp_1 = ('/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
+                     '/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
+            exp_2 = '/foo/baz/c_R1_.fastq.gz\t/foo/baz/c_R2_.fastq.gz\tbaz\n'
 
             stat.return_value = MockStat()  # 512MB
             glob.return_value = mockglob
@@ -39,8 +39,8 @@ class CommandTests(unittest.TestCase):
 
     def test_demux(self):
         with tempfile.TemporaryDirectory() as tmp:
-            id_map = io.StringIO(f"1\ta_R1_.fastq.gz\ta_R2_.fastq.gz\t.\n"
-                                 f"2\tb_R1_.fastq.gz\tb_R2_.fastq.gz\t.\n")
+            id_map = io.StringIO("1\ta_R1_.fastq.gz\ta_R2_.fastq.gz\t.\n"
+                                 "2\tb_R1_.fastq.gz\tb_R2_.fastq.gz\t.\n")
             infile_data = '\n'.join(['@1::MUX::foo/1', 'ATGC', '+', '!!!!',
                                      '@1::MUX::foo/2', 'ATGC', '+', '!!!!',
                                      '@1::MUX::bar/1', 'ATGC', '+', '!!!!',
@@ -48,7 +48,8 @@ class CommandTests(unittest.TestCase):
                                      '@2::MUX::baz/1', 'ATGC', '+', '!!!!',
                                      '@2::MUX::baz/2', 'ATGC', '+', '!!!!',
                                      '@2::MUX::bing/1', 'ATGC', '+', '!!!!',
-                                     '@2::MUX::bing/2', 'ATGC', '+', '!!!!', ''])
+                                     '@2::MUX::bing/2', 'ATGC', '+', '!!!!',
+                                     ''])
             infile = io.StringIO(infile_data)
             exp_data_r1 = '\n'.join(['@baz/1', 'ATGC', '+', '!!!!',
                                      '@bing/1', 'ATGC', '+', '!!!!', ''])

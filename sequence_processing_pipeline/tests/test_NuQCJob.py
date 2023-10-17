@@ -1,13 +1,11 @@
 import shutil
 import unittest
-from os.path import join, abspath, exists, basename
+from os.path import join, abspath, exists
 from functools import partial
-#from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.NuQCJob import NuQCJob as QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-import re
 from json import load
 
 
@@ -1043,7 +1041,9 @@ class TestQCJob(unittest.TestCase):
         # the run() method and completed successfully, we must manually
         # create the files _was_successful() expects to see.
         for i in range(1, 10):
-            with open(join(my_path, f'hd-split-pangenome.3456_{i}.completed'), 'w') as f:
+            with open(join(my_path,
+                           f'hd-split-pangenome.3456_{i}.completed'),
+                      'w') as f:
                 f.write("This is a .completed file.")
 
         job.counts[job.batch_prefix] = 9
@@ -1066,7 +1066,9 @@ class TestQCJob(unittest.TestCase):
         # setting range to (2, 9) from (0, 9). get_failed_indexes() should
         # return [0,1] as a result.
         for i in range(3, 10):
-            with open(join(my_path, f'hd-split-pangenome.4567_{i}.completed'), 'w') as f:
+            with open(join(my_path,
+                           f'hd-split-pangenome.4567_{i}.completed'),
+                      'w') as f:
                 f.write("This is a .completed file.")
 
         job.counts[job.batch_prefix] = 9

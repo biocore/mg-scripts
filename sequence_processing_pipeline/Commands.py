@@ -1,7 +1,6 @@
 import glob
 import pgzip
 import os
-from os.path import split
 from sequence_processing_pipeline.util import iter_paired_files
 
 
@@ -22,10 +21,6 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # Each of these directories contain R1 and R2 fastq files. Hence, path
     # is now the following:
     fastq_paths = glob.glob(data_location_path + '*/*.fastq.gz')
-
-    # output_base_count is the number of fastq files in data_location_path.
-    # fastq_paths should contain a list of R1 and R2 fastq files only.
-    output_base_count = len(fastq_paths)
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
@@ -69,8 +64,8 @@ def demux(id_map, fp, out_d, encoded, threads):
 
     # load mapping information
     fpmap = {}
-    for l in id_map:
-        idx, r1, r2, outbase = l.strip().split('\t')
+    for tmp in id_map:
+        idx, r1, r2, outbase = tmp.strip().split('\t')
         fpmap[rec + idx] = (r1, r2, outbase)
 
     # this is our encoded file, and the one we care about

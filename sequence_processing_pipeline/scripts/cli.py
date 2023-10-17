@@ -1,5 +1,6 @@
 import click
-from sequence_processing_pipeline.Commands import demux
+from sequence_processing_pipeline.Commands import demux as _demux
+
 
 @click.group()
 def cli():
@@ -13,7 +14,7 @@ def cli():
 @click.option('--encoded-id', type=str, required=True)
 @click.option('--threads', type=int, required=True)
 def demux(id_map, infile, output, encoded_id, threads):
-    demux(id_map, infile, output, encoded_id, threads)
+    _demux(id_map, infile, output, encoded_id, threads)
 
 
 if __name__ == '__main__':

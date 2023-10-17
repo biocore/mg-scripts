@@ -1,6 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J {{job_name}}
-#SBATCH --time {{wall_time_limit_in_min}}
+# wall-time-limit in minutes
+#SBATCH --time {{wall_time_limit}}
 #SBATCH --mem {{mem_in_gb}}gb
 #SBATCH -N {{node_count}}
 #SBATCH -c {{cores_per_task}}
@@ -84,7 +85,7 @@ do
         -i ${r1} \
         -I ${r2} \
         -w 7 \
-        --adapter_fasta {{known_adapters_path}} \
+        --adapter_fasta {{knwn_adpt_path}} \
         --html /dev/null \
         --json /dev/null \
         --stdout | \
