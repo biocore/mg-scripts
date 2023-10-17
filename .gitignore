@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# test output
+sequence_processing_pipeline/tests/data/output_dir/
