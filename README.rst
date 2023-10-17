@@ -15,7 +15,7 @@ git clone https://github.com/biocore/metagenomics_pooling_notebook.git
 Create a Python3 Conda environment in which to run the notebook:
 
 ```bash
-conda create -n sp_pipeline 'python>=3.6' numpy pandas click scipy matplotlib 
+conda create -n sp_pipeline 'python==3.9' numpy pandas click scipy matplotlib 
 ```
 
 Activate the Conda environment:
