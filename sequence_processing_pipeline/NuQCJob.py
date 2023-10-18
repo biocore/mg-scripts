@@ -13,15 +13,8 @@ import glob
 import re
 from json import dumps
 
+
 logging.basicConfig(level=logging.DEBUG)
-
-
-'''
-TODO:
-The only two methods not called in testing are:
-in _filter
-in run
-'''
 
 
 class NuQCJob(Job):
@@ -65,9 +58,7 @@ class NuQCJob(Job):
         metadata = self._process_sample_sheet()
         self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
-        self.needs_trimming = metadata['needs_adapter_trimming']
         self.chemistry = metadata['chemistry']
-
         self.minimap_database_paths = minimap_database_paths
         self.queue_name = queue_name
         self.node_count = node_count
@@ -257,10 +248,6 @@ class NuQCJob(Job):
             s = "Assay value '%s' is not recognized." % header['Assay']
             raise PipelineError(s)
 
-        # Adapter trimming is not appropriate for metatranscriptomics, so it
-        # is not included here.
-        needs_adapter_trimming = header['Assay'] == Pipeline.METAGENOMIC_PTYPE
-
         sample_ids = []
         for sample in valid_sheet.samples:
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
@@ -283,9 +270,7 @@ class NuQCJob(Job):
         # particular knowledge of the project.
         return {'chemistry': chemistry,
                 'projects': lst,
-                'sample_ids': sample_ids,
-                'needs_adapter_trimming': needs_adapter_trimming
-                }
+                'sample_ids': sample_ids}
 
     def _generate_job_script(self):
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
