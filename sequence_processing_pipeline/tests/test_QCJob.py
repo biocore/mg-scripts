@@ -18,6 +18,8 @@ class TestQCJob(unittest.TestCase):
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('bad-sample-sheet-'
                                                'metagenomics.csv')
+        self.bad_sheet_bools_path = self.path('bad-sample-sheet-'
+                                              'bool-test.csv')
         self.mmi_db_paths = [self.path('mmi.db')]
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
@@ -587,6 +589,16 @@ class TestQCJob(unittest.TestCase):
 
         self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
                                             "not recognized."))
+
+        with self.assertRaises(ValueError) as e:
+            QCJob(self.fastq_root_path, self.output_path,
+                  self.bad_sheet_bools_path, self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                  30, 1000)
+
+        self.assertEqual(str(e.exception),
+                         "'FALSE' is not a valid value for HumanFiltering")
 
     def test_assay_value(self):
         with self.assertRaises(PipelineError) as e:

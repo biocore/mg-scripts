@@ -2,14 +2,14 @@ import shutil
 import unittest
 from os.path import join, abspath, exists
 from functools import partial
-from sequence_processing_pipeline.NuQCJob import NuQCJob as QCJob
+from sequence_processing_pipeline.NuQCJob import NuQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from json import load
 
 
-class TestQCJob(unittest.TestCase):
+class TestNuQCJob(unittest.TestCase):
     def setUp(self):
         # adjustable test_root helps w/testing in different environments.
         package_root = abspath('sequence_processing_pipeline')
@@ -17,6 +17,8 @@ class TestQCJob(unittest.TestCase):
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
         self.bad_sample_sheet_path = self.path('bad-sample-sheet-'
                                                'metagenomics.csv')
+        self.bad_sheet_bools_path = self.path('bad-sample-sheet-'
+                                              'bool-test.csv')
         self.mmi_db_paths = [self.path('mmi.db')]
         self.project_list = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
@@ -44,7 +46,7 @@ class TestQCJob(unittest.TestCase):
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
         for project_name in self.project_list:
             # strip the qiita-id from a project-name in order to test
-            # QCJob's ability to match project directories for both new and
+            # NuQCJob's ability to match project directories for both new and
             # legacy project folders w/in a run-directory.
             tmp = 'Feist' if project_name == 'Feist_11661' else project_name
             sample_path = self.fastq_path(tmp)
@@ -543,31 +545,31 @@ class TestQCJob(unittest.TestCase):
         if exists(self.tmp_file_path):
             remove(self.tmp_file_path)
 
-    def test_qcjob_creation(self):
+    def test_nuqcjob_creation(self):
+        # use good-sample-sheet as the basis for a sample Metatranscriptomic
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  'not/path/to/sample/sheet', self.mmi_db_paths,
-                  'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
-                  1000, '')
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    'not/path/to/sample/sheet', self.mmi_db_paths,
+                    'queue_name', 1, 16, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
 
-        # use good-sample-sheet as the basis for a sample Metatranscriptomic
         # sample-sheet.
         with open(self.tmp_file_path, 'w') as f:
             sheet = KLSampleSheet(self.good_sample_sheet_path)
             sheet.Header['Assay'] = 'Metatranscriptomic'
             sheet.write(f)
 
-        qcjob = QCJob(self.fastq_root_path, self.output_path,
-                      self.tmp_file_path, self.mmi_db_paths,
-                      'queue_name', 1, 16, 1440, '8gb',
-                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+        nuqcjob = NuQCJob(self.fastq_root_path, self.output_path,
+                          self.tmp_file_path, self.mmi_db_paths,
+                          'queue_name', 1, 16, 1440, '8gb',
+                          'fastp', 'minimap2', 'samtools', [],
+                          self.qiita_job_id, 30, 1000, '')
 
-        self.assertFalse(qcjob is None)
+        self.assertFalse(nuqcjob is None)
 
         # use good-sample-sheet as the basis for a sample-sheet with a
         # bad assay type
@@ -577,32 +579,42 @@ class TestQCJob(unittest.TestCase):
             sheet.write(f)
 
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  self.tmp_file_path, self.mmi_db_paths,
-                  'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                  30, 1000, '')
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.tmp_file_path, self.mmi_db_paths,
+                    'queue_name', 1, 16, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000, '')
 
         self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
                                             "not recognized."))
 
+        with self.assertRaises(ValueError) as e:
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.bad_sheet_bools_path, self.mmi_db_paths,
+                    'queue_name', 1, 16, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
+
+        self.assertEqual(str(e.exception),
+                         "'FALSE' is not a valid value for HumanFiltering")
+
     def test_assay_value(self):
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  self.bad_sample_sheet_path, self.mmi_db_paths,
-                  'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
-                  1000, '')
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.bad_sample_sheet_path, self.mmi_db_paths,
+                    'queue_name', 1, 16, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
 
         self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
                          " recognized.")
 
     def test_audit(self):
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, self.mmi_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000, '')
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, self.mmi_db_paths,
+                      'queue_name', 1, 16, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         obs = job.audit(self.sample_ids)
 
@@ -1028,11 +1040,11 @@ class TestQCJob(unittest.TestCase):
     def test_completed_file_generation(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, double_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000, '')
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 16, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
                    'NuQCJob/tmp')
@@ -1053,11 +1065,11 @@ class TestQCJob(unittest.TestCase):
     def test_completed_file_generation_some_failures(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, double_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000, '')
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 16, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
                    'NuQCJob/tmp')

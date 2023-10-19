@@ -262,11 +262,15 @@ class NuQCJob(Job):
 
         # convert true/false and yes/no strings to true boolean values.
         for record in lst:
-            for key in record:
-                if record[key].strip().lower() in ['true', 'yes']:
+            # the subset of columns that should be either True or False.
+            for key in ['BarcodesAreRC', 'HumanFiltering']:
+                val = record[key].strip()
+                if val == 'True':
                     record[key] = True
-                elif record[key].strip().lower() in ['false', 'no']:
+                elif val == 'False':
                     record[key] = False
+                else:
+                    raise ValueError(f"'{val}' is not a valid value for {key}")
 
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
