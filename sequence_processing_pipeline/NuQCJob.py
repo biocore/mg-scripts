@@ -204,8 +204,9 @@ class NuQCJob(Job):
         pattern = f"{self.temp_dir}/{self.batch_prefix}.*.completed"
         completed_files = list(glob.glob(pattern))
         completed_indexes = []
-        regex = r'^%s.%s_([0-9]+).completed$' % (self.batch_prefix,
-                                                 str(job_id))
+        regex = r'^%s/%s.%s_([0-9]+).completed$' % (self.temp_dir,
+                                                    self.batch_prefix,
+                                                    str(job_id))
         array_ids = re.compile(regex)
 
         for completed_file in completed_files:
