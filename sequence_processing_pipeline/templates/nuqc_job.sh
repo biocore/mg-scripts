@@ -98,7 +98,6 @@ function minimap2 () {
     echo "$(date) :: $(basename ${mmi})"
     minimap2 -2 -ax sr -t 7 ${mmi} ${TMPDIR}/seqs.fastq | \
         samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/seqs_new.fastq
-    echo $(du -sh ${TMPDIR})
     mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq
 }
 
