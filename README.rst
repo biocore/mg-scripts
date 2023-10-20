@@ -5,11 +5,10 @@ A packaged Python-based implementation of Knight Lab's sequencing process pipeli
 
 ## Installation
 
-To install this package, first clone these repositories from GitHub:
+To install this package, first clone this repository from GitHub:
 
 ```bash
 git clone https://github.com/biocore/mg-scripts.git
-git clone https://github.com/biocore/metagenomics_pooling_notebook.git
 ```
 
 Create a Python3 Conda environment in which to run the notebook:
@@ -24,25 +23,14 @@ Activate the Conda environment:
 source activate sp_pipeline
 ```
 
-Change directory to the downloaded repository folder and install:
-
-```bash
-cd metagenomics_pooling_notebook
-pip install -e '.[all]'
-```
-
-Change directory to the parent folder:
-
-```bash
-cd ..
-```
-
-Change directory to the downloaded repository folder and install:
+Change directory to the cloned repository folder and install:
 
 ```bash
 cd mg-scripts
 pip install -e .
 ```
+
+This will automatically install https://github.com/biocore/metagenomics_pooling_notebook.git, a dependency of mg-scripts and the sequence_processing_pipeline.
 
 ## Running Unittests
 
@@ -62,3 +50,15 @@ cd mg-scripts/sequence_processing_pipeline
 more Pipeline.py
 more main.py
 ```
+
+Adjust configuration settings as needed:
+
+```bash
+cd mg-scripts/sequence_processing_pipeline
+vi configuration.json
+```
+
+Please note that the setting 'minimap2_databases' is expected to be a list of paths to individual .mmi files for QCJob.
+For NuQCJob, minimap2_databases is expected to be the path to a directory containing two subdirectories: 'metagenomic'
+and 'metatranscriptomic'. Each directory should contain or symlink to the appropriate .mmi files needed for that Assay
+type.

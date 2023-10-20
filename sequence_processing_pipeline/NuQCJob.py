@@ -19,11 +19,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 class NuQCJob(Job):
     def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
-                 minimap_database_paths, queue_name,
-                 node_count, nprocs, wall_time_limit, jmem, fastp_path,
-                 minimap2_path, samtools_path, modules_to_load, qiita_job_id,
-                 pool_size, max_array_length, known_adapters_path,
-                 bucket_size=8):
+                 minimap_database_paths, queue_name, node_count,
+                 wall_time_limit, jmem, fastp_path, minimap2_path,
+                 samtools_path, modules_to_load, qiita_job_id, pool_size,
+                 max_array_length, known_adapters_path, bucket_size=8):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -34,7 +33,6 @@ class NuQCJob(Job):
         :param minimap_database_paths: Path to human genome databases in env.
         :param queue_name: Torque queue name to use in running env.
         :param node_count: Number of nodes to use in running env.
-        :param nprocs: Number of processes to use in runing env.
         :param wall_time_limit: Hard wall-clock-time limit (in min) for procs.
         :param jmem: String representing total memory limit for entire job.
         :param fastp_path: The path to the fastp executable
@@ -149,6 +147,7 @@ class NuQCJob(Job):
                                               self.max_file_list_size_in_gb,
                                               batch_location)
         self.counts[self.batch_prefix] = batch_count
+
         export_params = [f"MMI={self.minimap_database_paths}",
                          f"PREFIX={self.batch_prefix}",
                          f"OUTPUT={self.output_path}",

@@ -550,7 +550,7 @@ class TestNuQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             NuQCJob(self.fastq_root_path, self.output_path,
                     'not/path/to/sample/sheet', self.mmi_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
+                    'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                     1000, '')
 
@@ -565,7 +565,7 @@ class TestNuQCJob(unittest.TestCase):
 
         nuqcjob = NuQCJob(self.fastq_root_path, self.output_path,
                           self.tmp_file_path, self.mmi_db_paths,
-                          'queue_name', 1, 16, 1440, '8gb',
+                          'queue_name', 1, 1440, '8gb',
                           'fastp', 'minimap2', 'samtools', [],
                           self.qiita_job_id, 30, 1000, '')
 
@@ -581,7 +581,7 @@ class TestNuQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.tmp_file_path, self.mmi_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
+                    'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     30, 1000, '')
 
@@ -591,7 +591,7 @@ class TestNuQCJob(unittest.TestCase):
         with self.assertRaises(ValueError) as e:
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sheet_bools_path, self.mmi_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
+                    'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                     1000, '')
 
@@ -602,7 +602,7 @@ class TestNuQCJob(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sample_sheet_path, self.mmi_db_paths,
-                    'queue_name', 1, 16, 1440, '8gb',
+                    'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                     1000, '')
 
@@ -612,7 +612,7 @@ class TestNuQCJob(unittest.TestCase):
     def test_audit(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, self.mmi_db_paths,
-                      'queue_name', 1, 16, 1440, '8gb',
+                      'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       30, 1000, '')
 
@@ -1042,7 +1042,7 @@ class TestNuQCJob(unittest.TestCase):
 
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, double_db_paths,
-                      'queue_name', 1, 16, 1440, '8gb',
+                      'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       30, 1000, '')
 
@@ -1067,7 +1067,7 @@ class TestNuQCJob(unittest.TestCase):
 
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, double_db_paths,
-                      'queue_name', 1, 16, 1440, '8gb',
+                      'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       30, 1000, '')
 
