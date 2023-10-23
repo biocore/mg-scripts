@@ -286,11 +286,13 @@ class NuQCJob(Job):
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
             f.write(template.render(job_name=job_name,
+                                    queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
                                     wall_time_limit=self.wall_time_limit,
                                     mem_in_gb=self.jmem,
                                     node_count=1,
                                     cores_per_task=4,
-                                    knwn_adpt_path=self.known_adapters_path))
+                                    knwn_adpt_path=self.known_adapters_path,
+                                    output_path=self.output_path))
 
         return job_script_path

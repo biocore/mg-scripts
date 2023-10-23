@@ -1,12 +1,11 @@
 #!/bin/bash -l
 #SBATCH -J {{job_name}}
+#SBATCH -p {{queue_name}}
 # wall-time-limit in minutes
 #SBATCH --time {{wall_time_limit}}
 #SBATCH --mem {{mem_in_gb}}gb
 #SBATCH -N {{node_count}}
 #SBATCH -c {{cores_per_task}}
-#SBATCH --output %x-%A_%a.out
-#SBATCH --error %x-%A_%a.err
 
 if [[ -z "${SLURM_ARRAY_TASK_ID}" ]]; then
     echo "Not operating within an array"
@@ -42,6 +41,13 @@ conda activate human-depletion
 
 set -x
 set -e
+
+date
+hostname
+echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
+# output_path = output_path passed to Job objects + 'NuQCJob'
+# e.g.: working-directory/ConvertJob, working-directory/QCJob...
+cd {{output_path}}
 
 # set a temp directory, make a new unique one under it and
 # make sure we clean up as we're dumping to shm
