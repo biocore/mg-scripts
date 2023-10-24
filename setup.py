@@ -18,7 +18,7 @@ classes = """
     Operating System :: MacOS :: MacOS X
 """
 
-with open('README.md') as f:
+with open('README.rst') as f:
     long_description = f.read()
 
 classifiers = [s.strip() for s in classes.split('\n') if s]
@@ -33,8 +33,14 @@ setup(name='sequence-processing-pipeline',
       url='https://github.com/biocore/mg-scripts',
       packages=['sequence_processing_pipeline'],
       setup_requires=['numpy', 'cython'],
+      include_package_data=True,
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
+        'pgzip', 'jinja2',
         'metapool @ https://github.com/biocore/'
         'metagenomics_pooling_notebook/archive/master.zip'],
+      entry_points='''
+          [console_scripts]
+          mgscripts=sequence_processing_pipeline.scripts.cli:cli
+      '''
       )

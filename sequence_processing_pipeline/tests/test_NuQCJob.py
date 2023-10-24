@@ -1,16 +1,15 @@
 import shutil
 import unittest
-from os.path import join, abspath, exists, basename
+from os.path import join, abspath, exists
 from functools import partial
-from sequence_processing_pipeline.QCJob import QCJob
+from sequence_processing_pipeline.NuQCJob import NuQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-import re
 from json import load
 
 
-class TestQCJob(unittest.TestCase):
+class TestNuQCJob(unittest.TestCase):
     def setUp(self):
         # adjustable test_root helps w/testing in different environments.
         package_root = abspath('sequence_processing_pipeline')
@@ -27,7 +26,6 @@ class TestQCJob(unittest.TestCase):
         self.maxDiff = None
         self.output_path = self.path('output_dir')
         self.fastq_root_path = join(self.output_path, 'ConvertJob')
-        self.kraken2_db_path = self.path('kraken2.db')
         self.tmp_file_path = self.path('tmp-sample-sheet.csv')
 
         try:
@@ -48,7 +46,7 @@ class TestQCJob(unittest.TestCase):
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
         for project_name in self.project_list:
             # strip the qiita-id from a project-name in order to test
-            # QCJob's ability to match project directories for both new and
+            # NuQCJob's ability to match project directories for both new and
             # legacy project folders w/in a run-directory.
             tmp = 'Feist' if project_name == 'Feist_11661' else project_name
             sample_path = self.fastq_path(tmp)
@@ -547,31 +545,31 @@ class TestQCJob(unittest.TestCase):
         if exists(self.tmp_file_path):
             remove(self.tmp_file_path)
 
-    def test_qcjob_creation(self):
+    def test_nuqcjob_creation(self):
+        # use good-sample-sheet as the basis for a sample Metatranscriptomic
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  'not/path/to/sample/sheet', self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
-                  1000)
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    'not/path/to/sample/sheet', self.mmi_db_paths,
+                    'queue_name', 1, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
 
-        # use good-sample-sheet as the basis for a sample Metatranscriptomic
         # sample-sheet.
         with open(self.tmp_file_path, 'w') as f:
             sheet = KLSampleSheet(self.good_sample_sheet_path)
             sheet.Header['Assay'] = 'Metatranscriptomic'
             sheet.write(f)
 
-        qcjob = QCJob(self.fastq_root_path, self.output_path,
-                      self.tmp_file_path, self.mmi_db_paths,
-                      self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000)
+        nuqcjob = NuQCJob(self.fastq_root_path, self.output_path,
+                          self.tmp_file_path, self.mmi_db_paths,
+                          'queue_name', 1, 1440, '8gb',
+                          'fastp', 'minimap2', 'samtools', [],
+                          self.qiita_job_id, 30, 1000, '')
 
-        self.assertFalse(qcjob is None)
+        self.assertFalse(nuqcjob is None)
 
         # use good-sample-sheet as the basis for a sample-sheet with a
         # bad assay type
@@ -581,185 +579,42 @@ class TestQCJob(unittest.TestCase):
             sheet.write(f)
 
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  self.tmp_file_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                  30, 1000)
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.tmp_file_path, self.mmi_db_paths,
+                    'queue_name', 1, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                    30, 1000, '')
 
         self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
                                             "not recognized."))
 
         with self.assertRaises(ValueError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  self.bad_sheet_bools_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                  30, 1000)
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.bad_sheet_bools_path, self.mmi_db_paths,
+                    'queue_name', 1, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
 
         self.assertEqual(str(e.exception),
                          "'FALSE' is not a valid value for HumanFiltering")
 
     def test_assay_value(self):
         with self.assertRaises(PipelineError) as e:
-            QCJob(self.fastq_root_path, self.output_path,
-                  self.bad_sample_sheet_path, self.mmi_db_paths,
-                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
-                  1000)
+            NuQCJob(self.fastq_root_path, self.output_path,
+                    self.bad_sample_sheet_path, self.mmi_db_paths,
+                    'queue_name', 1, 1440, '8gb',
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    1000, '')
 
         self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
                          " recognized.")
 
-    def test_split_file_creation(self):
-        qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.good_sample_sheet_path, self.mmi_db_paths,
-                       self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                       30, 1000)
-
-        # assert that the Torque job files were created and are in the
-        # proper location.
-        exp = ['QCJob_Feist_11661.sh', 'QCJob_Gerwick_6123.sh',
-               'QCJob_NYU_BMS_Melanoma_13059.sh']
-        exp = set([join(qc_job.output_path, x) for x in exp])
-        obs = set([qc_job.script_paths[proj] for proj in qc_job.script_paths])
-        self.assertEqual(obs, exp)
-
-        # compare the expected content for QCJob_1-3.sh with the observed
-        # results.
-        remove_this = None
-        for shell_file, lines_exp in [('QCJob_NYU_BMS_Melanoma_13059.sh',
-                                       self.exp_QCJob_1),
-                                      ('QCJob_Feist_11661.sh',
-                                       self.exp_QCJob_2),
-                                      ('QCJob_Gerwick_6123.sh',
-                                       self.exp_QCJob_3)]:
-            obs_fp = [x for x in list(exp) if shell_file in x][0]
-            with open(obs_fp, 'r') as f_obs:
-                lines_obs = f_obs.readlines()
-                lines_obs = [x.strip() for x in lines_obs]
-                # Technically, remove_this only needs to be calculated
-                # once. Assume there is only one line in the file that
-                # begins w/cd.
-                tmp = [x for x in lines_obs if x.startswith('cd ')][0]
-                # remove the cd, but restore other spaces
-                tmp = ' '.join(tmp.split(' ')[1:])
-                # split off path prepending 'sequence_processing...'
-                tmp = tmp.split('sequence_processing_pipeline/tests')
-                # if tmp2 has '' at element zero, then nothing
-                # prepends 'sequence_processing_pipeline' and nothing
-                # needs to be removed.
-                remove_this = tmp[0] if tmp[0] != '' else None
-                if remove_this:
-                    lines_obs = [x.replace(remove_this, '') for x in
-                                 lines_obs]
-
-                self.assertEqual(lines_obs, lines_exp)
-
-        # assert that the array-details files were created and are in the
-        # proper location.
-        exp = ['QCJob_Feist_11661.array-details',
-               'QCJob_Gerwick_6123.array-details',
-               'QCJob_NYU_BMS_Melanoma_13059.array-details']
-
-        exp = set([join(qc_job.output_path, x) for x in exp])
-
-        for some_path in exp:
-            # assert files are in the proper location
-            self.assertTrue(exists(some_path) is True)
-
-            config = self.exp_map[basename(some_path)]
-            # compare the expected content for the paths in exp with the
-            # observed results.
-            with open(some_path, 'r') as f_obs:
-                lines_obs = f_obs.readlines()
-                lines_obs = [x.strip() for x in lines_obs]
-                if remove_this:
-                    lines_obs = [x.replace(remove_this, '') for x in lines_obs]
-                lines_obs.sort()
-                self.assertEqual(lines_obs[0], config['first_line'])
-                self.assertEqual(lines_obs[-1], config['last_line'])
-                self.assertEqual(len(lines_obs), config['count'])
-
-    def test_command_chaining(self):
-        # limit job array length to 250 jobs to test chaining of multiple
-        # commands as a single command.
-
-        qc_job = QCJob(self.fastq_root_path, self.output_path,
-                       self.good_sample_sheet_path, self.mmi_db_paths,
-                       self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                       30, 250)
-
-        # assert that the Torque job files were created and are in the
-        # proper location.
-        exp = ['QCJob_Feist_11661.sh', 'QCJob_Gerwick_6123.sh',
-               'QCJob_NYU_BMS_Melanoma_13059.sh']
-        exp = set([join(qc_job.output_path, x) for x in exp])
-        obs = set([qc_job.script_paths[proj] for proj in qc_job.script_paths])
-        self.assertEqual(obs, exp)
-
-        # compare the expected content for QCJob_1-3.sh with the observed
-        # results.
-        remove_this = None
-        for shell_file, lines_exp in [('QCJob_NYU_BMS_Melanoma_13059.sh',
-                                       self.exp_QCJob_1_chained),
-                                      ('QCJob_Feist_11661.sh',
-                                       self.exp_QCJob_2_chained),
-                                      ('QCJob_Gerwick_6123.sh',
-                                       self.exp_QCJob_3_chained)]:
-            obs_fp = [x for x in list(exp) if shell_file in x][0]
-            with open(obs_fp, 'r') as f_obs:
-                lines_obs = f_obs.readlines()
-                lines_obs = [x.strip() for x in lines_obs]
-                # Technically, remove_this only needs to be calculated
-                # once. Assume there is only one line in the file that
-                # begins w/cd.
-                tmp = [x for x in lines_obs if x.startswith('cd ')][0]
-                # remove the cd, but restore other spaces
-                tmp = ' '.join(tmp.split(' ')[1:])
-                # split off path prepending 'sequence_processing...'
-                tmp = tmp.split('sequence_processing_pipeline/tests')
-                # if tmp2 has '' at element zero, then nothing
-                # prepends 'sequence_processing_pipeline' and nothing
-                # needs to be removed.
-                remove_this = tmp[0] if tmp[0] != '' else None
-                if remove_this:
-                    lines_obs = [x.replace(remove_this, '') for x in
-                                 lines_obs]
-                self.assertEqual(lines_obs, lines_exp)
-
-        # assert that the array-details files were created and are in the
-        # proper location.
-        exp = ['QCJob_Feist_11661.array-details',
-               'QCJob_Gerwick_6123.array-details',
-               'QCJob_NYU_BMS_Melanoma_13059.array-details']
-
-        exp = set([join(qc_job.output_path, x) for x in exp])
-
-        for some_path in exp:
-            # assert files are in the proper location
-            self.assertTrue(exists(some_path) is True)
-
-            config = self.exp_map_chained[basename(some_path)]
-            # compare the expected content for the paths in exp with the
-            # observed results.
-            with open(some_path, 'r') as f_obs:
-                lines_obs = f_obs.readlines()
-                lines_obs = [x.strip() for x in lines_obs]
-                if remove_this:
-                    lines_obs = [x.replace(remove_this, '') for x in lines_obs]
-                self.assertEqual(lines_obs[0], config['first_line'])
-                self.assertEqual(lines_obs[-1], config['last_line'])
-                self.assertEqual(len(lines_obs), config['count'])
-
     def test_audit(self):
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, self.mmi_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000)
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, self.mmi_db_paths,
+                      'queue_name', 1, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         obs = job.audit(self.sample_ids)
 
@@ -1182,118 +1037,68 @@ class TestQCJob(unittest.TestCase):
 
         self.assertListEqual(obs, exp)
 
-    def test_multiple_libraries_plus_kraken2(self):
-        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
-
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000)
-
-        # some_dir must be relative to work in a unit-test setting
-        adapter_a = 'GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'
-        adapter_A = 'GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT'
-        filename1 = '999999_S999_L002_R1_001.fastq.gz'
-        filename2 = '999999_S999_L002_R2_001.fastq.gz'
-        project_name = 'SomeProject_99999'
-        fastp_reports_dir = 'fastp_reports_dir'
-        root_path = 'some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2'
-        current_dir = f'{root_path}/ConvertJob/{project_name}'
-        project_dir = f'{root_path}/QCJob/{project_name}'
-
-        obs = job._gen_chained_cmd(current_dir, filename1, filename2,
-                                   fastp_reports_dir, project_name,
-                                   project_dir, adapter_a, adapter_A)
-
-        # remove absolute path to kraken2 database so test will work
-        # everywhere.
-        obs = re.sub(r"--threads 16 --db .*kraken2.db --report",
-                     r"--threads 16 --db kraken2.db --report", obs)
-
-        exp = ("fastp --adapter_sequence GATCGGAAGAGCACACGTCTGAACTCCAGTCAC --"
-               "adapter_sequence_r2 GATCGGAAGAGCGTCGTGTAGGGAAAGGAGTGT -l 100 "
-               "-i some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/S"
-               "omeProject_99999/999999_S999_L002_R1_001.fastq.gz -I some_dir"
-               "/263d376f-8957-5b4a-a648-ca70a617e6f2/ConvertJob/SomeProject_"
-               "99999/999999_S999_L002_R2_001.fastq.gz -w 16 -j SomeProject_9"
-               "9999/fastp_reports_dir/json/999999_S999_L002_R1_001.json -h S"
-               "omeProject_99999/fastp_reports_dir/html/999999_S999_L002_R1_0"
-               "01.html --stdout | minimap2 -ax sr -t 16 db_path/mmi_1.db - -"
-               "a | samtools fastq -@ 16 -f 12 -F 256 | minimap2 -ax sr -t 16"
-               " db_path/mmi_2.db - -a | samtools fastq -@ 16 -f 12 -F 256 -1"
-               " some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProj"
-               "ect_99999/filtered_sequences/999999_S999_L002_R1_001.trimmed."
-               "fastq.gz -2 some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/QCJ"
-               "ob/SomeProject_99999/filtered_sequences/999999_S999_L002_R2_0"
-               "01.trimmed.fastq.gz; "
-               "kraken2 --threads 16 --db kraken2.db --report some_dir/263d37"
-               "6f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filter"
-               "ed_sequences/999999_S999_L002_R1_001.kraken2_report.txt --unc"
-               "lassified-out some_dir/263d376f-8957-5b4a-a648-ca70a617e6f2/Q"
-               "CJob/SomeProject_99999/filtered_sequences/999999_S999_L002_R1"
-               "_001.kraken2.trimmed.#.fastq --paired some_dir/263d376f-8957-"
-               "5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filtered_seque"
-               "nces/999999_S999_L002_R1_001.trimmed.fastq.gz some_dir/263d37"
-               "6f-8957-5b4a-a648-ca70a617e6f2/QCJob/SomeProject_99999/filter"
-               "ed_sequences/999999_S999_L002_R2_001.trimmed.fastq.gz")
-
-        self.assertEqual(obs, exp)
-
     def test_completed_file_generation(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000)
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
-                   'QCJob/logs')
+                   'NuQCJob/tmp')
 
         # since .completed files are generated when jobs are submitted via
         # the run() method and completed successfully, we must manually
         # create the files _was_successful() expects to see.
-        for i in range(0, 9):
-            with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
+        for i in range(1, 10):
+            with open(join(my_path,
+                           f'hd-split-pangenome.3456_{i}.completed'),
+                      'w') as f:
                 f.write("This is a .completed file.")
 
-        results = job._get_failed_indexes('Gerwick_6123', "3456.barnacle")
+        job.counts[job.batch_prefix] = 9
+        results = job._get_failed_indexes('hd-split-pangenome', "3456")
         self.assertTrue(len(results) == 0)
 
     def test_completed_file_generation_some_failures(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
 
-        job = QCJob(self.fastq_root_path, self.output_path,
-                    self.good_sample_sheet_path, double_db_paths,
-                    self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000)
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
-                   'QCJob/logs')
+                   'NuQCJob/tmp')
 
         # simulate one job failing and not generating a .completed file by
         # setting range to (2, 9) from (0, 9). get_failed_indexes() should
         # return [0,1] as a result.
-        for i in range(2, 9):
-            with open(join(my_path, f'Gerwick_6123_{i}.completed'), 'w') as f:
+        for i in range(3, 10):
+            with open(join(my_path,
+                           f'hd-split-pangenome.4567_{i}.completed'),
+                      'w') as f:
                 f.write("This is a .completed file.")
 
-        results = job._get_failed_indexes('Gerwick_6123', "4567.barnacle")
-        self.assertTrue(results, [0, 1])
+        job.counts[job.batch_prefix] = 9
+        results = job._get_failed_indexes('hd-split-pangenome', "4567")
+        self.assertTrue(results, [1, 2])
 
         # verify that when one or more array jobs have failed to complete,
         # a file is created that gives a job id and an array index.
-        log_fp = join(my_path, 'failed_indexes_4567.barnacle.json')
+        my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
+                   'NuQCJob/logs')
+        log_fp = join(my_path, 'failed_indexes_4567.json')
 
         self.assertTrue(exists(log_fp))
 
         with open(log_fp, 'r') as f:
             obs = load(f)
-            exp = {"job_id": "4567.barnacle",
-                   "failed_indexes": [0, 1]}
+            exp = {"job_id": "4567",
+                   "failed_indexes": [1, 2]}
             self.assertDictEqual(obs, exp)
 
     exp_QCJob_1 = [
