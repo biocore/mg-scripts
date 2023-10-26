@@ -498,7 +498,7 @@ class Pipeline:
             # of contains_replicates column instead, as it's not required for
             # non-replicate pre-prep files.
             if 'contains_replicates' in df.columns:
-                if set(df['contains_replicates']) == {True}:
+                if set(df['contains_replicates']) == {True, }:
                     # contains_replicates should be either all True or all
                     # False. We need not assume non-boolean data-types.
                     # With replicates, assume there are duplicate entries in
