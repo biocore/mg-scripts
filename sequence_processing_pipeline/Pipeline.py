@@ -453,16 +453,19 @@ class Pipeline:
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            return self._get_sample_names_from_mapping_file(project_name)
+            results = self._get_sample_names_from_mapping_file(project_name)
         else:
-            return self._get_sample_names_from_sample_sheet(project_name)
+            results = self._get_sample_names_from_sample_sheet(project_name)
+
+        # sort all results before returning. sets will automatically be
+        # converted to lists.
+        return sorted(results)
 
     def _get_sample_names_from_sample_sheet(self, project_name):
         if project_name is None:
             if 'orig_name' in self.sample_sheet.samples[0]:
                 # return set as a list to match non-replicate results.
-                return sorted({x.orig_name for x in
-                                    self.sample_sheet.samples})
+                return {x.orig_name for x in self.sample_sheet.samples}
             else:
                 return [x.Sample_Name for x in self.sample_sheet.samples]
         else:
@@ -474,8 +477,8 @@ class Pipeline:
                 key = 'orig_name'
             else:
                 key = 'Sample_Name'
-            
-            project_name = f'{project_name}_'    
+
+            project_name = f'{project_name}_'
             return [x[key] for x in jsn['Data']
                     if project_name in x['Sample_Project']]
 
@@ -484,11 +487,10 @@ class Pipeline:
             if 'orig_name' in self.mapping_file.columns:
                 # because sample-names w/out replicate suffix will naturally
                 # appear more than once, we need to remove duplicates before
-                # returning them in list form. Sort the list to return a
-                # predictable order for testing.
-                return sorted(set(self.mapping_file.orig_name))
+                # returning them.
+                return set(self.mapping_file.orig_name)
             else:
-                return list(self.mapping_file.sample_name)
+                return self.mapping_file.sample_name
         else:
             df = self.mapping_file[self.mapping_file['project_name'] ==
                                    project_name]
@@ -498,14 +500,22 @@ class Pipeline:
             # of contains_replicates column instead, as it's not required for
             # non-replicate pre-prep files.
             if 'contains_replicates' in df.columns:
-                if set(df['contains_replicates']) == {True, }:
+                values = set(df['contains_replicates'])
+                if values == {True, False}:
+                    # this is a sanity-check. A pre-prep file with both
+                    # values should fail validation during Pipeline creation.
+                    raise ValueError("'contains_replicates' column must either"
+                                     " be all True or all False")
+                elif values == {True, }:
                     # contains_replicates should be either all True or all
                     # False. We need not assume non-boolean data-types.
                     # With replicates, assume there are duplicate entries in
                     # orig_name column.
-                    return list(set((df['orig_name'])))
+                    return set((df['orig_name']))
 
-            return list(df['sample_name'])
+            # if values == {False, } or is a legacy mapping-file w/out the
+            # column, simply return sample-names.
+            return df['sample_name']
 
     def _parse_project_name(self, project_name, short_names):
         '''

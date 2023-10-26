@@ -36,6 +36,7 @@ class TestPipeline(unittest.TestCase):
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
         self.good_sheet_w_replicates = self.path('good_sheet_w_replicates.csv')
+        self.bad_pp_w_repl = self.path('bad_pre_prep_w_replicates.csv')
 
         # most of the tests here were written with the assumption that these
         # files already exist.
@@ -1424,6 +1425,19 @@ class TestPipeline(unittest.TestCase):
         # verify that a replicate sample-name, specifically replicate A1 is
         # was not returned by get_sample_names().
         self.assertNotIn('BLANK.43.12G.A1', obs)
+
+        # verify that pre-prep files w/a contains_replicates column will fail
+        # during Pipeline creation before pipeline.get_sample_names() can be
+        # called. The error message represents Pipeline() attempting to test
+        # that self.bad_pp_w_repl is a pre-prep file, failing validation,
+        # assuming it must be a sample-sheet, and then failing validation a
+        # second time.
+        with self.assertRaisesRegex(ValueError, "Sample sheet contains "
+                                    "invalid characters on line 1"):
+            Pipeline(self.good_config_file, self.good_run_id,
+                     self.bad_pp_w_repl, None,
+                     self.output_file_path, self.qiita_id,
+                     Pipeline.METAGENOMIC_PTYPE, None)
 
     def test_get_project_info(self):
         exp_proj_info = [
