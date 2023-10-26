@@ -471,11 +471,13 @@ class Pipeline:
             # JSON using the exposed method and obtain from the result.
             jsn = json_loads(self.sample_sheet.to_json())
             if 'orig_name' in self.sample_sheet.samples[0]:
-                return [x['orig_name'] for x in jsn['Data']
-                        if f'{project_name}_' in x['Sample_Project']]
+                key = 'orig_name'
             else:
-                return [x['Sample_Name'] for x in jsn['Data']
-                        if f'{project_name}_' in x['Sample_Project']]
+                key = 'Sample_Name'
+            
+            project_name = f'{project_name}_'    
+            return [x[key] for x in jsn['Data']
+                    if project_name in x['Sample_Project']]
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
