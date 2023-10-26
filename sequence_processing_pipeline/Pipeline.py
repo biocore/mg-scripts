@@ -461,8 +461,8 @@ class Pipeline:
         if project_name is None:
             if 'orig_name' in self.sample_sheet.samples[0]:
                 # return set as a list to match non-replicate results.
-                return sorted(list({x.orig_name for x in
-                                    self.sample_sheet.samples}))
+                return sorted({x.orig_name for x in
+                                    self.sample_sheet.samples})
             else:
                 return [x.Sample_Name for x in self.sample_sheet.samples]
         else:
