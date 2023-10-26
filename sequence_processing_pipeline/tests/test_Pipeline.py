@@ -35,6 +35,7 @@ class TestPipeline(unittest.TestCase):
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
+        self.good_sheet_w_replicates = self.path('good_sheet_w_replicates.csv')
 
         # most of the tests here were written with the assumption that these
         # files already exist.
@@ -284,63 +285,63 @@ class TestPipeline(unittest.TestCase):
 
         exp_first_lines = {
             f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
-            'BLANK1.1A\t2021-10-21\t193\t'
-            'Control\tNegative\tSterile w'
-            'ater blank\turban biome\tres'
-            'earch facility\tsterile wate'
-            'r\tmisc environment\tUSA:CA:'
-            'San Diego\tBLANK1.1A\t32.5\t'
-            '-117.25\tcontrol blank\tmeta'
-            'genome\t256318\tBLANK1.1A\tN'
-            'YU_BMS_Melanoma\tTRUE\t'
-            'UCSD\tFALSE',
+                'BLANK1.1A\t2021-10-21\t193\t'
+                'Control\tNegative\tSterile w'
+                'ater blank\turban biome\tres'
+                'earch facility\tsterile wate'
+                'r\tmisc environment\tUSA:CA:'
+                'San Diego\tBLANK1.1A\t32.5\t'
+                '-117.25\tcontrol blank\tmeta'
+                'genome\t256318\tBLANK1.1A\tN'
+                'YU_BMS_Melanoma\tTRUE\t'
+                'UCSD\tFALSE',
             f'{self.good_run_id}_Feist_11661_blanks.tsv':
-            'BLANK.40.12G\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban '
-            'biome\tresearch facility\tsterile water'
-            '\tmisc environment\tUSA:CA:San Diego\tB'
-            'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
-            'nk\tmetagenome\t256318\tBLANK.40.12G\t'
-            'Feist\tTRUE\tUCSD\tFALSE',
+                'BLANK.40.12G\t2021-10-21\t193\tControl'
+                '\tNegative\tSterile water blank\turban '
+                'biome\tresearch facility\tsterile water'
+                '\tmisc environment\tUSA:CA:San Diego\tB'
+                'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
+                'nk\tmetagenome\t256318\tBLANK.40.12G\t'
+                'Feist\tTRUE\tUCSD\tFALSE',
             f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
-            'BLANK.41.12G\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban'
-            ' biome\tresearch facility\tsterile wat'
-            'er\tmisc environment\tUSA:CA:San Diego'
-            '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
-            ' blank\tmetagenome\t256318\tBLANK.41.1'
-            '2G\tGerwick\tTRUE\tUCSD\tFALSE'
+                'BLANK.41.12G\t2021-10-21\t193\tControl'
+                '\tNegative\tSterile water blank\turban'
+                ' biome\tresearch facility\tsterile wat'
+                'er\tmisc environment\tUSA:CA:San Diego'
+                '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
+                ' blank\tmetagenome\t256318\tBLANK.41.1'
+                '2G\tGerwick\tTRUE\tUCSD\tFALSE'
         }
 
         exp_last_lines = {
             f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
-            'BLANK4.4H\t2021-10-21\t193\t'
-            'Control\tNegative\tSterile w'
-            'ater blank\turban biome\tres'
-            'earch facility\tsterile wate'
-            'r\tmisc environment\tUSA:CA:'
-            'San Diego\tBLANK4.4H\t32.5\t'
-            '-117.25\tcontrol blank\tmeta'
-            'genome\t256318\tBLANK4.4H\tN'
-            'YU_BMS_Melanoma\tTRUE\t'
-            'UCSD\tFALSE',
+                'BLANK4.4H\t2021-10-21\t193\t'
+                'Control\tNegative\tSterile w'
+                'ater blank\turban biome\tres'
+                'earch facility\tsterile wate'
+                'r\tmisc environment\tUSA:CA:'
+                'San Diego\tBLANK4.4H\t32.5\t'
+                '-117.25\tcontrol blank\tmeta'
+                'genome\t256318\tBLANK4.4H\tN'
+                'YU_BMS_Melanoma\tTRUE\t'
+                'UCSD\tFALSE',
             f'{self.good_run_id}_Feist_11661_blanks.tsv':
-            'BLANK.43.12H\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban'
-            ' biome\tresearch facility\tsterile wat'
-            'er\tmisc environment\tUSA:CA:San Diego'
-            '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
-            ' blank\tmetagenome\t256318\tBLANK.43.1'
-            '2H\tFeist\tTRUE\tUCSD\tFALSE',
+                'BLANK.43.12H\t2021-10-21\t193\tControl'
+                '\tNegative\tSterile water blank\turban'
+                ' biome\tresearch facility\tsterile wat'
+                'er\tmisc environment\tUSA:CA:San Diego'
+                '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
+                ' blank\tmetagenome\t256318\tBLANK.43.1'
+                '2H\tFeist\tTRUE\tUCSD\tFALSE',
             f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
-            'BLANK.41.12G\t2021-10-21\t193\tContro'
-            'l\tNegative\tSterile water blank\turb'
-            'an biome\tresearch facility\tsterile '
-            'water\tmisc environment\tUSA:CA:San D'
-            'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
-            'ntrol blank\tmetagenome\t256318\tBLAN'
-            'K.41.12G\tGerwick\tTRUE\tUCSD\t'
-            'FALSE'
+                'BLANK.41.12G\t2021-10-21\t193\tContro'
+                'l\tNegative\tSterile water blank\turb'
+                'an biome\tresearch facility\tsterile '
+                'water\tmisc environment\tUSA:CA:San D'
+                'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
+                'ntrol blank\tmetagenome\t256318\tBLAN'
+                'K.41.12G\tGerwick\tTRUE\tUCSD\t'
+                'FALSE'
         }
 
         for some_path in paths:
@@ -429,7 +430,6 @@ class TestPipeline(unittest.TestCase):
             self.assertEqual(obs, exp)
 
     def test_get_sample_ids(self):
-
         exp_sample_ids = ['CDPH-SAL__Salmonella__Typhi__MDL-143',
                           'CDPH-SAL_Salmonella_Typhi_MDL-144',
                           'CDPH-SAL_Salmonella_Typhi_MDL-145',
@@ -1388,6 +1388,43 @@ class TestPipeline(unittest.TestCase):
         obs = set(pipeline.get_sample_names('Gerwick'))
         self.assertEqual(obs, exp)
 
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sheet_w_replicates, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE, None)
+
+        obs = set(pipeline.get_sample_names())
+
+        exp = {"BLANK.43.12G", "BLANK.43.12H", "RMA.KHP.rpoS.Mage.Q97D",
+               "RMA.KHP.rpoS.Mage.Q97L", "RMA.KHP.rpoS.Mage.Q97N",
+               "RMA.KHP.rpoS.Mage.Q97E", "JBI.KHP.HGL.021", "JBI.KHP.HGL.022",
+               "JBI.KHP.HGL.023", "JBI.KHP.HGL.024", "AP581451B02",
+               "EP256645B01", "EP112567B02", "EP337425B01", "LP127890A01",
+               "EP159692B04", "EP987683A01", "AP959450A03", "SP464350A04",
+               "EP121011B01", "BLANK.43.12G", "BLANK.43.12H",
+               "RMA.KHP.rpoS.Mage.Q97D", "RMA.KHP.rpoS.Mage.Q97L",
+               "RMA.KHP.rpoS.Mage.Q97N", "RMA.KHP.rpoS.Mage.Q97E",
+               "JBI.KHP.HGL.021", "JBI.KHP.HGL.022", "JBI.KHP.HGL.023",
+               "JBI.KHP.HGL.024", "AP581451B02", "EP256645B01", "EP112567B02",
+               "EP337425B01", "LP127890A01", "EP159692B04", "EP987683A01",
+               "AP959450A03", "SP464350A04", "EP121011B01", "BLANK.43.12G",
+               "BLANK.43.12H", "RMA.KHP.rpoS.Mage.Q97D",
+               "RMA.KHP.rpoS.Mage.Q97L", "RMA.KHP.rpoS.Mage.Q97N",
+               "RMA.KHP.rpoS.Mage.Q97E", "JBI.KHP.HGL.021",
+               "JBI.KHP.HGL.022", "JBI.KHP.HGL.023", "JBI.KHP.HGL.024",
+               "AP581451B02", "EP256645B01", "EP112567B02", "EP337425B01",
+               "LP127890A01", "EP159692B04", "EP987683A01", "AP959450A03",
+               "SP464350A04", "EP121011B01"}
+
+        # verify that when dealing with a sample-sheet containing replicates,
+        # get_sample_names() only returns the sample-names themselves, w/out
+        # replicate well-ids appended to them.
+        self.assertEqual(obs, exp)
+
+        # verify that a replicate sample-name, specifically replicate A1 is
+        # was not returned by get_sample_names().
+        self.assertNotIn('BLANK.43.12G.A1', obs)
+
     def test_get_project_info(self):
         exp_proj_info = [
             {'project_name': 'NYU_BMS_Melanoma_13059', 'qiita_id': '13059'},
@@ -1451,7 +1488,7 @@ class TestPipeline(unittest.TestCase):
                       ('Foobar', None),
                       ('', None),
                       (None, None)]
-            }
+        }
 
         for t_set in tests:
             for test, exp in tests[t_set]:
@@ -1485,6 +1522,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
         self.sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.pre_prep_w_replicates = self.path('pre_prep_w_replicates.csv')
 
         # most of the tests here were written with the assumption that these
         # files already exist.
@@ -1706,198 +1744,123 @@ class TestAmpliconPipeline(unittest.TestCase):
         # aren't needed.
 
     def test_get_sample_ids(self):
-        exp_sample_ids = ['11.1.21.RK.FH', '11.1.21.RK.LH',
-                          '11.1.21.RK.RH', '11.10.21.RK.FH',
-                          '11.10.21.RK.LH', '11.10.21.RK.RH',
-                          '11.12.21.RK.FH', '11.12.21.RK.LH',
-                          '11.12.21.RK.RH', '11.13.21.RK.FH',
-                          '11.13.21.RK.LH', '11.13.21.RK.RH',
-                          '11.17.21.RK.FH', '11.17.21.RK.LH',
-                          '11.17.21.RK.RH', '11.2.21.RK.FH',
-                          '11.2.21.RK.LH', '11.2.21.RK.RH',
-                          '11.3.21.RK.FH', '11.3.21.RK.LH',
-                          '11.3.21.RK.RH', '11.4.21.RK.FH',
-                          '11.4.21.RK.LH', '11.4.21.RK.RH',
-                          '11.5.21.RK.FH', '11.5.21.RK.LH',
-                          '11.5.21.RK.RH', '11.6.21.RK.FH',
-                          '11.6.21.RK.LH', '11.6.21.RK.RH',
-                          '11.7.21.RK.FH', '11.7.21.RK.LH',
-                          '11.7.21.RK.RH', '11.8.21.RK.FH',
-                          '11.8.21.RK.LH', '5.1.22.RK.FH',
-                          '5.1.22.RK.LH', '5.1.22.RK.RH',
-                          '5.10.22.RK.RH', '5.11.22.RK.FH',
-                          '5.11.22.RK.LH', '5.11.22.RK.RH',
-                          '5.12.22.RK.FH', '5.12.22.RK.LH',
-                          '5.12.22.RK.RH', '5.13.22.RK.FH',
-                          '5.13.22.RK.LH', '5.13.22.RK.RH',
-                          '5.14.22.RK.FH', '5.14.22.RK.LH',
-                          '5.14.22.RK.RH', '5.15.22.RK.FH',
-                          '5.15.22.RK.LH', '5.15.22.RK.RH',
-                          '5.16.22.RK.FH', '5.16.22.RK.LH',
-                          '5.16.22.RK.RH', '5.17.22.RK.FH',
-                          '5.17.22.RK.LH', '5.17.22.RK.RH',
-                          '5.18.22.RK.FH', '5.18.22.RK.LH',
-                          '5.18.22.RK.RH', '5.19.22.RK.FH',
-                          '5.19.22.RK.LH', '5.19.22.RK.RH',
-                          '5.2.22.RK.FH', '5.2.22.RK.LH',
-                          '5.2.22.RK.RH', '5.20.22.RK.FH',
-                          '5.20.22.RK.LH', '5.20.22.RK.RH',
-                          '5.21.22.RK.FH', '5.21.22.RK.LH',
-                          '5.21.22.RK.RH', '5.22.22.RK.FH',
-                          '5.22.22.RK.LH', '5.22.22.RK.RH',
-                          '5.23.22.RK.FH', '5.23.22.RK.LH',
-                          '5.23.22.RK.RH', '5.24.22.RK.FH',
-                          '5.24.22.RK.LH', '5.24.22.RK.RH',
-                          '5.27.22.RK.FH', '5.27.22.RK.LH',
-                          '5.27.22.RK.RH', '5.29.22.RK.FH',
-                          '5.29.22.RK.LH', '5.29.22.RK.RH',
-                          '5.3.22.RK.FH', '5.3.22.RK.LH',
-                          '5.3.22.RK.RH', '5.30.22.RK.FH',
-                          '5.30.22.RK.LH', '5.30.22.RK.RH',
-                          '5.31.22.RK.FH', '5.31.22.RK.LH',
-                          '5.31.22.RK.RH', '5.4.22.RK.FH',
-                          '5.4.22.RK.LH', '5.4.22.RK.RH',
-                          '5.5.22.RK.FH', '5.5.22.RK.LH',
-                          '5.5.22.RK.RH', '5.6.22.RK.FH',
-                          '5.6.22.RK.LH', '5.6.22.RK.RH',
-                          '5.7.22.RK.FH', '5.7.22.RK.LH',
-                          '5.7.22.RK.RH', '5.8.22.RK.FH',
-                          '5.8.22.RK.LH', '5.8.22.RK.RH',
-                          '5.9.22.RK.FH', '5.9.22.RK.LH',
-                          '5.9.22.RK.RH', '6.1.22.RK.FH',
-                          '6.1.22.RK.LH', '6.1.22.RK.RH',
-                          '6.10.22.RK.FH', '6.10.22.RK.LH',
-                          '6.10.22.RK.RH', '6.11.22.RK.FH',
-                          '6.11.22.RK.LH', '6.11.22.RK.RH',
-                          '6.12.22.RK.FH', '6.12.22.RK.LH',
-                          '6.12.22.RK.RH', '6.13.22.RK.FH',
-                          '6.13.22.RK.LH', '6.13.22.RK.RH',
-                          '6.14.22.RK.FH', '6.14.22.RK.LH',
-                          '6.14.22.RK.RH', '6.15.22.RK.FH',
-                          '6.15.22.RK.LH', '6.15.22.RK.RH',
-                          '6.16.22.RK.FH', '6.16.22.RK.LH',
-                          '6.16.22.RK.RH', '6.17.22.RK.FH',
-                          '6.17.22.RK.LH', '6.17.22.RK.RH',
-                          '6.18.22.RK.FH', '6.18.22.RK.LH',
-                          '6.18.22.RK.RH', '6.19.22.RK.FH',
-                          '6.19.22.RK.LH', '6.19.22.RK.RH',
-                          '6.2.22.RK.FH', '6.2.22.RK.LH',
-                          '6.2.22.RK.RH', '6.20.22.RK.FH',
-                          '6.20.22.RK.LH', '6.20.22.RK.RH',
-                          '6.21.22.RK.FH', '6.21.22.RK.LH',
-                          '6.21.22.RK.RH', '6.22.22.RK.FH',
-                          '6.22.22.RK.LH', '6.22.22.RK.RH',
-                          '6.23.22.RK.FH', '6.23.22.RK.LH.A',
-                          '6.23.22.RK.LH.B', '6.24.22.RK.FH',
-                          '6.24.22.RK.RH', '6.25.22.RK.FH',
-                          '6.25.22.RK.LH', '6.25.22.RK.RH',
-                          '6.26.22.RK.FH', '6.26.22.RK.LH',
-                          '6.26.22.RK.RH.A', '6.26.22.RK.RH.B',
-                          '6.27.22.RK.FH', '6.27.22.RK.LH',
-                          '6.27.22.RK.RH', '6.28.22.RK.FH',
-                          '6.28.22.RK.LH', '6.28.22.RK.RH',
-                          '6.29.22.RK.FH', '6.29.22.RK.LH',
-                          '6.29.22.RK.RH', '6.3.22.RK.FH',
-                          '6.3.22.RK.LH', '6.3.22.RK.RH',
-                          '6.30.22.RK.FH', '6.30.22.RK.LH',
-                          '6.30.22.RK.RH', '6.4.22.RK.FH',
-                          '6.4.22.RK.LH', '6.4.22.RK.RH',
-                          '6.5.22.RK.FH', '6.5.22.RK.LH',
-                          '6.5.22.RK.RH', '6.6.22.RK.FH',
-                          '6.6.22.RK.LH', '6.6.22.RK.RH',
-                          '6.7.22.RK.FH', '6.7.22.RK.LH',
-                          '6.7.22.RK.RH', '6.8.22.RK.FH',
-                          '6.8.22.RK.LH', '6.8.22.RK.RH',
-                          '6.9.22.RK.FH', '6.9.22.RK.LH',
-                          '6.9.22.RK.RH', '9.1.22.RK.FH',
-                          '9.1.22.RK.LH', '9.1.22.RK.RH',
-                          '9.10.22.RK.FH', '9.10.22.RK.LH',
-                          '9.10.22.RK.RH', '9.11.22.RK.FH',
-                          '9.11.22.RK.LH', '9.11.22.RK.RH',
-                          '9.12.22.RK.FH', '9.12.22.RK.LH',
-                          '9.12.22.RK.RH', '9.13.22.RK.FH',
-                          '9.13.22.RK.LH', '9.13.22.RK.RH',
-                          '9.14.22.RK.FH', '9.14.22.RK.LH',
-                          '9.14.22.RK.RH', '9.15.22.RK.FH',
-                          '9.15.22.RK.LH', '9.15.22.RK.RH',
-                          '9.16.22.RK.FH', '9.16.22.RK.LH',
-                          '9.16.22.RK.RH', '9.17.22.RK.FH',
-                          '9.17.22.RK.LH', '9.17.22.RK.RH',
-                          '9.19.22.RK.FH', '9.19.22.RK.LH',
-                          '9.19.22.RK.RH', '9.2.22.RK.FH',
-                          '9.2.22.RK.LH', '9.2.22.RK.RH',
-                          '9.20.22.RK.FH', '9.20.22.RK.LH',
-                          '9.20.22.RK.RH', '9.21.22.RK.FH',
-                          '9.21.22.RK.LH', '9.21.22.RK.RH',
-                          '9.22.22.RK.FH', '9.22.22.RK.LH',
-                          '9.22.22.RK.RH', '9.23.22.RK.FH',
-                          '9.23.22.RK.LH', '9.23.22.RK.RH',
-                          '9.24.22.RK.FH', '9.24.22.RK.LH',
-                          '9.24.22.RK.RH', '9.25.22.RK.FH',
-                          '9.25.22.RK.LH', '9.26.22.RK.FH',
-                          '9.26.22.RK.LH', '9.26.22.RK.RH',
-                          '9.27.22.RK.FH', '9.27.22.RK.LH',
-                          '9.27.22.RK.RH', '9.29.22.RK.FH',
-                          '9.29.22.RK.LH', '9.29.22.RK.RH',
-                          '9.3.22.RK.FH', '9.3.22.RK.LH',
-                          '9.3.22.RK.RH', '9.30.22.RK.FH',
-                          '9.30.22.RK.LH', '9.30.22.RK.RH',
-                          '9.4.22.RK.FH', '9.4.22.RK.LH',
-                          '9.4.22.RK.RH', '9.5.22.RK.FH',
-                          '9.5.22.RK.LH', '9.5.22.RK.RH',
-                          '9.6.22.RK.FH', '9.6.22.RK.LH',
-                          '9.6.22.RK.RH', '9.7.22.RK.FH',
-                          '9.7.22.RK.LH', '9.7.22.RK.RH',
-                          '9.8.22.RK.FH', '9.8.22.RK.LH',
-                          '9.8.22.RK.RH', '9.9.22.RK.FH',
-                          '9.9.22.RK.LH', '9.9.22.RK.RH',
-                          'BLANK.242.4C', 'BLANK238.3A',
-                          'BLANK238.3B', 'BLANK238.3C',
-                          'BLANK238.3D', 'BLANK238.3E',
-                          'BLANK238.3F', 'BLANK238.3G',
-                          'BLANK238.3H', 'BLANK239.10A',
-                          'BLANK239.10B', 'BLANK239.10C',
-                          'BLANK239.10D', 'BLANK239.10E',
-                          'BLANK239.10F', 'BLANK239.10G',
-                          'BLANK239.10H', 'BLANK240.3A',
-                          'BLANK240.3B', 'BLANK240.3C',
-                          'BLANK240.3D', 'BLANK240.3E',
-                          'BLANK240.3F', 'BLANK240.3G',
-                          'BLANK240.3H', 'BLANK242.10A',
-                          'BLANK242.10B', 'BLANK242.10C',
-                          'BLANK242.10D', 'BLANK242.10E',
-                          'BLANK242.10F', 'BLANK242.10G',
-                          'BLANK242.10H', 'BLANK242.11A',
-                          'BLANK242.11B', 'BLANK242.11C',
-                          'BLANK242.11D', 'BLANK242.11E',
-                          'BLANK242.11F', 'BLANK242.11G',
-                          'BLANK242.11H', 'BLANK242.12A',
-                          'BLANK242.12B', 'BLANK242.12C',
-                          'BLANK242.12D', 'BLANK242.12E',
-                          'BLANK242.12F', 'BLANK242.12G',
-                          'BLANK242.12H', 'BLANK242.4D',
-                          'BLANK242.4E', 'BLANK242.4F',
-                          'BLANK242.4G', 'BLANK242.4H',
-                          'BLANK242.5A', 'BLANK242.5B',
-                          'BLANK242.5C', 'BLANK242.5D',
-                          'BLANK242.5E', 'BLANK242.5F',
-                          'BLANK242.5G', 'BLANK242.5H',
-                          'BLANK242.6A', 'BLANK242.6B',
-                          'BLANK242.6C', 'BLANK242.6D',
-                          'BLANK242.6E', 'BLANK242.6F',
-                          'BLANK242.6G', 'BLANK242.6H',
-                          'BLANK242.7A', 'BLANK242.7B',
-                          'BLANK242.7C', 'BLANK242.7D',
-                          'BLANK242.7E', 'BLANK242.7F',
-                          'BLANK242.7G', 'BLANK242.7H',
-                          'BLANK242.8A', 'BLANK242.8B',
-                          'BLANK242.8C', 'BLANK242.8D',
-                          'BLANK242.8E', 'BLANK242.8F',
-                          'BLANK242.8G', 'BLANK242.8H',
-                          'BLANK242.9A', 'BLANK242.9B',
-                          'BLANK242.9C', 'BLANK242.9D',
-                          'BLANK242.9E', 'BLANK242.9F',
-                          'BLANK242.9G', 'BLANK242.9H']
+        exp = ['11.1.21.RK.FH', '11.1.21.RK.LH', '11.1.21.RK.RH',
+               '11.10.21.RK.FH', '11.10.21.RK.LH', '11.10.21.RK.RH',
+               '11.12.21.RK.FH', '11.12.21.RK.LH', '11.12.21.RK.RH',
+               '11.13.21.RK.FH', '11.13.21.RK.LH', '11.13.21.RK.RH',
+               '11.17.21.RK.FH', '11.17.21.RK.LH', '11.17.21.RK.RH',
+               '11.2.21.RK.FH', '11.2.21.RK.LH', '11.2.21.RK.RH',
+               '11.3.21.RK.FH', '11.3.21.RK.LH', '11.3.21.RK.RH',
+               '11.4.21.RK.FH', '11.4.21.RK.LH', '11.4.21.RK.RH',
+               '11.5.21.RK.FH', '11.5.21.RK.LH', '11.5.21.RK.RH',
+               '11.6.21.RK.FH', '11.6.21.RK.LH', '11.6.21.RK.RH',
+               '11.7.21.RK.FH', '11.7.21.RK.LH', '11.7.21.RK.RH',
+               '11.8.21.RK.FH', '11.8.21.RK.LH', '5.1.22.RK.FH',
+               '5.1.22.RK.LH', '5.1.22.RK.RH', '5.10.22.RK.RH',
+               '5.11.22.RK.FH', '5.11.22.RK.LH', '5.11.22.RK.RH',
+               '5.12.22.RK.FH', '5.12.22.RK.LH', '5.12.22.RK.RH',
+               '5.13.22.RK.FH', '5.13.22.RK.LH', '5.13.22.RK.RH',
+               '5.14.22.RK.FH', '5.14.22.RK.LH', '5.14.22.RK.RH',
+               '5.15.22.RK.FH', '5.15.22.RK.LH', '5.15.22.RK.RH',
+               '5.16.22.RK.FH', '5.16.22.RK.LH', '5.16.22.RK.RH',
+               '5.17.22.RK.FH', '5.17.22.RK.LH', '5.17.22.RK.RH',
+               '5.18.22.RK.FH', '5.18.22.RK.LH', '5.18.22.RK.RH',
+               '5.19.22.RK.FH', '5.19.22.RK.LH', '5.19.22.RK.RH',
+               '5.2.22.RK.FH', '5.2.22.RK.LH', '5.2.22.RK.RH',
+               '5.20.22.RK.FH', '5.20.22.RK.LH', '5.20.22.RK.RH',
+               '5.21.22.RK.FH', '5.21.22.RK.LH', '5.21.22.RK.RH',
+               '5.22.22.RK.FH', '5.22.22.RK.LH', '5.22.22.RK.RH',
+               '5.23.22.RK.FH', '5.23.22.RK.LH', '5.23.22.RK.RH',
+               '5.24.22.RK.FH', '5.24.22.RK.LH', '5.24.22.RK.RH',
+               '5.27.22.RK.FH', '5.27.22.RK.LH', '5.27.22.RK.RH',
+               '5.29.22.RK.FH', '5.29.22.RK.LH', '5.29.22.RK.RH',
+               '5.3.22.RK.FH', '5.3.22.RK.LH', '5.3.22.RK.RH',
+               '5.30.22.RK.FH', '5.30.22.RK.LH', '5.30.22.RK.RH',
+               '5.31.22.RK.FH', '5.31.22.RK.LH', '5.31.22.RK.RH',
+               '5.4.22.RK.FH', '5.4.22.RK.LH', '5.4.22.RK.RH',
+               '5.5.22.RK.FH', '5.5.22.RK.LH', '5.5.22.RK.RH',
+               '5.6.22.RK.FH', '5.6.22.RK.LH', '5.6.22.RK.RH',
+               '6.23.22.RK.LH', '6.26.22.RK.RH', '5.8.22.RK.FH',
+               '5.7.22.RK.FH', '5.7.22.RK.LH', '5.7.22.RK.RH',
+               '5.8.22.RK.LH', '5.8.22.RK.RH', '5.9.22.RK.FH',
+               '5.9.22.RK.RH', '6.1.22.RK.FH', '6.1.22.RK.LH',
+               '6.10.22.RK.FH', '6.10.22.RK.LH', '6.10.22.RK.RH',
+               '6.11.22.RK.FH', '5.9.22.RK.LH', '6.1.22.RK.RH',
+               '6.11.22.RK.LH', '6.11.22.RK.RH', '6.12.22.RK.FH',
+               '6.12.22.RK.LH', '6.12.22.RK.RH', '6.13.22.RK.FH',
+               '6.13.22.RK.LH', '6.13.22.RK.RH', '6.14.22.RK.FH',
+               '6.14.22.RK.LH', '6.14.22.RK.RH', '6.15.22.RK.FH',
+               '6.15.22.RK.LH', '6.15.22.RK.RH', '6.16.22.RK.FH',
+               '6.16.22.RK.LH', '6.16.22.RK.RH', '6.17.22.RK.FH',
+               '6.17.22.RK.LH', '6.17.22.RK.RH', '6.18.22.RK.FH',
+               '6.18.22.RK.LH', '6.18.22.RK.RH', '6.19.22.RK.FH',
+               '6.19.22.RK.LH', '6.19.22.RK.RH', '6.2.22.RK.FH',
+               '6.2.22.RK.LH', '6.2.22.RK.RH', '6.20.22.RK.FH',
+               '6.20.22.RK.LH', '6.20.22.RK.RH', '6.21.22.RK.FH',
+               '6.21.22.RK.LH', '6.21.22.RK.RH', '6.22.22.RK.FH',
+               '6.22.22.RK.LH', '6.22.22.RK.RH', '6.23.22.RK.FH',
+               '6.24.22.RK.FH', '6.24.22.RK.RH', '6.25.22.RK.FH',
+               '6.25.22.RK.LH', '6.25.22.RK.RH', '6.26.22.RK.FH',
+               '6.26.22.RK.LH', '6.27.22.RK.FH', '6.27.22.RK.LH',
+               '6.27.22.RK.RH', '6.28.22.RK.FH', '6.28.22.RK.LH',
+               '6.28.22.RK.RH', '6.29.22.RK.FH', '6.29.22.RK.LH',
+               '6.29.22.RK.RH', '6.3.22.RK.FH', '6.3.22.RK.LH', '6.3.22.RK.RH',
+               '6.30.22.RK.FH', '6.30.22.RK.LH', '6.30.22.RK.RH',
+               '6.4.22.RK.FH', '6.4.22.RK.LH', '6.4.22.RK.RH', '6.5.22.RK.FH',
+               '6.5.22.RK.LH', '6.5.22.RK.RH', '6.6.22.RK.FH', '6.6.22.RK.LH',
+               '6.6.22.RK.RH', '6.7.22.RK.FH', '6.7.22.RK.LH', '6.7.22.RK.RH',
+               '6.8.22.RK.FH', '6.8.22.RK.LH', '6.8.22.RK.RH', '6.9.22.RK.FH',
+               '6.9.22.RK.LH', '6.9.22.RK.RH', '9.1.22.RK.FH', '9.1.22.RK.LH',
+               '9.1.22.RK.RH', '9.10.22.RK.FH', '9.10.22.RK.LH',
+               '9.10.22.RK.RH', '9.11.22.RK.FH', '9.11.22.RK.LH',
+               '9.11.22.RK.RH', '9.12.22.RK.FH', '9.12.22.RK.LH',
+               '9.12.22.RK.RH', '9.13.22.RK.FH', '9.13.22.RK.LH',
+               '9.13.22.RK.RH', '9.14.22.RK.FH', '9.14.22.RK.LH',
+               '9.14.22.RK.RH', '9.15.22.RK.FH', '9.15.22.RK.LH',
+               '9.15.22.RK.RH', '9.16.22.RK.FH', '9.16.22.RK.LH',
+               '9.16.22.RK.RH', '9.17.22.RK.FH', '9.17.22.RK.LH',
+               '9.17.22.RK.RH', '9.19.22.RK.FH', '9.19.22.RK.LH',
+               '9.19.22.RK.RH', '9.2.22.RK.FH', '9.2.22.RK.LH', '9.2.22.RK.RH',
+               '9.20.22.RK.FH', '9.20.22.RK.LH', '9.20.22.RK.RH',
+               '9.21.22.RK.FH', '9.21.22.RK.LH', '9.21.22.RK.RH',
+               '9.22.22.RK.FH', '9.22.22.RK.LH', '9.22.22.RK.RH',
+               '9.23.22.RK.FH', '9.23.22.RK.LH', '9.23.22.RK.RH',
+               '9.24.22.RK.FH', '9.24.22.RK.LH', '9.24.22.RK.RH',
+               '9.25.22.RK.FH', '9.25.22.RK.LH', '9.26.22.RK.FH',
+               '9.26.22.RK.LH', '9.26.22.RK.RH', '9.27.22.RK.FH',
+               '9.27.22.RK.LH', '9.27.22.RK.RH', '9.29.22.RK.FH',
+               '9.29.22.RK.LH', '9.29.22.RK.RH', '9.3.22.RK.FH',
+               '9.3.22.RK.LH', '9.3.22.RK.RH', '9.30.22.RK.FH',
+               '9.30.22.RK.LH', '9.30.22.RK.RH', '9.4.22.RK.FH',
+               '9.4.22.RK.LH', '9.4.22.RK.RH', '9.5.22.RK.FH', '9.5.22.RK.LH',
+               '9.5.22.RK.RH', '9.6.22.RK.FH', '9.6.22.RK.LH', '9.6.22.RK.RH',
+               '9.7.22.RK.FH', '9.7.22.RK.LH', '9.7.22.RK.RH', '9.8.22.RK.FH',
+               '9.8.22.RK.LH', '9.8.22.RK.RH', '9.9.22.RK.FH', '9.9.22.RK.LH',
+               '9.9.22.RK.RH', 'BLANK.242.4C', 'BLANK238.3A', 'BLANK238.3B',
+               'BLANK238.3C', 'BLANK238.3D', 'BLANK238.3E', 'BLANK238.3F',
+               'BLANK238.3G', 'BLANK238.3H', 'BLANK239.10A', 'BLANK239.10B',
+               'BLANK239.10C', 'BLANK239.10D', 'BLANK239.10E', 'BLANK239.10F',
+               'BLANK239.10G', 'BLANK239.10H', 'BLANK240.3A', 'BLANK240.3B',
+               'BLANK240.3C', 'BLANK240.3D', 'BLANK240.3E', 'BLANK240.3F',
+               'BLANK240.3G', 'BLANK240.3H', 'BLANK242.10A', 'BLANK242.10B',
+               'BLANK242.10C', 'BLANK242.10D', 'BLANK242.10E', 'BLANK242.10F',
+               'BLANK242.10G', 'BLANK242.10H', 'BLANK242.11A', 'BLANK242.11B',
+               'BLANK242.11C', 'BLANK242.11D', 'BLANK242.11E', 'BLANK242.11F',
+               'BLANK242.11G', 'BLANK242.11H', 'BLANK242.12A', 'BLANK242.12B',
+               'BLANK242.12C', 'BLANK242.12D', 'BLANK242.12E', 'BLANK242.12F',
+               'BLANK242.12G', 'BLANK242.12H', 'BLANK242.4D', 'BLANK242.4E',
+               'BLANK242.4F', 'BLANK242.4G', 'BLANK242.4H', 'BLANK242.5A',
+               'BLANK242.5B', 'BLANK242.5C', 'BLANK242.5D', 'BLANK242.5E',
+               'BLANK242.5F', 'BLANK242.5G', 'BLANK242.5H', 'BLANK242.6A',
+               'BLANK242.6B', 'BLANK242.6C', 'BLANK242.6D', 'BLANK242.6E',
+               'BLANK242.6F', 'BLANK242.6G', 'BLANK242.6H', 'BLANK242.7A',
+               'BLANK242.7B', 'BLANK242.7C', 'BLANK242.7D', 'BLANK242.7E',
+               'BLANK242.7F', 'BLANK242.7G', 'BLANK242.7H', 'BLANK242.8A',
+               'BLANK242.8B', 'BLANK242.8C', 'BLANK242.8D', 'BLANK242.8E',
+               'BLANK242.8F', 'BLANK242.8G', 'BLANK242.8H', 'BLANK242.9A',
+               'BLANK242.9B', 'BLANK242.9C', 'BLANK242.9D', 'BLANK242.9E',
+               'BLANK242.9F', 'BLANK242.9G', 'BLANK242.9H']
+
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file,
                             self.good_run_id,
@@ -1909,7 +1872,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                             None)
 
         obs = pipeline.get_sample_ids()
-        self.assertEqual(sorted(obs), sorted(exp_sample_ids))
+
+        self.assertEqual(sorted(obs), sorted(exp))
 
     def test_get_sample_names(self):
         exp = ['11.1.21.RK.FH', '11.1.21.RK.LH', '11.1.21.RK.RH',
@@ -1964,10 +1928,10 @@ class TestAmpliconPipeline(unittest.TestCase):
                '6.20.22.RK.LH', '6.20.22.RK.RH', '6.21.22.RK.FH',
                '6.21.22.RK.LH', '6.21.22.RK.RH', '6.22.22.RK.FH',
                '6.22.22.RK.LH', '6.22.22.RK.RH', '6.23.22.RK.FH',
-               '6.23.22.RK.LH.A', '6.23.22.RK.LH.B', '6.24.22.RK.FH',
+               '6.23.22.RK.LH', '6.24.22.RK.FH',
                '6.24.22.RK.RH', '6.25.22.RK.FH', '6.25.22.RK.LH',
                '6.25.22.RK.RH', '6.26.22.RK.FH', '6.26.22.RK.LH',
-               '6.26.22.RK.RH.A', '6.26.22.RK.RH.B', '6.27.22.RK.FH',
+               '6.26.22.RK.RH', '6.27.22.RK.FH',
                '6.27.22.RK.LH', '6.27.22.RK.RH', '6.28.22.RK.FH',
                '6.28.22.RK.LH', '6.28.22.RK.RH', '6.29.22.RK.FH',
                '6.29.22.RK.LH', '6.29.22.RK.RH', '6.3.22.RK.FH',
@@ -2038,12 +2002,33 @@ class TestAmpliconPipeline(unittest.TestCase):
                             None)
 
         obs = pipeline.get_sample_names()
+
         self.assertEqual(sorted(obs), sorted(exp))
 
         # mapping file only contains one project, but this test will
         # still exercise the correct code.
         obs = pipeline.get_sample_names('ABTX_20230208_ABTX_11052')
         self.assertEqual(sorted(obs), sorted(exp))
+
+        pipeline = Pipeline(self.good_config_file,
+                            self.good_run_id,
+                            None,
+                            self.pre_prep_w_replicates,
+                            self.output_file_path,
+                            self.qiita_id,
+                            Pipeline.AMPLICON_PTYPE,
+                            None)
+
+        obs = pipeline.get_sample_names()
+
+        # verify that a replicate sample-name is not included in the results.
+        self.assertNotIn('9.18.19.RK.ST.900.A1', obs)
+
+        exp = {'9.16.19.RK.ST.1100', '9.16.19.RK.ST.700', '9.18.19.RK.ST.900',
+               '9.19.19.RK.ST.1100', '9.20.19.RK.ST.1100',
+               '9.20.19.RK.ST.700', '9.21.19.RK.ST.500', '9.22.19.RK.ST.700'}
+
+        self.assertEqual(set(obs), exp)
 
     def test_get_project_info(self):
         exp_proj_info = [
@@ -2195,7 +2180,6 @@ good_dummy_sheet1 = [
     "c2cowart@ucsd.edu,SomeProject,,,,,",
     "antgonza@gmail.com,AnotherProject,,,,,", ",,,,,,"]
 
-
 good_dummy_sheet2 = [
     "[Header],,,,,,", "IEMFileVersion,4,,,,,", "Date,10/27/22,,,,,",
     "Workflow,GenerateFASTQ,,,,,", "Application,FASTQ Only,,,,,",
@@ -2213,7 +2197,6 @@ good_dummy_sheet2 = [
     "[Contact],,,,,,", "Email,Sample_Project,,,,,",
     "c2cowart@ucsd.edu,SomeProject,,,,,",
     "antgonza@gmail.com,AnotherProject,,,,,", ",,,,,,"]
-
 
 if __name__ == '__main__':
     unittest.main()

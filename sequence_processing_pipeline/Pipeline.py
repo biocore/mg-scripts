@@ -459,21 +459,50 @@ class Pipeline:
 
     def _get_sample_names_from_sample_sheet(self, project_name):
         if project_name is None:
-            return [x.Sample_Name for x in self.sample_sheet.samples]
+            if 'orig_name' in self.sample_sheet.samples[0]:
+                # return set as a list to match non-replicate results.
+                return sorted(list({x.orig_name for x in
+                                    self.sample_sheet.samples}))
+            else:
+                return [x.Sample_Name for x in self.sample_sheet.samples]
         else:
             # Since the project-name is stored in an internal variable
             # in a third-party library, convert the data structure to
             # JSON using the exposed method and obtain from the result.
             jsn = json_loads(self.sample_sheet.to_json())
-            return [x['Sample_Name'] for x in jsn['Data'] if
-                    f'{project_name}_' in x['Sample_Project']]
+            if 'orig_name' in self.sample_sheet.samples[0]:
+                return [x['orig_name'] for x in jsn['Data']
+                        if f'{project_name}_' in x['Sample_Project']]
+            else:
+                return [x['Sample_Name'] for x in jsn['Data']
+                        if f'{project_name}_' in x['Sample_Project']]
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
-            return list(self.mapping_file.sample_name)
+            if 'orig_name' in self.mapping_file.columns:
+                # because sample-names w/out replicate suffix will naturally
+                # appear more than once, we need to remove duplicates before
+                # returning them in list form. Sort the list to return a
+                # predictable order for testing.
+                return sorted(list(set(self.mapping_file.orig_name)))
+            else:
+                return list(self.mapping_file.sample_name)
         else:
             df = self.mapping_file[self.mapping_file['project_name'] ==
                                    project_name]
+
+            # since orig_name is currently a required column whether or not
+            # the pre-prep file contains replicates, search for the presence
+            # of contains_replicates column instead, as it's not required for
+            # non-replicate pre-prep files.
+            if 'contains_replicates' in df.columns:
+                if set(df['contains_replicates']) == {True}:
+                    # contains_replicates should be either all True or all
+                    # False. We need not assume non-boolean data-types.
+                    # With replicates, assume there are duplicate entries in
+                    # orig_name column.
+                    return list(set((df['orig_name'])))
+
             return list(df['sample_name'])
 
     def _parse_project_name(self, project_name, short_names):
