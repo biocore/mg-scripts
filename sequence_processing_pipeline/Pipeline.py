@@ -484,7 +484,7 @@ class Pipeline:
                 # appear more than once, we need to remove duplicates before
                 # returning them in list form. Sort the list to return a
                 # predictable order for testing.
-                return sorted(list(set(self.mapping_file.orig_name)))
+                return sorted(set(self.mapping_file.orig_name))
             else:
                 return list(self.mapping_file.sample_name)
         else:
