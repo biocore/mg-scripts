@@ -1794,8 +1794,7 @@ class TestAmpliconPipeline(unittest.TestCase):
                '5.4.22.RK.FH', '5.4.22.RK.LH', '5.4.22.RK.RH',
                '5.5.22.RK.FH', '5.5.22.RK.LH', '5.5.22.RK.RH',
                '5.6.22.RK.FH', '5.6.22.RK.LH', '5.6.22.RK.RH',
-               '6.23.22.RK.LH', '6.26.22.RK.RH', '5.8.22.RK.FH',
-               '5.7.22.RK.FH', '5.7.22.RK.LH', '5.7.22.RK.RH',
+               '5.8.22.RK.FH', '5.7.22.RK.FH', '5.7.22.RK.LH', '5.7.22.RK.RH',
                '5.8.22.RK.LH', '5.8.22.RK.RH', '5.9.22.RK.FH',
                '5.9.22.RK.RH', '6.1.22.RK.FH', '6.1.22.RK.LH',
                '6.10.22.RK.FH', '6.10.22.RK.LH', '6.10.22.RK.RH',
@@ -1873,7 +1872,8 @@ class TestAmpliconPipeline(unittest.TestCase):
                'BLANK242.8B', 'BLANK242.8C', 'BLANK242.8D', 'BLANK242.8E',
                'BLANK242.8F', 'BLANK242.8G', 'BLANK242.8H', 'BLANK242.9A',
                'BLANK242.9B', 'BLANK242.9C', 'BLANK242.9D', 'BLANK242.9E',
-               'BLANK242.9F', 'BLANK242.9G', 'BLANK242.9H']
+               'BLANK242.9F', 'BLANK242.9G', 'BLANK242.9H', '6.23.22.RK.LH.A',
+               '6.23.22.RK.LH.B', '6.26.22.RK.RH.B', '6.26.22.RK.RH.A']
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file,
@@ -1887,7 +1887,7 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         obs = pipeline.get_sample_ids()
 
-        self.assertEqual(sorted(obs), sorted(exp))
+        self.assertEqual(set(obs), set(exp))
 
     def test_get_sample_names(self):
         exp = ['11.1.21.RK.FH', '11.1.21.RK.LH', '11.1.21.RK.RH',
@@ -1942,15 +1942,14 @@ class TestAmpliconPipeline(unittest.TestCase):
                '6.20.22.RK.LH', '6.20.22.RK.RH', '6.21.22.RK.FH',
                '6.21.22.RK.LH', '6.21.22.RK.RH', '6.22.22.RK.FH',
                '6.22.22.RK.LH', '6.22.22.RK.RH', '6.23.22.RK.FH',
-               '6.23.22.RK.LH', '6.24.22.RK.FH',
-               '6.24.22.RK.RH', '6.25.22.RK.FH', '6.25.22.RK.LH',
-               '6.25.22.RK.RH', '6.26.22.RK.FH', '6.26.22.RK.LH',
-               '6.26.22.RK.RH', '6.27.22.RK.FH',
-               '6.27.22.RK.LH', '6.27.22.RK.RH', '6.28.22.RK.FH',
-               '6.28.22.RK.LH', '6.28.22.RK.RH', '6.29.22.RK.FH',
-               '6.29.22.RK.LH', '6.29.22.RK.RH', '6.3.22.RK.FH',
-               '6.3.22.RK.LH', '6.3.22.RK.RH', '6.30.22.RK.FH',
-               '6.30.22.RK.LH', '6.30.22.RK.RH', '6.4.22.RK.FH',
+               '6.24.22.RK.FH', '6.24.22.RK.RH', '6.25.22.RK.FH',
+               '6.25.22.RK.LH', '6.25.22.RK.RH', '6.26.22.RK.FH',
+               '6.26.22.RK.LH', '6.27.22.RK.FH', '6.27.22.RK.LH',
+               '6.27.22.RK.RH', '6.28.22.RK.FH', '6.28.22.RK.LH',
+               '6.28.22.RK.RH', '6.29.22.RK.FH', '6.29.22.RK.LH',
+               '6.29.22.RK.RH', '6.3.22.RK.FH', '6.3.22.RK.LH',
+               '6.3.22.RK.RH', '6.30.22.RK.FH', '6.30.22.RK.LH',
+               '6.30.22.RK.RH', '6.4.22.RK.FH',
                '6.4.22.RK.LH', '6.4.22.RK.RH', '6.5.22.RK.FH', '6.5.22.RK.LH',
                '6.5.22.RK.RH', '6.6.22.RK.FH', '6.6.22.RK.LH', '6.6.22.RK.RH',
                '6.7.22.RK.FH', '6.7.22.RK.LH', '6.7.22.RK.RH', '6.8.22.RK.FH',
@@ -2003,7 +2002,9 @@ class TestAmpliconPipeline(unittest.TestCase):
                'BLANK242.8A', 'BLANK242.8B', 'BLANK242.8C', 'BLANK242.8D',
                'BLANK242.8E', 'BLANK242.8F', 'BLANK242.8G', 'BLANK242.8H',
                'BLANK242.9A', 'BLANK242.9B', 'BLANK242.9C', 'BLANK242.9D',
-               'BLANK242.9E', 'BLANK242.9F', 'BLANK242.9G', 'BLANK242.9H']
+               'BLANK242.9E', 'BLANK242.9F', 'BLANK242.9G', 'BLANK242.9H',
+               '6.26.22.RK.RH.A', '6.23.22.RK.LH.B', '6.26.22.RK.RH.B',
+               '6.23.22.RK.LH.A']
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file,
@@ -2016,7 +2017,6 @@ class TestAmpliconPipeline(unittest.TestCase):
                             None)
 
         obs = pipeline.get_sample_names()
-
         self.assertEqual(sorted(obs), sorted(exp))
 
         # mapping file only contains one project, but this test will
@@ -2070,7 +2070,7 @@ class TestAmpliconPipeline(unittest.TestCase):
                     self.assertDictEqual(obs_d, exp_d)
                     break
 
-    def test_additional_constuctor_check(self):
+    def test_additional_constructor_check(self):
         with self.assertRaisesRegex(PipelineError, ("sample_sheet_path or "
                                                     "mapping_file_path must "
                                                     "be defined, but not "
