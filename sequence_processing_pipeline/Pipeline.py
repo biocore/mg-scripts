@@ -462,25 +462,18 @@ class Pipeline:
         return sorted(results)
 
     def _get_sample_names_from_sample_sheet(self, project_name):
-        if project_name is None:
-            if 'orig_name' in self.sample_sheet.samples[0]:
-                # return set as a list to match non-replicate results.
+        if 'orig_name' in self.sample_sheet.samples[0]:
+            if project_name is None:
                 return {x.orig_name for x in self.sample_sheet.samples}
             else:
-                return [x.Sample_Name for x in self.sample_sheet.samples]
+                return {x.orig_name for x in self.sample_sheet.samples
+                        if project_name in x['Sample_Project']}
         else:
-            # Since the project-name is stored in an internal variable
-            # in a third-party library, convert the data structure to
-            # JSON using the exposed method and obtain from the result.
-            jsn = json_loads(self.sample_sheet.to_json())
-            if 'orig_name' in self.sample_sheet.samples[0]:
-                key = 'orig_name'
+            if project_name is None:
+                return [x.Sample_Name for x in self.sample_sheet.samples]
             else:
-                key = 'Sample_Name'
-
-            project_name = f'{project_name}_'
-            return [x[key] for x in jsn['Data']
-                    if project_name in x['Sample_Project']]
+                return [x.Sample_Name for x in self.sample_sheet.samples
+                        if project_name in x['Sample_Project']]
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
