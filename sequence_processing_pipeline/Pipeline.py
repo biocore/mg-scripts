@@ -1,5 +1,4 @@
 from json import load as json_load
-from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, basename
@@ -453,28 +452,62 @@ class Pipeline:
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
         if self.mapping_file is not None:
-            return self._get_sample_names_from_mapping_file(project_name)
+            results = self._get_sample_names_from_mapping_file(project_name)
         else:
-            return self._get_sample_names_from_sample_sheet(project_name)
+            results = self._get_sample_names_from_sample_sheet(project_name)
+
+        # sort all results before returning. sets will automatically be
+        # converted to lists.
+        return sorted(results)
 
     def _get_sample_names_from_sample_sheet(self, project_name):
-        if project_name is None:
-            return [x.Sample_Name for x in self.sample_sheet.samples]
+        if 'orig_name' in self.sample_sheet.samples[0]:
+            if project_name is None:
+                return {x.orig_name for x in self.sample_sheet.samples}
+            else:
+                return {x.orig_name for x in self.sample_sheet.samples
+                        if project_name in x['Sample_Project']}
         else:
-            # Since the project-name is stored in an internal variable
-            # in a third-party library, convert the data structure to
-            # JSON using the exposed method and obtain from the result.
-            jsn = json_loads(self.sample_sheet.to_json())
-            return [x['Sample_Name'] for x in jsn['Data'] if
-                    f'{project_name}_' in x['Sample_Project']]
+            if project_name is None:
+                return [x.Sample_Name for x in self.sample_sheet.samples]
+            else:
+                return [x.Sample_Name for x in self.sample_sheet.samples
+                        if project_name in x['Sample_Project']]
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
-            return list(self.mapping_file.sample_name)
+            if 'orig_name' in self.mapping_file.columns:
+                # because sample-names w/out replicate suffix will naturally
+                # appear more than once, we need to remove duplicates before
+                # returning them.
+                return set(self.mapping_file.orig_name)
+            else:
+                return self.mapping_file.sample_name
         else:
             df = self.mapping_file[self.mapping_file['project_name'] ==
                                    project_name]
-            return list(df['sample_name'])
+
+            # since orig_name is currently a required column whether or not
+            # the pre-prep file contains replicates, search for the presence
+            # of contains_replicates column instead, as it's not required for
+            # non-replicate pre-prep files.
+            if 'contains_replicates' in df.columns:
+                values = set(df['contains_replicates'])
+                if values == {True, False}:
+                    # this is a sanity-check. A pre-prep file with both
+                    # values should fail validation during Pipeline creation.
+                    raise ValueError("'contains_replicates' column must either"
+                                     " be all True or all False")
+                elif values == {True, }:
+                    # contains_replicates should be either all True or all
+                    # False. We need not assume non-boolean data-types.
+                    # With replicates, assume there are duplicate entries in
+                    # orig_name column.
+                    return set((df['orig_name']))
+
+            # if values == {False, } or is a legacy mapping-file w/out the
+            # column, simply return sample-names.
+            return df['sample_name']
 
     def _parse_project_name(self, project_name, short_names):
         '''
