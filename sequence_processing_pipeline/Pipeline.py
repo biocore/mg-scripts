@@ -1,5 +1,4 @@
 from json import load as json_load
-from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, basename
