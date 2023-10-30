@@ -106,7 +106,6 @@ class FastQCJob(Job):
             r2_files = compile(r"^.*_L\d{3}_R2_\d{3}\.(trimmed\.|filtered"
                                r"\.|)fastq\.gz$")
 
-            # i1_only, i2_only, r1_only, r2_only = ([] for i in range(4))
             i1_only = []
             i2_only = []
             r1_only = []
