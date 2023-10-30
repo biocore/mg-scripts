@@ -121,6 +121,8 @@ class FastQCJob(Job):
                     r1_only.append(some_path)
                 elif r2_files.match(file_name) is not None:
                     r2_only.append(some_path)
+                else:
+                    raise ValueError(f"Unable to match: {some_path}")
 
             if not self.is_amplicon and len(i1_only) != len(i2_only):
                 raise PipelineError('counts of I1 and I2 files do not match')
