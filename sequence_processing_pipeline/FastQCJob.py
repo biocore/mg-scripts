@@ -1,10 +1,11 @@
 from os import listdir, makedirs
-from os.path import exists, join, basename
+from os.path import basename, exists, join, split
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from functools import partial
 from json import dumps
 import logging
+from re import compile
 
 
 class FastQCJob(Job):
@@ -94,13 +95,33 @@ class FastQCJob(Job):
                      'zero_files' not in x]
 
             # break files up into R1, R2, I1, I2
-            # assume _R1_ does not occur in the path as well.
-            r1_only = [x for x in files if '_R1_' in x]
-            r2_only = [x for x in files if '_R2_' in x]
+            # use capturing to handle both raw files as well as trimmed and
+            # filtered files. We don't need to process the captured string.
+            i1_files = compile(r"^.*_L\d{3}_I1_\d{3}\.(trimmed\.|filtered"
+                               r"\.|)fastq\.gz$")
+            i2_files = compile(r"^.*_L\d{3}_I2_\d{3}\.(trimmed\.|filtered"
+                               r"\.|)fastq\.gz$")
+            r1_files = compile(r"^.*_L\d{3}_R1_\d{3}\.(trimmed\.|filtered"
+                               r"\.|)fastq\.gz$")
+            r2_files = compile(r"^.*_L\d{3}_R2_\d{3}\.(trimmed\.|filtered"
+                               r"\.|)fastq\.gz$")
 
-            # amplicon runs may or may not have an i2. this is okay.
-            i1_only = [x for x in files if '_I1_' in x]
-            i2_only = [x for x in files if '_I2_' in x]
+            # i1_only, i2_only, r1_only, r2_only = ([] for i in range(4))
+            i1_only = []
+            i2_only = []
+            r1_only = []
+            r2_only = []
+
+            for some_path in files:
+                _, file_name = split(some_path)
+                if i1_files.match(file_name) is not None:
+                    i1_only.append(some_path)
+                elif i2_files.match(file_name) is not None:
+                    i2_only.append(some_path)
+                elif r1_files.match(file_name) is not None:
+                    r1_only.append(some_path)
+                elif r2_files.match(file_name) is not None:
+                    r2_only.append(some_path)
 
             if not self.is_amplicon and len(i1_only) != len(i2_only):
                 raise PipelineError('counts of I1 and I2 files do not match')
