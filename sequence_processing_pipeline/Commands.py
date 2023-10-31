@@ -20,7 +20,9 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # 72dc6080-c453-418e-8a47-1ccd6d646a30/ConvertJob/Tell_Seq_15196.
     # Each of these directories contain R1 and R2 fastq files. Hence, path
     # is now the following:
-    fastq_paths = glob.glob(data_location_path + '*/*.fastq.gz')
+    # add one more level to account for project_names nested under ConvertJob
+    # dir.
+    fastq_paths = glob.glob(data_location_path + '*/*/*.fastq.gz')
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
