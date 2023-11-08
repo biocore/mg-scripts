@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #SBATCH -J {{job_name}}
 #SBATCH -p {{queue_name}}
-# wall-time-limit in minutes
+### wall-time-limit in minutes
 #SBATCH --time {{wall_time_limit}}
-#SBATCH --mem {{mem_in_gb}}gb
+#SBATCH --mem {{mem_in_gb}}G
 #SBATCH -N {{node_count}}
 #SBATCH -c {{cores_per_task}}
 
@@ -37,6 +37,8 @@ if [[ -z ${TMPDIR} ]]; then
     exit 1
 fi
 
+echo "MMI is ${MMI}"
+
 conda activate human-depletion
 
 set -x
@@ -45,19 +47,22 @@ set -e
 date
 hostname
 echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
-# output_path = output_path passed to Job objects + 'NuQCJob'
-# e.g.: working-directory/ConvertJob, working-directory/QCJob...
-cd {{output_path}}
+### output_path = output_path passed to Job objects + 'NuQCJob'
+### e.g.: working-directory/ConvertJob, working-directory/QCJob...
+cd {{output_path}}/tmp
 
-# set a temp directory, make a new unique one under it and
-# make sure we clean up as we're dumping to shm
-# DO NOT do this casually. Only do a clean up like this if
-# you know for sure TMPDIR is what you want.
+### set a temp directory, make a new unique one under it and
+### make sure we clean up as we're dumping to shm
+### DO NOT do this casually. Only do a clean up like this if
+### you know for sure TMPDIR is what you want.
 
 mkdir -p ${TMPDIR}
 export TMPDIR=${TMPDIR}
 export TMPDIR=$(mktemp -d)
 echo $TMPDIR
+
+mkdir -p {{html_path}}
+mkdir -p {{json_path}}
 
 function cleanup {
   echo "Removing $TMPDIR"
@@ -77,12 +82,20 @@ n=$(wc -l ${FILES} | cut -f 1 -d" ")
 
 for i in $(seq 1 ${n})
 do
+    echo "Beginning loop iteration ${i}"
     line=$(head -n ${i} ${FILES} | tail -n 1)
     r1=$(echo ${line} | cut -f 1 -d" ")
     r2=$(echo ${line} | cut -f 2 -d" ")
     base=$(echo ${line} | cut -f 3 -d" ")
     r1_name=$(basename ${r1} .fastq.gz)
     r2_name=$(basename ${r2} .fastq.gz)
+
+    # for now just make sure each file is saved and we can read the data inside
+    # to sort them out later.
+
+    s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
+    html_name=$(echo "$s_name.html")
+    json_name=$(echo "$s_name.json")
 
     echo "${i}	${r1_name}	${r2_name}	${base}" >> ${TMPDIR}/id_map
 
@@ -92,13 +105,13 @@ do
         -I ${r2} \
         -w 7 \
         --adapter_fasta {{knwn_adpt_path}} \
-        --html /dev/null \
-        --json /dev/null \
+        --html {{html_path}}/${html_name} \
+        --json {{json_path}}/${json_name} \
         --stdout | \
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/"
 done > ${TMPDIR}/seqs.fastq
 
-function minimap2 () {
+function minimap2_runner () {
     mmi=$1
     
     echo "$(date) :: $(basename ${mmi})"
@@ -112,7 +125,7 @@ function runner () {
 
     # with the current proposed resources, we likely do not get
     # benefit for parallel gzip write
-    mgscripts demux \
+    ~/miniconda3/envs/qp-knight-lab-processing-2022.03/bin/demux \
         --id-map ${TMPDIR}/id_map \
         --infile ${TMPDIR}/seqs.fastq \
         --output ${OUTPUT} \
@@ -122,11 +135,11 @@ function runner () {
 export -f runner
 
 if [[ -f ${MMI} ]]; then
-    minimap2 ${MMI}
+    minimap2_runner ${MMI}
 else
     for mmi in ${MMI}/*.mmi
     do
-        minimap2 ${mmi}
+        minimap2_runner ${mmi}
     done
 fi
 
@@ -135,8 +148,9 @@ mkdir -p ${OUTPUT}
 jobs=${SLURM_JOB_CPUS_PER_NODE}
 
 echo "$(date) :: demux start"
-# let it do its thing
+
 seq 1 ${n} | parallel -j ${jobs} runner
+
 echo "$(date) :: demux stop"
 
 touch ${OUTPUT}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.completed

@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import stat, makedirs
-from os.path import join, exists
+from os.path import join
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader
 import glob
 import re
 from json import dumps
+from shutil import copy
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -78,15 +79,11 @@ class NuQCJob(Job):
 
         self.counts = {}
         self.known_adapters_path = known_adapters_path
-
         self.max_file_list_size_in_gb = bucket_size
-
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
         self.batch_prefix = "hd-split-pangenome"
-
         self.minimum_bytes = 3100
-
         self._validate_project_data()
 
     def _validate_project_data(self):
@@ -183,16 +180,43 @@ class NuQCJob(Job):
 
             source_dir = join(self.output_path, project_name)
 
-            # if not self._get_failed_indexes(project_name, job_id):
-            #    raise PipelineError("QCJob did not complete successfully.")
-
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
             else:
                 filtered_directory = join(source_dir, 'trimmed_sequences')
 
-            if not exists(filtered_directory):
-                raise PipelineError(f"{filtered_directory} does not exist")
+            # move results into expected legacy location to preserve
+            # downstream logic.
+            pattern = f"{source_dir}/*.fastq.gz"
+            completed_files = list(glob.glob(pattern))
+            makedirs(filtered_directory, exist_ok=True)
+
+            for fp in completed_files:
+                move(fp, filtered_directory)
+
+            # legacy reports directories need to be per-project
+            old_html_path = join(self.output_path, 'fastp_reports_dir', 'html')
+            old_json_path = join(self.output_path, 'fastp_reports_dir', 'json')
+
+            new_html_path = join(source_dir, 'fastp_reports_dir', 'html')
+            new_json_path = join(source_dir, 'fastp_reports_dir', 'json')
+
+            makedirs(new_html_path, exist_ok=True)
+            makedirs(new_json_path, exist_ok=True)
+
+            pattern = f"{old_html_path}/*.html"
+            completed_files = list(glob.glob(pattern))
+
+            for item in completed_files:
+                # TODO: Add filter, test
+                copy(item, new_html_path)
+
+            pattern = f"{old_json_path}/*.json"
+            completed_files = list(glob.glob(pattern))
+
+            for item in completed_files:
+                # TODO: Add filter, test
+                copy(item, new_json_path)
 
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter_empty_fastq_files(filtered_directory,
@@ -283,6 +307,9 @@ class NuQCJob(Job):
 
         job_name = f'{self.qiita_job_id}_{self.job_name}'
 
+        html_path = join(self.output_path, 'fastp_reports_dir', 'html')
+        json_path = join(self.output_path, 'fastp_reports_dir', 'json')
+
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
             f.write(template.render(job_name=job_name,
@@ -293,6 +320,8 @@ class NuQCJob(Job):
                                     node_count=1,
                                     cores_per_task=4,
                                     knwn_adpt_path=self.known_adapters_path,
-                                    output_path=self.output_path))
+                                    output_path=self.output_path,
+                                    html_path=html_path,
+                                    json_path=json_path))
 
         return job_script_path

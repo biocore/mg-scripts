@@ -57,6 +57,16 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     return split_offset
 
 
+def demux_cmd(id_map_fp, fp_fp, out_d, encoded, threads):
+    with open(id_map_fp, 'r') as f:
+        id_map = f.readlines()
+        id_map = [line.rstrip() for line in id_map]
+
+    # fp needs to be an open file handle.
+    with open(fp_fp, 'r') as fp:
+        demux(id_map, fp, out_d, encoded, threads)
+
+
 def demux(id_map, fp, out_d, encoded, threads):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
@@ -76,8 +86,9 @@ def demux(id_map, fp, out_d, encoded, threads):
 
     # setup output locations
     outdir = out_d + sep + outbase
-    fullname_r1 = outdir + sep + fname_r1
-    fullname_r2 = outdir + sep + fname_r2
+
+    fullname_r1 = outdir + sep + fname_r1 + '.fastq.gz'
+    fullname_r2 = outdir + sep + fname_r2 + '.fastq.gz'
 
     os.makedirs(outdir, exist_ok=True)
     current_fp_r1 = pgzip.open(fullname_r1, mode, thread=threads,
