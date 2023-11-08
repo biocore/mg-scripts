@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import stat, makedirs
-from os.path import join
+from os.path import join, basename
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -12,7 +12,6 @@ from jinja2 import Environment, PackageLoader
 import glob
 import re
 from json import dumps
-from shutil import copy
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -179,22 +178,42 @@ class NuQCJob(Job):
             needs_human_filtering = project['HumanFiltering']
 
             source_dir = join(self.output_path, project_name)
+            pattern = f"{source_dir}/*.fastq.gz"
+            completed_files = list(glob.glob(pattern))
 
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
             else:
                 filtered_directory = join(source_dir, 'trimmed_sequences')
 
-            # move results into expected legacy location to preserve
-            # downstream logic.
-            pattern = f"{source_dir}/*.fastq.gz"
-            completed_files = list(glob.glob(pattern))
+            # create the properly named directory to move files to in
+            # in order to preserve legacy behavior.
             makedirs(filtered_directory, exist_ok=True)
 
+            # get the list of sample-names in this project.
+            samples_in_project = [x[0] for x in self.sample_ids
+                                  if x[1] == project_name]
+
+            files_to_move = []
+            bar = re.compile(r'^(.*)_S\d_L\d\d\d_R\d+_\d\d\d\.fastq\.gz$')
             for fp in completed_files:
+                file_name = basename(fp)
+                substr = bar.search(file_name)
+                if substr is None:
+                    raise ValueError(f"{file_name} does not follow naming "
+                                     " pattern.")
+                else:
+                    # check if found substring is a member of this
+                    # project. Note sample-name != sample-id
+                    if substr[1] in samples_in_project:
+                        files_to_move.append(fp)
+
+            for fp in files_to_move:
                 move(fp, filtered_directory)
 
-            # legacy reports directories need to be per-project
+            # once fastq.gz files have been moved into the right project,
+            # we now need to consider the html and json fastp_reports
+            # files.
             old_html_path = join(self.output_path, 'fastp_reports_dir', 'html')
             old_json_path = join(self.output_path, 'fastp_reports_dir', 'json')
 
@@ -205,19 +224,19 @@ class NuQCJob(Job):
             makedirs(new_json_path, exist_ok=True)
 
             pattern = f"{old_html_path}/*.html"
-            completed_files = list(glob.glob(pattern))
+            completed_htmls = list(glob.glob(pattern))
 
-            for item in completed_files:
-                # TODO: Add filter, test
-                copy(item, new_html_path)
+            for fp in completed_htmls:
+                move(fp, new_html_path)
 
             pattern = f"{old_json_path}/*.json"
-            completed_files = list(glob.glob(pattern))
+            completed_jsons = list(glob.glob(pattern))
 
-            for item in completed_files:
-                # TODO: Add filter, test
-                copy(item, new_json_path)
+            for fp in completed_jsons:
+                move(fp, new_json_path)
 
+            # now that files are separated by project as per legacy
+            # operation, continue normal processing.
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter_empty_fastq_files(filtered_directory,
                                            empty_files_directory,
