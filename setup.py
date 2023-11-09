@@ -41,4 +41,4 @@ setup(name='sequence-processing-pipeline',
         'metagenomics_pooling_notebook/archive/master.zip'],
       entry_points={
           'console_scripts': ['demux=sequence_processing_pipeline.scripts.cli'
-                              ':demux_cmd',], })
+                              ':demux',], })

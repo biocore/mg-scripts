@@ -196,7 +196,9 @@ class NuQCJob(Job):
                                   if x[1] == project_name]
 
             files_to_move = []
-            regex = re.compile(r'^(.*)_S\d_L\d\d\d_R\d+_\d\d\d\.fastq\.gz$')
+            # Tissue_1_Mag_Hom_DNASe_RIBO_S16_L001_R2_001.fastq.gz
+            # Nislux_SLC_Trizol_DNASe_S7_L001_R2_001.fastq.gz
+            regex = re.compile(r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.fastq\.gz$')
             for fp in completed_files:
                 file_name = basename(fp)
                 substr = regex.search(file_name)
