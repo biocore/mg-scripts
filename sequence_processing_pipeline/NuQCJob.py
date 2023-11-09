@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import stat, makedirs
-from os.path import join, basename
+from os.path import join, basename, dirname, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader
 import glob
 import re
 from json import dumps
+from sys import executable
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -195,10 +196,10 @@ class NuQCJob(Job):
                                   if x[1] == project_name]
 
             files_to_move = []
-            bar = re.compile(r'^(.*)_S\d_L\d\d\d_R\d+_\d\d\d\.fastq\.gz$')
+            regex = re.compile(r'^(.*)_S\d_L\d\d\d_R\d+_\d\d\d\.fastq\.gz$')
             for fp in completed_files:
                 file_name = basename(fp)
-                substr = bar.search(file_name)
+                substr = regex.search(file_name)
                 if substr is None:
                     raise ValueError(f"{file_name} does not follow naming "
                                      " pattern.")
@@ -329,6 +330,13 @@ class NuQCJob(Job):
         html_path = join(self.output_path, 'fastp_reports_dir', 'html')
         json_path = join(self.output_path, 'fastp_reports_dir', 'json')
 
+        # get location of python executable in this environment.
+        # demux script should be present in the same location.
+        demux_path = join(dirname(executable), 'demux')
+
+        if not exists(demux_path):
+            raise ValueError(f"{demux_path} does not exist.")
+
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
             f.write(template.render(job_name=job_name,
@@ -341,6 +349,7 @@ class NuQCJob(Job):
                                     knwn_adpt_path=self.known_adapters_path,
                                     output_path=self.output_path,
                                     html_path=html_path,
-                                    json_path=json_path))
+                                    json_path=json_path,
+                                    demux_path=demux_path))
 
         return job_script_path

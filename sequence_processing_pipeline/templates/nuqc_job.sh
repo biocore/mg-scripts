@@ -125,7 +125,7 @@ function runner () {
 
     # with the current proposed resources, we likely do not get
     # benefit for parallel gzip write
-    ~/miniconda3/envs/qp-knight-lab-processing-2022.03/bin/demux \
+    {{demux_path}} \
         --id-map ${TMPDIR}/id_map \
         --infile ${TMPDIR}/seqs.fastq \
         --output ${OUTPUT} \
