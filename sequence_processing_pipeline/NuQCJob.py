@@ -140,6 +140,24 @@ class NuQCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
+    def _move_helper(self, completed_files, regex, samples_in_project, dst):
+        files_to_move = []
+        regex = re.compile(regex)
+        for fp in completed_files:
+            file_name = basename(fp)
+            substr = regex.search(file_name)
+            if substr is None:
+                raise ValueError(f"{file_name} does not follow naming "
+                                 " pattern.")
+            else:
+                # check if found substring is a member of this
+                # project. Note sample-name != sample-id
+                if substr[1] in samples_in_project:
+                    files_to_move.append(fp)
+
+        for fp in files_to_move:
+            move(fp, dst)
+
     def run(self, callback=None):
         # now a single job-script will be created to process all projects at
         # the same time, and intelligently handle adapter-trimming as needed
@@ -195,24 +213,12 @@ class NuQCJob(Job):
             samples_in_project = [x[0] for x in self.sample_ids
                                   if x[1] == project_name]
 
-            files_to_move = []
             # Tissue_1_Mag_Hom_DNASe_RIBO_S16_L001_R2_001.fastq.gz
             # Nislux_SLC_Trizol_DNASe_S7_L001_R2_001.fastq.gz
-            regex = re.compile(r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.fastq\.gz$')
-            for fp in completed_files:
-                file_name = basename(fp)
-                substr = regex.search(file_name)
-                if substr is None:
-                    raise ValueError(f"{file_name} does not follow naming "
-                                     " pattern.")
-                else:
-                    # check if found substring is a member of this
-                    # project. Note sample-name != sample-id
-                    if substr[1] in samples_in_project:
-                        files_to_move.append(fp)
-
-            for fp in files_to_move:
-                move(fp, filtered_directory)
+            self._move_helper(completed_files,
+                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.fastq\.gz$',
+                              samples_in_project,
+                              filtered_directory)
 
             # once fastq.gz files have been moved into the right project,
             # we now need to consider the html and json fastp_reports
@@ -226,17 +232,23 @@ class NuQCJob(Job):
             makedirs(new_html_path, exist_ok=True)
             makedirs(new_json_path, exist_ok=True)
 
+            # move all html files underneath the subdirectory for this project.
             pattern = f"{old_html_path}/*.html"
             completed_htmls = list(glob.glob(pattern))
+            self._move_helper(completed_htmls,
+                              # Tissue_1_Super_Trizol_S19_L001_R1_001.html
+                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.html$',
+                              samples_in_project,
+                              new_html_path)
 
-            for fp in completed_htmls:
-                move(fp, new_html_path)
-
+            # move all json files underneath the subdirectory for this project.
             pattern = f"{old_json_path}/*.json"
             completed_jsons = list(glob.glob(pattern))
-
-            for fp in completed_jsons:
-                move(fp, new_json_path)
+            self._move_helper(completed_jsons,
+                              # Tissue_1_Super_Trizol_S19_L001_R1_001.json
+                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.json$',
+                              samples_in_project,
+                              new_json_path)
 
             # now that files are separated by project as per legacy
             # operation, continue normal processing.
