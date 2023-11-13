@@ -92,10 +92,8 @@ do
 
     # for now just make sure each file is saved and we can read the data inside
     # to sort them out later.
-
-    s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
-    html_name=$(echo "$s_name.html")
-    json_name=$(echo "$s_name.json")
+    html_name=$(echo "$r1_name.html")
+    json_name=$(echo "$r1_name.json")
 
     echo "${i}	${r1_name}	${r2_name}	${base}" >> ${TMPDIR}/id_map
 
