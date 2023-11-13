@@ -1154,8 +1154,7 @@ class TestNuQCJob(unittest.TestCase):
                 "'NuQCJob'"),
                ("### e.g.: working-directory/ConvertJob, working-directory/"
                 "QCJob..."),
-               ("cd REMOVED/sequence_processing_pipeline/tests/data/"
-                "output_dir/NuQCJob/tmp"), "",
+               "cd ${TMPDIR}", "",
                "### set a temp directory, make a new unique one under it and",
                "### make sure we clean up as we're dumping to shm",
                "### DO NOT do this casually. Only do a clean up like this if",

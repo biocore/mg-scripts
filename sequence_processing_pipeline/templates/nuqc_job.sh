@@ -49,7 +49,7 @@ hostname
 echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
 ### output_path = output_path passed to Job objects + 'NuQCJob'
 ### e.g.: working-directory/ConvertJob, working-directory/QCJob...
-cd {{output_path}}/tmp
+cd ${TMPDIR}
 
 ### set a temp directory, make a new unique one under it and
 ### make sure we clean up as we're dumping to shm
