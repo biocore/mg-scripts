@@ -84,6 +84,11 @@ class NuQCJob(Job):
         makedirs(self.temp_dir, exist_ok=True)
         self.batch_prefix = "hd-split-pangenome"
         self.minimum_bytes = 3100
+        self.fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}'
+                                      r'\.fastq\.gz$')
+        self.html_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.html$')
+        self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json')
+
         self._validate_project_data()
 
     def _validate_project_data(self):
@@ -142,7 +147,6 @@ class NuQCJob(Job):
 
     def _move_helper(self, completed_files, regex, samples_in_project, dst):
         files_to_move = []
-        regex = re.compile(regex)
         for fp in completed_files:
             file_name = basename(fp)
             substr = regex.search(file_name)
@@ -216,7 +220,7 @@ class NuQCJob(Job):
             # Tissue_1_Mag_Hom_DNASe_RIBO_S16_L001_R2_001.fastq.gz
             # Nislux_SLC_Trizol_DNASe_S7_L001_R2_001.fastq.gz
             self._move_helper(completed_files,
-                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.fastq\.gz$',
+                              self.fastq_regex,
                               samples_in_project,
                               filtered_directory)
 
@@ -237,7 +241,7 @@ class NuQCJob(Job):
             completed_htmls = list(glob.glob(pattern))
             self._move_helper(completed_htmls,
                               # Tissue_1_Super_Trizol_S19_L001_R1_001.html
-                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.html$',
+                              self.html_regex,
                               samples_in_project,
                               new_html_path)
 
@@ -246,7 +250,7 @@ class NuQCJob(Job):
             completed_jsons = list(glob.glob(pattern))
             self._move_helper(completed_jsons,
                               # Tissue_1_Super_Trizol_S19_L001_R1_001.json
-                              r'^(.*)_S\d{1,2}_L\d{3}_R\d_\d{3}\.json$',
+                              self.json_regex,
                               samples_in_project,
                               new_json_path)
 

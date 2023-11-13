@@ -1228,6 +1228,137 @@ class TestNuQCJob(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_regular_expressions(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      30, 1000, '')
+
+        # a sample of known valid fastq file-names plus a few edge-cases.
+        good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.fastq.gz',
+                      '11408-TGACGAGGGCTG_S1039_L001_R2_001.fastq.gz',
+                      '1293-F04_S122_L001_R1_001.fastq.gz',
+                      '2166_S69_L001_R1_001.fastq.gz',
+                      '502-708-NJ50-129A_S50_L001_R2_001.fastq.gz',
+                      'BLANK4_11H_S760_L002_R2_001.fastq.gz',
+                      'BLANKH_1H_S8_L002_R1_001.fastq.gz',
+                      'BLANK_11_7_F_S246_L003_R1_001.fastq.gz',
+                      'CON.ITS.R.3.21_S843_L001_R2_001.fastq.gz',
+                      'PR1_14Nov15_S11_L001_R2_001.fastq.gz',
+                      # test S can have three or four digits appended
+                      'ABCD_S9999_L002_R1_001.fastq.gz',
+                      'ABCD_S989_L003_R2_001.fastq.gz',
+                      # test that more than just L001 and L002 are allowed.
+                      'ABCD_S1_L003_R2_001.fastq.gz',
+                      # test that additional '_' can appear in a name w/out
+                      # ill-effect.
+                      'ABCD_ABCD_S1_L001_R2_001.fastq.gz']
+
+        # a selection of known fastq file-names that we expect should fail
+        # based on their non-standard naming.
+        bad_names = ['0363237608_S104_L001_R1_001.fastp.fastq.gz',
+                     '12050-GTCGTTACCCGC-407_S149_L002_R2_001.fastp.fastq.gz',
+                     '13392_2065_165845_KFB9Y_176_GACACCGT_TACGAGCA_R2.fastq'
+                     '.gz', '1373A..pool764_R1.fastq.gz',
+                     '20N_I_S189_L004.nonribosomal.R2.fastq.gz',
+                     '363148415_S263_L001_R2_001.fastp.fastq.gz',
+                     '363193054_S164_L001_R1_001.fastp.fastq.gz',
+                     '9741_Colon_Rec_Nne_Ab_No_S59_L004_R2_001.fastp.fastq.gz',
+                     'CSM7KOO9.nonribosomal.R1.fastq.gz',
+                     'DSMP_V1V2_RNA_B_2_1_V1V2.RNA.267.B_R1.fastq.gz',
+                     'G36045_R2_001.fastq.gz', 'G45075.R1.fastq.gz',
+                     'J40_52_43_S2031.R2.fastq.gz',
+                     'NG-29203_ITS2a_F205_lib563520_7953_1_1.fastq.gz',
+                     'Q1_71602_0008_8_1_16_S2623_L005.unaligned.1.fastq.gz',
+                     'Q2_71802_0013_6_23_16_S2146_L006.fastq.gz',
+                     'RR225204301.5_S88_L001_R_001Unpaired.fastq.gz',
+                     'SAMEA6809446.ERR4083885.R1.ebi.fastq.gz',
+                     'SRR6967693_1.fastq.gz',
+                     'SRS1838544.SRR5079047_R1.fastq.gz',
+                     'S_71702_0030_9_13_16_S2303_L005.R1.fastq.gz',
+                     'TCGA-R5-A7O7-01A-11R-A33Y-31_rnaseq.ribosomal.R2.'
+                     'fastq.gz',
+                     'UNCID_2657496.7819e7d1-5b57-4a61-9eee-6aa31876e78b.'
+                     'sorted_genome_alignments.nonribosomal.R2.fastq.gz',
+                     '_1_TCGA-HU-A4H6-01A-11R-A251-31_rnaseq.nonribosomal.R2.'
+                     'fastq.gz', 'tum038.fq.SRR8290295.R1.ebi.fastq.gz',
+                     # we don't want filtered or trimmed files to pass this
+                     # filter, only raw-files.
+                     '2166_S69_L001_R1_001.filtered.fastq.gz',
+                     '2166_S69_L001_R1_001.trimmed.fastq.gz',
+                     # indexed-read files are also not allowed for this
+                     # filter.
+                     '2166_S69_L001_I1_001.fastq.gz']
+
+        self._helper(job.fastq_regex, good_names, bad_names)
+
+        # the regexes for html, json are quite similar to the regex for fastq
+        # files.
+        good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.html',
+                      '1293-F04_S122_L001_R1_001.html',
+                      '502-708-NJ50-129A_S50_L001_R2_001.html',
+                      'CON.ITS.R.3.21_S843_L001_R2_001.html',
+                      'ABCD_S9999_L002_R1_001.html',
+                      'ABCD_S1_L003_R2_001.html',
+                      'ABCD_ABCD_S1_L001_R2_001.html']
+
+        bad_names = ['0363237608_S104_L001_R1_001.fastp.html',
+                     '20N_I_S189_L004.nonribosomal.R2.html',
+                     '363193054_S164_L001_R1_001.fastp.html',
+                     'CSM7KOO9.nonribosomal.R1.html', 'G36045_R2_001.html',
+                     'J40_52_43_S2031.R2.html',
+                     'Q1_71602_0008_8_1_16_S2623_L005.unaligned.1.html',
+                     'RR225204301.5_S88_L001_R_001Unpaired.html',
+                     'SRR6967693_1.html',
+                     'S_71702_0030_9_13_16_S2303_L005.R1.html',
+                     ('UNCID_2657496.7819e7d1-5b57-4a61-9eee-6aa31876e78b.'
+                      'sorted_genome_alignments.nonribosomal.R2.html'),
+                     # we don't expect file-names with filtered or trimmed as
+                     # substrings, or index files but will include them here.
+                     '2166_S69_L001_R1_001.filtered.html',
+                     '2166_S69_L001_R1_001.trimmed.html',
+                     '2166_S69_L001_I1_001.html']
+
+        self._helper(job.html_regex, good_names, bad_names)
+
+        good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.json',
+                      '1293-F04_S122_L001_R1_001.json',
+                      '502-708-NJ50-129A_S50_L001_R2_001.json',
+                      'CON.ITS.R.3.21_S843_L001_R2_001.json',
+                      'ABCD_S9999_L002_R1_001.json',
+                      'ABCD_S1_L003_R2_001.json',
+                      'ABCD_ABCD_S1_L001_R2_001.json']
+
+        bad_names = ['0363237608_S104_L001_R1_001.fastp.json',
+                     '20N_I_S189_L004.nonribosomal.R2.json',
+                     '363193054_S164_L001_R1_001.fastp.json',
+                     'CSM7KOO9.nonribosomal.R1.json', 'G36045_R2_001.json',
+                     'J40_52_43_S2031.R2.json',
+                     'Q1_71602_0008_8_1_16_S2623_L005.unaligned.1.json',
+                     'RR225204301.5_S88_L001_R_001Unpaired.json',
+                     'SRR6967693_1.json',
+                     'S_71702_0030_9_13_16_S2303_L005.R1.json',
+                     ('UNCID_2657496.7819e7d1-5b57-4a61-9eee-6aa31876e78b.'
+                      'sorted_genome_alignments.nonribosomal.R2.json'),
+                     # we don't expect file-names with filtered or trimmed as
+                     # substrings, or index files but will include them here.
+                     '2166_S69_L001_R1_001.filtered.json',
+                     '2166_S69_L001_R1_001.trimmed.json',
+                     '2166_S69_L001_I1_001.json']
+
+        self._helper(job.json_regex, good_names, bad_names)
+
+    def _helper(self, regex, good_names, bad_names):
+        for good_name in good_names:
+            substr = regex.search(good_name)
+            self.assertIsNotNone(substr, msg=f'Regex failed on {good_name}')
+
+        for bad_name in bad_names:
+            substr = regex.search(bad_name)
+            self.assertIsNone(substr, msg=f'Regex failed on {bad_name}')
+
 
 if __name__ == '__main__':
     unittest.main()
