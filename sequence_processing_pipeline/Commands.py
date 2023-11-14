@@ -20,7 +20,9 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # 72dc6080-c453-418e-8a47-1ccd6d646a30/ConvertJob/Tell_Seq_15196.
     # Each of these directories contain R1 and R2 fastq files. Hence, path
     # is now the following:
-    fastq_paths = glob.glob(data_location_path + '*/*.fastq.gz')
+    # add one more level to account for project_names nested under ConvertJob
+    # dir.
+    fastq_paths = glob.glob(data_location_path + '*/*/*.fastq.gz')
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
@@ -55,6 +57,16 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     return split_offset
 
 
+def demux_cmd(id_map_fp, fp_fp, out_d, encoded, threads):
+    with open(id_map_fp, 'r') as f:
+        id_map = f.readlines()
+        id_map = [line.rstrip() for line in id_map]
+
+    # fp needs to be an open file handle.
+    with open(fp_fp, 'r') as fp:
+        demux(id_map, fp, out_d, encoded, threads)
+
+
 def demux(id_map, fp, out_d, encoded, threads):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
@@ -74,8 +86,9 @@ def demux(id_map, fp, out_d, encoded, threads):
 
     # setup output locations
     outdir = out_d + sep + outbase
-    fullname_r1 = outdir + sep + fname_r1
-    fullname_r2 = outdir + sep + fname_r2
+
+    fullname_r1 = outdir + sep + fname_r1 + '.fastq.gz'
+    fullname_r2 = outdir + sep + fname_r2 + '.fastq.gz'
 
     os.makedirs(outdir, exist_ok=True)
     current_fp_r1 = pgzip.open(fullname_r1, mode, thread=threads,

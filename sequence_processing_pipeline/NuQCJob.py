@@ -1,6 +1,6 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
 from os import stat, makedirs
-from os.path import join, exists
+from os.path import join, basename, dirname, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -8,10 +8,11 @@ from shutil import move
 import logging
 from sequence_processing_pipeline.Commands import split_similar_size_bins
 from sequence_processing_pipeline.util import iter_paired_files
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, PackageLoader
 import glob
 import re
 from json import dumps
+from sys import executable
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -68,17 +69,25 @@ class NuQCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.pool_size = pool_size
         self.suffix = 'fastq.gz'
-        self.jinja_env = Environment(loader=FileSystemLoader("templates/"))
+
+        # for projects that use sequence_processing_pipeline as a dependency,
+        # jinja_env must be set to sequence_processing_pipeline's root path,
+        # rather than the project's root path.
+        self.jinja_env = Environment(loader=PackageLoader('sequence_processing'
+                                                          '_pipeline',
+                                                          'templates'))
+
         self.counts = {}
         self.known_adapters_path = known_adapters_path
-
         self.max_file_list_size_in_gb = bucket_size
-
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
         self.batch_prefix = "hd-split-pangenome"
-
         self.minimum_bytes = 3100
+        self.fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}'
+                                      r'\.fastq\.gz$')
+        self.html_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.html$')
+        self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json')
 
         self._validate_project_data()
 
@@ -136,6 +145,23 @@ class NuQCJob(Job):
             logging.debug(f'moving {item}')
             move(item, empty_files_directory)
 
+    def _move_helper(self, completed_files, regex, samples_in_project, dst):
+        files_to_move = []
+        for fp in completed_files:
+            file_name = basename(fp)
+            substr = regex.search(file_name)
+            if substr is None:
+                raise ValueError(f"{file_name} does not follow naming "
+                                 " pattern.")
+            else:
+                # check if found substring is a member of this
+                # project. Note sample-name != sample-id
+                if substr[1] in samples_in_project:
+                    files_to_move.append(fp)
+
+        for fp in files_to_move:
+            move(fp, dst)
+
     def run(self, callback=None):
         # now a single job-script will be created to process all projects at
         # the same time, and intelligently handle adapter-trimming as needed
@@ -167,33 +193,69 @@ class NuQCJob(Job):
                                    # for now.
                                    exec_from=self.log_path,
                                    callback=callback)
-
         job_id = job_info['job_id']
-        logging.debug(f'QCJob {job_id} completed')
+        logging.debug(f'NuQCJob {job_id} completed')
 
         for project in self.project_data:
             project_name = project['Sample_Project']
             needs_human_filtering = project['HumanFiltering']
 
             source_dir = join(self.output_path, project_name)
+            pattern = f"{source_dir}/*.fastq.gz"
+            completed_files = list(glob.glob(pattern))
 
-            if not self._get_failed_indexes(project_name, job_id):
-                raise PipelineError("QCJob did not complete successfully.")
-
-            # TODO: IMPLEMNENT A NEW FILTER FOR FILTERED FASTQ.GZ FILES THAT
-            #  ARE BELOW THE MINIMUM FILE SIZE THRESHOLD INTO A NEW FOLDER
-            #  NAMED 'ZERO-LENGTH-FILES'.
-
-            # determine where the filtered fastq files can be found and move
-            # the 'zero-length' files to another directory.
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
             else:
                 filtered_directory = join(source_dir, 'trimmed_sequences')
 
-            if not exists(filtered_directory):
-                raise PipelineError(f"{filtered_directory} does not exist")
+            # create the properly named directory to move files to in
+            # in order to preserve legacy behavior.
+            makedirs(filtered_directory, exist_ok=True)
 
+            # get the list of sample-names in this project.
+            samples_in_project = [x[0] for x in self.sample_ids
+                                  if x[1] == project_name]
+
+            # Tissue_1_Mag_Hom_DNASe_RIBO_S16_L001_R2_001.fastq.gz
+            # Nislux_SLC_Trizol_DNASe_S7_L001_R2_001.fastq.gz
+            self._move_helper(completed_files,
+                              self.fastq_regex,
+                              samples_in_project,
+                              filtered_directory)
+
+            # once fastq.gz files have been moved into the right project,
+            # we now need to consider the html and json fastp_reports
+            # files.
+            old_html_path = join(self.output_path, 'fastp_reports_dir', 'html')
+            old_json_path = join(self.output_path, 'fastp_reports_dir', 'json')
+
+            new_html_path = join(source_dir, 'fastp_reports_dir', 'html')
+            new_json_path = join(source_dir, 'fastp_reports_dir', 'json')
+
+            makedirs(new_html_path, exist_ok=True)
+            makedirs(new_json_path, exist_ok=True)
+
+            # move all html files underneath the subdirectory for this project.
+            pattern = f"{old_html_path}/*.html"
+            completed_htmls = list(glob.glob(pattern))
+            self._move_helper(completed_htmls,
+                              # Tissue_1_Super_Trizol_S19_L001_R1_001.html
+                              self.html_regex,
+                              samples_in_project,
+                              new_html_path)
+
+            # move all json files underneath the subdirectory for this project.
+            pattern = f"{old_json_path}/*.json"
+            completed_jsons = list(glob.glob(pattern))
+            self._move_helper(completed_jsons,
+                              # Tissue_1_Super_Trizol_S19_L001_R1_001.json
+                              self.json_regex,
+                              samples_in_project,
+                              new_json_path)
+
+            # now that files are separated by project as per legacy
+            # operation, continue normal processing.
             empty_files_directory = join(source_dir, 'zero_files')
             self._filter_empty_fastq_files(filtered_directory,
                                            empty_files_directory,
@@ -283,6 +345,16 @@ class NuQCJob(Job):
 
         job_name = f'{self.qiita_job_id}_{self.job_name}'
 
+        html_path = join(self.output_path, 'fastp_reports_dir', 'html')
+        json_path = join(self.output_path, 'fastp_reports_dir', 'json')
+
+        # get location of python executable in this environment.
+        # demux script should be present in the same location.
+        demux_path = join(dirname(executable), 'demux')
+
+        if not exists(demux_path):
+            raise ValueError(f"{demux_path} does not exist.")
+
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
             f.write(template.render(job_name=job_name,
@@ -293,6 +365,9 @@ class NuQCJob(Job):
                                     node_count=1,
                                     cores_per_task=4,
                                     knwn_adpt_path=self.known_adapters_path,
-                                    output_path=self.output_path))
+                                    output_path=self.output_path,
+                                    html_path=html_path,
+                                    json_path=json_path,
+                                    demux_path=demux_path))
 
         return job_script_path

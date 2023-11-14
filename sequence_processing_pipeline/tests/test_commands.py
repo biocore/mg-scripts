@@ -3,6 +3,7 @@ from unittest.mock import patch
 import tempfile
 import gzip
 import os
+from os.path import join
 from sequence_processing_pipeline.Commands import (split_similar_size_bins,
                                                    demux)
 import io
@@ -39,8 +40,8 @@ class CommandTests(unittest.TestCase):
 
     def test_demux(self):
         with tempfile.TemporaryDirectory() as tmp:
-            id_map = io.StringIO("1\ta_R1_.fastq.gz\ta_R2_.fastq.gz\t.\n"
-                                 "2\tb_R1_.fastq.gz\tb_R2_.fastq.gz\t.\n")
+            id_map = io.StringIO("1\ta_R1\ta_R2\tProject_12345\n"
+                                 "2\tb_R1\tb_R2\tProject_12345\n")
             infile_data = '\n'.join(['@1::MUX::foo/1', 'ATGC', '+', '!!!!',
                                      '@1::MUX::foo/2', 'ATGC', '+', '!!!!',
                                      '@1::MUX::bar/1', 'ATGC', '+', '!!!!',
@@ -62,12 +63,14 @@ class CommandTests(unittest.TestCase):
 
             demux(id_map, infile, out_d, encoded, threads)
 
-            obs_r1 = gzip.open(tmp + '/b_R1_.fastq.gz', 'rt').read()
-            obs_r2 = gzip.open(tmp + '/b_R2_.fastq.gz', 'rt').read()
+            obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1.fastq.gz'),
+                               'rt').read()
+            obs_r2 = gzip.open(join(tmp, 'Project_12345', 'b_R2.fastq.gz'),
+                               'rt').read()
             self.assertEqual(obs_r1, exp_data_r1)
             self.assertEqual(obs_r2, exp_data_r2)
-            self.assertFalse(os.path.exists(tmp + '/a_R1_.fastq.gz'))
-            self.assertFalse(os.path.exists(tmp + '/a_R2_.fastq.gz'))
+            self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
+            self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
 
 
 if __name__ == '__main__':
