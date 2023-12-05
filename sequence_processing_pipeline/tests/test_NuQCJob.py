@@ -6,7 +6,6 @@ from sequence_processing_pipeline.NuQCJob import NuQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from json import load
 import re
 
 
@@ -1048,20 +1047,18 @@ class TestNuQCJob(unittest.TestCase):
                       30, 1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
-                   'NuQCJob/tmp')
+                   'NuQCJob')
 
-        # since .completed files are generated when jobs are submitted via
-        # the run() method and completed successfully, we must manually
-        # create the files _was_successful() expects to see.
-        for i in range(1, 10):
-            with open(join(my_path,
-                           f'hd-split-pangenome.3456_{i}.completed'),
-                      'w') as f:
-                f.write("This is a .completed file.")
+        # since a .completed file is generated when the job is complete, we
+        # must manually create the file we expect to see once a run is
+        # complete. e.g.: <working_dir>/NuQCJob/
+        # hds-c11c054e-aeb1-46ce-8cea-e233d4cd3070.1740338.completed
+        comp_fp = join(my_path, f'hds-{self.qiita_job_id}.3456.completed')
 
-        job.counts[job.batch_prefix] = 9
-        results = job._get_failed_indexes('hd-split-pangenome', "3456")
-        self.assertTrue(len(results) == 0)
+        with open(comp_fp, 'w') as f:
+            f.write("This is a .completed file.")
+
+        self.assertTrue(job._confirm_job_completed())
 
     def test_completed_file_generation_some_failures(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
@@ -1072,35 +1069,9 @@ class TestNuQCJob(unittest.TestCase):
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       30, 1000, '')
 
-        my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
-                   'NuQCJob/tmp')
-
-        # simulate one job failing and not generating a .completed file by
-        # setting range to (2, 9) from (0, 9). get_failed_indexes() should
-        # return [0,1] as a result.
-        for i in range(3, 10):
-            with open(join(my_path,
-                           f'hd-split-pangenome.4567_{i}.completed'),
-                      'w') as f:
-                f.write("This is a .completed file.")
-
-        job.counts[job.batch_prefix] = 9
-        results = job._get_failed_indexes('hd-split-pangenome', "4567")
-        self.assertTrue(results, [1, 2])
-
-        # verify that when one or more array jobs have failed to complete,
-        # a file is created that gives a job id and an array index.
-        my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
-                   'NuQCJob/logs')
-        log_fp = join(my_path, 'failed_indexes_4567.json')
-
-        self.assertTrue(exists(log_fp))
-
-        with open(log_fp, 'r') as f:
-            obs = load(f)
-            exp = {"job_id": "4567",
-                   "failed_indexes": [1, 2]}
-            self.assertDictEqual(obs, exp)
+        # test _confirm_job_completed() fails when a .completed file isn't
+        # manually created.
+        self.assertFalse(job._confirm_job_completed())
 
     def test_generate_job_script(self):
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
@@ -1117,19 +1088,23 @@ class TestNuQCJob(unittest.TestCase):
         with open(job_script_path, 'r') as f:
             obs = [line.replace('\n', '') for line in f]
 
-        base_path_rgx = re.compile(r' (/.*/mg-scripts)/sequence_processing_'
-                                   'pipeline/tests/data/output_dir/NuQCJob/')
-
-        demux_bin_rgx = re.compile(r'\s+(.*/bin)/demux \\')
+        # remove path to demux binary, which is testing environment
+        # specific, and replace w/a static string.
+        rgx = re.compile(r'\s+(.*/bin)/demux \\')
 
         for i in range(0, len(obs)):
-            m = base_path_rgx.search(obs[i])
+            m = rgx.search(obs[i])
             if m:
                 obs[i] = obs[i].replace(m[1], 'REMOVED')
-            else:
-                m = demux_bin_rgx.search(obs[i])
-                if m:
-                    obs[i] = obs[i].replace(m[1], 'REMOVED')
+
+        # remove partial paths that are testing environment specific and
+        # replace w/a static string.
+        rgx = re.compile(r"(/.*/mg-scripts/)")
+
+        for i in range(0, len(obs)):
+            m = rgx.search(obs[i])
+            if m:
+                obs[i] = obs[i].replace(m[1], 'REMOVED/')
 
         exp = ["#!/bin/bash -l",
                "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_NuQCJob",
@@ -1145,8 +1120,7 @@ class TestNuQCJob(unittest.TestCase):
                "    exit 1", "fi", "", "if [[ -z ${PREFIX} ]]; then",
                "    echo \"PREFIX is not set\"", "    exit 1", "fi", "",
                "if [[ -z ${OUTPUT} ]]; then", "    echo \"OUTPUT is not set\"",
-               "    exit 1", "fi", "", "if [[ -z ${TMPDIR} ]]; then",
-               "    echo \"TMPDIR is not set\"", "    exit 1", "fi", "",
+               "    exit 1", "fi", "",
                "echo \"MMI is ${MMI}\"", "", "conda activate human-depletion",
                "", "set -x", "set -e", "", "date", "hostname",
                "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
@@ -1154,13 +1128,17 @@ class TestNuQCJob(unittest.TestCase):
                 "'NuQCJob'"),
                ("### e.g.: working-directory/ConvertJob, working-directory/"
                 "QCJob..."),
-               "cd ${TMPDIR}", "",
+               ("cd REMOVED/sequence_processing_pipeline/tests/data/"
+                "output_dir/NuQCJob"), "",
                "### set a temp directory, make a new unique one under it and",
                "### make sure we clean up as we're dumping to shm",
                "### DO NOT do this casually. Only do a clean up like this if",
                "### you know for sure TMPDIR is what you want.", "",
-               "mkdir -p ${TMPDIR}", "export TMPDIR=${TMPDIR}",
-               "export TMPDIR=$(mktemp -d)", "echo $TMPDIR", "",
+               ("export TMPDIR=REMOVED/sequence_processing_pipeline/tests/"
+                "data/output_dir/NuQCJob/tmp/"),
+               "# don't use mktemp -d to create a random temp dir.",
+               "# the one passed is unique already.",
+               "echo $TMPDIR", "",
                ("mkdir -p REMOVED/sequence_processing_pipeline/tests/data/"
                 "output_dir/NuQCJob/fastp_reports_dir/html"),
                ("mkdir -p REMOVED/sequence_processing_pipeline/tests/data/"
@@ -1168,7 +1146,7 @@ class TestNuQCJob(unittest.TestCase):
                "", "function cleanup {", "  echo \"Removing $TMPDIR\"",
                "  rm -fr $TMPDIR", "  unset TMPDIR", "}", "trap cleanup EXIT",
                "",
-               ("export FILES=$(pwd)/$(printf \"%s-%d\" ${PREFIX} ${SLURM_"
+               ("export FILES=$(printf \"%s-%d\" ${PREFIX} ${SLURM_"
                 "ARRAY_TASK_ID})"),
                "if [[ ! -f ${FILES} ]]; then", "    logger ${FILES} not found",
                "    exit 1", "fi", "", "delimiter=::MUX::",
@@ -1183,12 +1161,13 @@ class TestNuQCJob(unittest.TestCase):
                "    r2_name=$(basename ${r2} .fastq.gz)", "",
                ("    # for now just make sure each file is saved and we can "
                 "read the data inside"),
-               "    # to sort them out later.",
-               "    html_name=$(echo \"$r1_name.html\")",
-               "    json_name=$(echo \"$r1_name.json\")", "",
+               "    # to sort them out later.", "",
+               "    s_name=$(basename \"${r1}\" | sed -r 's/\\.fastq\\.gz//')",
+               "    html_name=$(echo \"$s_name.html\")",
+               "    json_name=$(echo \"$s_name.json\")", "",
                ("    echo \"${i}	${r1_name}	${r2_name}	${base}\" >> "
                 "${TMPDIR}/id_map"),
-               "", "    fastp \\", "        -l 45 \\", "        -i ${r1} \\",
+               "", "    fastp \\", "        -l 100 \\", "        -i ${r1} \\",
                "        -I ${r2} \\", "        -w 7 \\",
                "        --adapter_fasta  \\",
                ("        --html REMOVED/sequence_processing_pipeline/tests/"

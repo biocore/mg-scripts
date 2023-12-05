@@ -1,5 +1,5 @@
 from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
-from os import stat, makedirs
+from os import stat, makedirs, rename
 from os.path import join, basename, dirname, exists
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -11,7 +11,6 @@ from sequence_processing_pipeline.util import iter_paired_files
 from jinja2 import Environment, PackageLoader
 import glob
 import re
-from json import dumps
 from sys import executable
 
 
@@ -82,12 +81,13 @@ class NuQCJob(Job):
         self.max_file_list_size_in_gb = bucket_size
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
-        self.batch_prefix = "hd-split-pangenome"
+
+        self.batch_prefix = f"hds-{self.qiita_job_id}"
         self.minimum_bytes = 3100
         self.fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}'
                                       r'\.fastq\.gz$')
         self.html_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.html$')
-        self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json')
+        self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json$')
 
         self._validate_project_data()
 
@@ -157,7 +157,17 @@ class NuQCJob(Job):
                 # check if found substring is a member of this
                 # project. Note sample-name != sample-id
                 if substr[1] in samples_in_project:
-                    files_to_move.append(fp)
+                    if fp.endswith('.fastq.gz'):
+                        # legacy QC'ed files were always denoted with
+                        # 'trimmed' to distinguish them from raw files.
+                        renamed_fp = fp.replace('.fastq.gz',
+                                                '.trimmed.fastq.gz')
+                        rename(fp, renamed_fp)
+                        # move file into destination w/new filename
+                        files_to_move.append(renamed_fp)
+                    else:
+                        # move file into destination folder w/no namechange.
+                        files_to_move.append(fp)
 
         for fp in files_to_move:
             move(fp, dst)
@@ -175,7 +185,7 @@ class NuQCJob(Job):
         self.counts[self.batch_prefix] = batch_count
 
         export_params = [f"MMI={self.minimap_database_paths}",
-                         f"PREFIX={self.batch_prefix}",
+                         f"PREFIX={batch_location}",
                          f"OUTPUT={self.output_path}",
                          f"TMPDIR={self.temp_dir}"]
 
@@ -261,40 +271,15 @@ class NuQCJob(Job):
                                            empty_files_directory,
                                            self.minimum_bytes)
 
-    def _get_failed_indexes(self, project_name, job_id):
-        pattern = f"{self.temp_dir}/{self.batch_prefix}.*.completed"
+    def _confirm_job_completed(self):
+        # since NuQCJob processes across all projects in a run, there isn't
+        # a need to iterate by project_name and job_id.
+        pattern = f"{self.output_path}/hds-{self.qiita_job_id}.*.completed"
         completed_files = list(glob.glob(pattern))
-        completed_indexes = []
-        regex = r'^%s/%s.%s_([0-9]+).completed$' % (self.temp_dir,
-                                                    self.batch_prefix,
-                                                    str(job_id))
-        array_ids = re.compile(regex)
+        if completed_files:
+            return True
 
-        for completed_file in completed_files:
-            match = array_ids.search(completed_file)
-            if match is None:
-                raise PipelineError("Malformed completed file")
-            else:
-                id_ = int(match.groups(0)[0])
-                completed_indexes.append(id_)
-
-        # a successfully completed job array should have a list of array
-        # numbers from 0 - len(self.commands).
-        all_indexes = list(range(1, self.counts[self.batch_prefix]))
-        failed_indexes = sorted(set(all_indexes) - set(completed_indexes))
-
-        # generate log-file here instead of in run() where it can be
-        # unittested more easily.
-        log_fp = join(self.output_path,
-                      'logs',
-                      f'failed_indexes_{job_id}.json')
-
-        if failed_indexes:
-            with open(log_fp, 'w') as f:
-                f.write(dumps({'job_id': job_id,
-                               'failed_indexes': failed_indexes}, indent=2))
-
-        return failed_indexes
+        return False
 
     def _process_sample_sheet(self):
         sheet = KLSampleSheet(self.sample_sheet_path)
@@ -368,6 +353,7 @@ class NuQCJob(Job):
                                     output_path=self.output_path,
                                     html_path=html_path,
                                     json_path=json_path,
-                                    demux_path=demux_path))
+                                    demux_path=demux_path,
+                                    temp_dir=self.temp_dir))
 
         return job_script_path

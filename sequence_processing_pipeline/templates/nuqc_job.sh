@@ -32,11 +32,6 @@ if [[ -z ${OUTPUT} ]]; then
     exit 1
 fi
 
-if [[ -z ${TMPDIR} ]]; then
-    echo "TMPDIR is not set"
-    exit 1
-fi
-
 echo "MMI is ${MMI}"
 
 conda activate human-depletion
@@ -49,16 +44,16 @@ hostname
 echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
 ### output_path = output_path passed to Job objects + 'NuQCJob'
 ### e.g.: working-directory/ConvertJob, working-directory/QCJob...
-cd ${TMPDIR}
+cd {{output_path}}
 
 ### set a temp directory, make a new unique one under it and
 ### make sure we clean up as we're dumping to shm
 ### DO NOT do this casually. Only do a clean up like this if
 ### you know for sure TMPDIR is what you want.
 
-mkdir -p ${TMPDIR}
-export TMPDIR=${TMPDIR}
-export TMPDIR=$(mktemp -d)
+export TMPDIR={{temp_dir}}/
+# don't use mktemp -d to create a random temp dir.
+# the one passed is unique already.
 echo $TMPDIR
 
 mkdir -p {{html_path}}
@@ -71,7 +66,7 @@ function cleanup {
 }
 trap cleanup EXIT
 
-export FILES=$(pwd)/$(printf "%s-%d" ${PREFIX} ${SLURM_ARRAY_TASK_ID})
+export FILES=$(printf "%s-%d" ${PREFIX} ${SLURM_ARRAY_TASK_ID})
 if [[ ! -f ${FILES} ]]; then
     logger ${FILES} not found
     exit 1
@@ -92,13 +87,15 @@ do
 
     # for now just make sure each file is saved and we can read the data inside
     # to sort them out later.
-    html_name=$(echo "$r1_name.html")
-    json_name=$(echo "$r1_name.json")
+
+    s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
+    html_name=$(echo "$s_name.html")
+    json_name=$(echo "$s_name.json")
 
     echo "${i}	${r1_name}	${r2_name}	${base}" >> ${TMPDIR}/id_map
 
     fastp \
-        -l 45 \
+        -l 100 \
         -i ${r1} \
         -I ${r2} \
         -w 7 \
