@@ -22,7 +22,8 @@ class NuQCJob(Job):
                  minimap_database_paths, queue_name, node_count,
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id, pool_size,
-                 max_array_length, known_adapters_path, bucket_size=8):
+                 max_array_length, known_adapters_path, bucket_size=8,
+                 length_limit=100, worker_threads=7):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -43,7 +44,8 @@ class NuQCJob(Job):
         :param pool_size: The number of jobs to process concurrently.
         :param known_adapters_path: The path to an .fna file of known adapters.
         :param bucket_size: the size in GB of each bucket to process
-
+        :param length_limit: reads shorter than this will be discarded.
+        :param worker_threads: Number of threads per fastp/minimap2 process.
         """
         super().__init__(fastq_root_dir,
                          output_path,
@@ -79,6 +81,8 @@ class NuQCJob(Job):
         self.counts = {}
         self.known_adapters_path = known_adapters_path
         self.max_file_list_size_in_gb = bucket_size
+        self.length_limit = length_limit
+        self.worker_threads = worker_threads
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
 
@@ -347,13 +351,17 @@ class NuQCJob(Job):
                                     # should be 4 * 24 * 60 = 4 days
                                     wall_time_limit=self.wall_time_limit,
                                     mem_in_gb=self.jmem,
+                                    # number of nodes requested (-N)
                                     node_count=1,
+                                    # cores-per-task (-c)
                                     cores_per_task=4,
                                     knwn_adpt_path=self.known_adapters_path,
                                     output_path=self.output_path,
                                     html_path=html_path,
                                     json_path=json_path,
                                     demux_path=demux_path,
-                                    temp_dir=self.temp_dir))
+                                    temp_dir=self.temp_dir,
+                                    length_limit=self.length_limit,
+                                    worker_threads=self.worker_threads))
 
         return job_script_path

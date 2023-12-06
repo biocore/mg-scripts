@@ -95,10 +95,10 @@ do
     echo "${i}	${r1_name}	${r2_name}	${base}" >> ${TMPDIR}/id_map
 
     fastp \
-        -l 100 \
+        -l {{length_limit}} \
         -i ${r1} \
         -I ${r2} \
-        -w 7 \
+        -w {{worker_threads}} \
         --adapter_fasta {{knwn_adpt_path}} \
         --html {{html_path}}/${html_name} \
         --json {{json_path}}/${json_name} \
@@ -110,7 +110,7 @@ function minimap2_runner () {
     mmi=$1
     
     echo "$(date) :: $(basename ${mmi})"
-    minimap2 -2 -ax sr -t 7 ${mmi} ${TMPDIR}/seqs.fastq | \
+    minimap2 -2 -ax sr -t {{worker_threads}} ${mmi} ${TMPDIR}/seqs.fastq | \
         samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/seqs_new.fastq
     mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq
 }
