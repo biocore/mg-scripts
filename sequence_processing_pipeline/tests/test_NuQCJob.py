@@ -1110,9 +1110,11 @@ class TestNuQCJob(unittest.TestCase):
                "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_NuQCJob",
                "#SBATCH -p queue_name", "### wall-time-limit in minutes",
                "#SBATCH --time 1440", "#SBATCH --mem 8gbG", "#SBATCH -N 1",
-               "### Note cores_per_task maps to fastp & minimap2 thread counts",
+               ("### Note cores_per_task maps to fastp & minimap2 thread "
+                "counts"),
                "### as well as sbatch -c. demux threads remains fixed at 1.",
-               "### Note -c set to 4 and thread counts set to 7 during testing.",
+               ("### Note -c set to 4 and thread counts set to 7 during "
+                "testing."),
                "#SBATCH -c 4", "",
                "if [[ -z \"${SLURM_ARRAY_TASK_ID}\" ]]; then",
                "    echo \"Not operating within an array\"",
