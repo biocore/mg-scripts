@@ -5,6 +5,9 @@
 #SBATCH --time {{wall_time_limit}}
 #SBATCH --mem {{mem_in_gb}}G
 #SBATCH -N {{node_count}}
+### Note cores_per_task maps to fastp & minimap2 thread counts
+### as well as sbatch -c. demux threads remains fixed at 1.
+### Note -c set to 4 and thread counts set to 7 during testing.
 #SBATCH -c {{cores_per_task}}
 
 if [[ -z "${SLURM_ARRAY_TASK_ID}" ]]; then
@@ -98,7 +101,7 @@ do
         -l {{length_limit}} \
         -i ${r1} \
         -I ${r2} \
-        -w {{worker_threads}} \
+        -w {{cores_per_task}} \
         --adapter_fasta {{knwn_adpt_path}} \
         --html {{html_path}}/${html_name} \
         --json {{json_path}}/${json_name} \
@@ -110,7 +113,7 @@ function minimap2_runner () {
     mmi=$1
     
     echo "$(date) :: $(basename ${mmi})"
-    minimap2 -2 -ax sr -t {{worker_threads}} ${mmi} ${TMPDIR}/seqs.fastq | \
+    minimap2 -2 -ax sr -t {{cores_per_task}} ${mmi} ${TMPDIR}/seqs.fastq | \
         samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/seqs_new.fastq
     mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq
 }

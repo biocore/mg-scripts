@@ -23,7 +23,7 @@ class NuQCJob(Job):
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id, pool_size,
                  max_array_length, known_adapters_path, bucket_size=8,
-                 length_limit=100, worker_threads=7):
+                 length_limit=100, cores_per_task=4):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -45,7 +45,7 @@ class NuQCJob(Job):
         :param known_adapters_path: The path to an .fna file of known adapters.
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
-        :param worker_threads: Number of threads per fastp/minimap2 process.
+        :param cores_per_task: Number of CPU cores per node to request.
         """
         super().__init__(fastq_root_dir,
                          output_path,
@@ -82,7 +82,7 @@ class NuQCJob(Job):
         self.known_adapters_path = known_adapters_path
         self.max_file_list_size_in_gb = bucket_size
         self.length_limit = length_limit
-        self.worker_threads = worker_threads
+        self.cores_per_task = cores_per_task
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
 
@@ -351,17 +351,19 @@ class NuQCJob(Job):
                                     # should be 4 * 24 * 60 = 4 days
                                     wall_time_limit=self.wall_time_limit,
                                     mem_in_gb=self.jmem,
-                                    # number of nodes requested (-N)
-                                    node_count=1,
-                                    # cores-per-task (-c)
-                                    cores_per_task=4,
+                                    # Note NuQCJob now maps node_count to
+                                    # SLURM -N parameter to act like other
+                                    # Job classes.
+                                    # self.node_count should be 1
+                                    node_count=self.node_count,
+                                    # cores-per-task (-c) should be 4
+                                    cores_per_task=self.cores_per_task,
                                     knwn_adpt_path=self.known_adapters_path,
                                     output_path=self.output_path,
                                     html_path=html_path,
                                     json_path=json_path,
                                     demux_path=demux_path,
                                     temp_dir=self.temp_dir,
-                                    length_limit=self.length_limit,
-                                    worker_threads=self.worker_threads))
+                                    length_limit=self.length_limit))
 
         return job_script_path

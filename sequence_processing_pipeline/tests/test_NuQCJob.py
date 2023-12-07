@@ -1110,6 +1110,9 @@ class TestNuQCJob(unittest.TestCase):
                "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_NuQCJob",
                "#SBATCH -p queue_name", "### wall-time-limit in minutes",
                "#SBATCH --time 1440", "#SBATCH --mem 8gbG", "#SBATCH -N 1",
+               "### Note cores_per_task maps to fastp & minimap2 thread counts",
+               "### as well as sbatch -c. demux threads remains fixed at 1.",
+               "### Note -c set to 4 and thread counts set to 7 during testing.",
                "#SBATCH -c 4", "",
                "if [[ -z \"${SLURM_ARRAY_TASK_ID}\" ]]; then",
                "    echo \"Not operating within an array\"",
@@ -1168,7 +1171,7 @@ class TestNuQCJob(unittest.TestCase):
                ("    echo \"${i}	${r1_name}	${r2_name}	${base}\" >> "
                 "${TMPDIR}/id_map"),
                "", "    fastp \\", "        -l 100 \\", "        -i ${r1} \\",
-               "        -I ${r2} \\", "        -w 7 \\",
+               "        -I ${r2} \\", "        -w 4 \\",
                "        --adapter_fasta  \\",
                ("        --html REMOVED/sequence_processing_pipeline/tests/"
                 "data/output_dir/NuQCJob/fastp_reports_dir/html/"
@@ -1182,7 +1185,7 @@ class TestNuQCJob(unittest.TestCase):
                "function minimap2_runner () {",
                "    mmi=$1", "    ",
                "    echo \"$(date) :: $(basename ${mmi})\"",
-               "    minimap2 -2 -ax sr -t 7 ${mmi} ${TMPDIR}/seqs.fastq | \\",
+               "    minimap2 -2 -ax sr -t 4 ${mmi} ${TMPDIR}/seqs.fastq | \\",
                ("        samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/"
                 "seqs_new.fastq"),
                "    mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq",
