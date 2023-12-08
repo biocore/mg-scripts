@@ -25,7 +25,6 @@ class FastQCJob(Job):
         self.fastqc_path = fastqc_path
         self.queue_name = queue_name
         self.node_count = node_count
-        self.nprocs = nprocs
         self.wall_time_limit = wall_time_limit
         self.jmem = jmem
         self.qiita_job_id = qiita_job_id

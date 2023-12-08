@@ -551,7 +551,7 @@ class TestNuQCJob(unittest.TestCase):
             NuQCJob(self.fastq_root_path, self.output_path,
                     'not/path/to/sample/sheet', self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
@@ -567,7 +567,7 @@ class TestNuQCJob(unittest.TestCase):
                           self.tmp_file_path, self.mmi_db_paths,
                           'queue_name', 1, 1440, '8gb',
                           'fastp', 'minimap2', 'samtools', [],
-                          self.qiita_job_id, 30, 1000, '')
+                          self.qiita_job_id, 1000, '')
 
         self.assertFalse(nuqcjob is None)
 
@@ -583,7 +583,7 @@ class TestNuQCJob(unittest.TestCase):
                     self.tmp_file_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    30, 1000, '')
+                    1000, '')
 
         self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
                                             "not recognized."))
@@ -592,7 +592,7 @@ class TestNuQCJob(unittest.TestCase):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sheet_bools_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
         self.assertEqual(str(e.exception),
@@ -603,7 +603,7 @@ class TestNuQCJob(unittest.TestCase):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sample_sheet_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
+                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
         self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
@@ -614,7 +614,7 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, self.mmi_db_paths,
                       'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+                      1000, '')
 
         obs = job.audit(self.sample_ids)
 
@@ -1044,7 +1044,7 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+                      1000, '')
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
                    'NuQCJob')
@@ -1067,7 +1067,7 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+                      1000, '')
 
         # test _confirm_job_completed() fails when a .completed file isn't
         # manually created.
@@ -1079,7 +1079,7 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+                      1000, '')
 
         job_script_path = job._generate_job_script()
 
@@ -1216,7 +1216,7 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8gb',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000, '')
+                      1000, '')
 
         # a sample of known valid fastq file-names plus a few edge-cases.
         good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.fastq.gz',
