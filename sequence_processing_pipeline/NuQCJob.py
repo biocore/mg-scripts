@@ -21,7 +21,7 @@ class NuQCJob(Job):
     def __init__(self, fastq_root_dir, output_path, sample_sheet_path,
                  minimap_database_paths, queue_name, node_count,
                  wall_time_limit, jmem, fastp_path, minimap2_path,
-                 samtools_path, modules_to_load, qiita_job_id, pool_size,
+                 samtools_path, modules_to_load, qiita_job_id,
                  max_array_length, known_adapters_path, bucket_size=8,
                  length_limit=100, cores_per_task=4):
         """
@@ -41,7 +41,6 @@ class NuQCJob(Job):
         :param samtools_path: The path to the samtools executable
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
-        :param pool_size: The number of jobs to process concurrently.
         :param known_adapters_path: The path to an .fna file of known adapters.
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
@@ -68,7 +67,6 @@ class NuQCJob(Job):
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
         self.qiita_job_id = qiita_job_id
-        self.pool_size = pool_size
         self.suffix = 'fastq.gz'
 
         # for projects that use sequence_processing_pipeline as a dependency,
@@ -82,7 +80,17 @@ class NuQCJob(Job):
         self.known_adapters_path = known_adapters_path
         self.max_file_list_size_in_gb = bucket_size
         self.length_limit = length_limit
+
+        # NuQCJob() impl uses -c (--cores-per-task) switch instead of
+        # -n (--tasks-per-node). --cores-per-task requests the number of cpus
+        # per process. This is to support multithreaded jobs that require more
+        # than one cpu per task. All cores will be allocated on a single node.
+        #
+        # This is different than using -n + -N (number of nodes to request)
+        # because it's allowable to request more cores than are available on
+        # one node using this pair of switches (N nodes * n tasks per node).
         self.cores_per_task = cores_per_task
+
         self.temp_dir = join(self.output_path, 'tmp')
         makedirs(self.temp_dir, exist_ok=True)
 
