@@ -131,14 +131,7 @@ function mux_runner () {
 export -f mux_runner
 
 function minimap2_runner () {
-    mmi=$1
-    
-    echo "$(date) :: $(basename ${mmi})"
-    minimap2 -2 -ax sr -t {{cores_per_task}} ${mmi} ${TMPDIR}/seqs.fastq | \
-        samtools fastq -@ 1 -f 12 -F 256 > ${TMPDIR}/seqs_new.fastq
-    mv ${TMPDIR}/seqs_new.fastq ${TMPDIR}/seqs.fastq
-
-	fcurrent=${1}
+    fcurrent=${1}
     
     jobd=${TMPDIR}
     
