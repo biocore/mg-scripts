@@ -57,16 +57,16 @@ TMPDIR=/dev/shm
 if [[ ! -d ${TMPDIR} ]]; then
 	echo "Cannot access ${TMPDIR}"
     exit 1
-fi                                                      
-export TMPDIR=${TMPDIR}                                                         
-export TMPDIR=$(mktemp -d)                                                      
-echo $TMPDIR                                                                    
-                                                                                
-function cleanup {                                                              
-  echo "Removing $TMPDIR"                                                          
-  rm -fr $TMPDIR                                                                
-  unset TMPDIR                                                                  
-}                                                                               
+fi
+export TMPDIR=${TMPDIR}
+export TMPDIR=$(mktemp -d)
+echo $TMPDIR
+
+function cleanup {
+  echo "Removing $TMPDIR"
+  rm -fr $TMPDIR
+  unset TMPDIR
+}
 trap cleanup EXIT
 
 export FILES=$(printf "%s-%d" ${PREFIX} ${SLURM_ARRAY_TASK_ID})
@@ -98,20 +98,20 @@ function mux_runner () {
         r1_name=$(basename ${r1} .fastq.gz)
         r2_name=$(basename ${r2} .fastq.gz)
 
-		s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
-		html_name=$(echo "$s_name.html")
-		json_name=$(echo "$s_name.json")
+        s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
+        html_name=$(echo "$s_name.html")
+        json_name=$(echo "$s_name.json")
 
         echo "${i}	${r1_name}	${r2_name}	${base}" >> ${id_map}
 
         fastp \
-			-l {{length_limit}} \
-			-i ${r1} \
-			-I ${r2} \
-			-w {{cores_per_task}} \
-			--adapter_fasta {{knwn_adpt_path}} \
-			--html {{html_path}}/${html_name} \
-			--json {{json_path}}/${json_name} \
+            -l {{length_limit}} \
+            -i ${r1} \
+            -I ${r2} \
+            -w {{cores_per_task}} \
+            --adapter_fasta {{knwn_adpt_path}} \
+            --html {{html_path}}/${html_name} \
+            --json {{json_path}}/${json_name} \
             --out1 ${r1_filt} \
             --out2 ${r2_filt}
 
