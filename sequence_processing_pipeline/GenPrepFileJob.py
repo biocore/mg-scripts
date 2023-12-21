@@ -5,9 +5,9 @@ from os.path import join, exists, basename
 from shutil import copytree
 from functools import partial
 from collections import defaultdict
-from metapool import (KLSampleSheet, demux_sample_sheet, parse_prep,
+from metapool import (demux_sample_sheet, parse_prep,
                       demux_pre_prep, pre_prep_needs_demuxing,
-                      sheet_needs_demuxing)
+                      sheet_needs_demuxing, load_sample_sheet)
 
 
 class GenPrepFileJob(Job):
@@ -87,7 +87,7 @@ class GenPrepFileJob(Job):
                 # overwrite default setting
                 file_paths = self._write_to_file(demux_pre_prep(fp))
         else:
-            fp = KLSampleSheet(self.input_file_path)
+            fp = load_sample_sheet(self.input_file_path)
             if sheet_needs_demuxing(fp):
                 self.has_replicates = True
 

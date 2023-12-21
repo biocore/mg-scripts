@@ -5,7 +5,7 @@ from functools import partial
 from sequence_processing_pipeline.NuQCJob import NuQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
-from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+from metapool import load_sample_sheet
 import re
 
 
@@ -36,11 +36,13 @@ class TestNuQCJob(unittest.TestCase):
             # need to be removed.
             pass
 
-        sheet = KLSampleSheet(self.good_sample_sheet_path)
-        valid_sheet = validate_and_scrub_sample_sheet(sheet)
+        sheet = load_sample_sheet(self.good_sample_sheet_path)
+
+        if not sheet.validate_and_scrub_sample_sheet():
+            raise ValueError("'%s' is not a valid sample-sheet")
 
         sample_ids = []
-        for sample in valid_sheet.samples:
+        for sample in sheet.samples:
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
         self.fastq_path = partial(join, self.output_path, 'ConvertJob')
@@ -559,7 +561,7 @@ class TestNuQCJob(unittest.TestCase):
 
         # sample-sheet.
         with open(self.tmp_file_path, 'w') as f:
-            sheet = KLSampleSheet(self.good_sample_sheet_path)
+            sheet = load_sample_sheet(self.good_sample_sheet_path)
             sheet.Header['Assay'] = 'Metatranscriptomic'
             sheet.write(f)
 
@@ -574,7 +576,7 @@ class TestNuQCJob(unittest.TestCase):
         # use good-sample-sheet as the basis for a sample-sheet with a
         # bad assay type
         with open(self.tmp_file_path, 'w') as f:
-            sheet = KLSampleSheet(self.good_sample_sheet_path)
+            sheet = load_sample_sheet(self.good_sample_sheet_path)
             sheet.Header['Assay'] = 'NotMetagenomic'
             sheet.write(f)
 
