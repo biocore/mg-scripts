@@ -3,7 +3,7 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir
 from os.path import join, exists, isdir, basename
-from metapool import KLSampleSheet, quiet_validate_and_scrub_sample_sheet
+from metapool import load_sample_sheet, AmpliconSampleSheet
 from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
@@ -236,10 +236,11 @@ class Pipeline:
                  appended to self.warnings.
         """
         # validate the sample-sheet using metapool package.
-        sheet = KLSampleSheet(sample_sheet_path)
-        msgs, val_sheet = quiet_validate_and_scrub_sample_sheet(sheet)
+        sheet = load_sample_sheet(sample_sheet_path)
 
-        if val_sheet is None:
+        msgs = sheet.quiet_validate_and_scrub_sample_sheet()
+
+        if any([isinstance(m, ErrorMessage) for m in msgs]):
             # msgs will contain both ErrorMessages and WarningMessages.
             # we want to identify if there are any messages and if so, create
             # a separate list for them. An Error should only be raised on
@@ -256,7 +257,7 @@ class Pipeline:
         else:
             # perform extended validation based on required fields for
             # seqpro, and other issues encountered.
-            bioinformatics = val_sheet.Bioinformatics
+            bioinformatics = sheet.Bioinformatics
             if 'library_construction_protocol' not in bioinformatics:
                 msgs.append(ErrorMessage("column 'library_construction_protoco"
                                          "l' not found in Bioinformatics secti"
@@ -266,7 +267,7 @@ class Pipeline:
                                          "n' not found in Bioinformatics secti"
                                          "on"))
 
-            if val_sheet.Header['Assay'] not in Pipeline.assay_types:
+            if sheet.Header['Assay'] not in Pipeline.assay_types:
                 msgs.append(ErrorMessage("Valid Assay values are "
                                          f"{Pipeline.assay_types}"))
 
@@ -275,7 +276,7 @@ class Pipeline:
             # different. However seqpro expects the tuple (lane, sample_id) to
             # be unique for indexing.
             unique_indexes = []
-            for item in val_sheet.samples:
+            for item in sheet.samples:
                 unique_index = f'{item.lane}_{item.sample_id}'
                 if unique_index in unique_indexes:
                     msgs.append(ErrorMessage("A sample already exists with la"
@@ -295,7 +296,7 @@ class Pipeline:
             # messages
             self.warnings += [str(x) for x in msgs if
                               isinstance(x, WarningMessage)]
-            return val_sheet
+            return sheet
 
     def _validate_mapping_file(self, mapping_file_path):
         """
@@ -566,7 +567,7 @@ class Pipeline:
     def _generate_dummy_sample_sheet(self, first_read, last_read,
                                      indexed_reads, dummy_sample_id):
         # create object and initialize header
-        sheet = KLSampleSheet()
+        sheet = AmpliconSampleSheet()
         sheet.Header['IEMFileVersion'] = '4'
         sheet.Header['Date'] = '10/27/22'
         sheet.Header['Workflow'] = 'GenerateFASTQ'
