@@ -1,4 +1,4 @@
-from metapool import KLSampleSheet, validate_and_scrub_sample_sheet
+from metapool import load_sample_sheet
 from os import walk, stat, listdir, makedirs
 from os.path import exists, join, split, basename
 from sequence_processing_pipeline.Job import Job
@@ -194,14 +194,13 @@ class QCJob(Job):
                          self.minimum_bytes)
 
     def _process_sample_sheet(self):
-        sheet = KLSampleSheet(self.sample_sheet_path)
-        valid_sheet = validate_and_scrub_sample_sheet(sheet)
+        sheet = load_sample_sheet(self.sample_sheet_path)
 
-        if not valid_sheet:
+        if not sheet.validate_and_scrub_sample_sheet():
             s = "Sample sheet %s is not valid." % self.sample_sheet_path
             raise PipelineError(s)
 
-        header = valid_sheet.Header
+        header = sheet.Header
         chemistry = header['chemistry']
 
         if header['Assay'] not in Pipeline.assay_types:
@@ -213,10 +212,10 @@ class QCJob(Job):
                                         Pipeline.METATRANSCRIPTOMIC_PTYPE])
 
         sample_ids = []
-        for sample in valid_sheet.samples:
+        for sample in sheet.samples:
             sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
 
-        bioinformatics = valid_sheet.Bioinformatics
+        bioinformatics = sheet.Bioinformatics
 
         # reorganize the data into a list of dictionaries, one for each row.
         # the ordering of the rows will be preserved in the order of the list.
