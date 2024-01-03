@@ -34,15 +34,15 @@ setup(name='sequence-processing-pipeline',
       packages=['sequence_processing_pipeline'],
       setup_requires=['numpy', 'cython'],
       include_package_data=True,
-      package_data={'': ['templates/*']},
-
-
+      package_data={
+        'templates': ['nuqc_job.sh'],
+        'scripts': ['splitter'],
+      },
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
         'pgzip', 'jinja2',
         'metapool @ https://github.com/biocore/'
         'metagenomics_pooling_notebook/archive/master.zip'],
-      scripts=['sequence_processing_pipeline/scripts/splitter'],
       entry_points={
           'console_scripts': ['demux=sequence_processing_pipeline.scripts.cli'
                               ':demux',], })

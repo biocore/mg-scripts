@@ -179,8 +179,8 @@ function minimap2_runner () {
     rm ${seqs_mmpe_r2} &
     # no need to block
 
-    splitter ${seqs_mmpese} ${seqs_mmpese_r1} ${delimiter} ${r1_tag} &
-    splitter ${seqs_mmpese} ${seqs_mmpese_r2} ${delimiter} ${r2_tag} &
+    {{splitter_binary}} ${seqs_mmpese} ${seqs_mmpese_r1} ${delimiter} ${r1_tag} &
+    {{splitter_binary}} ${seqs_mmpese} ${seqs_mmpese_r2} ${delimiter} ${r2_tag} &
     wait
 
     rm ${seqs_mmpese} &
