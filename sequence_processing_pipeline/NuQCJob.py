@@ -353,7 +353,7 @@ class NuQCJob(Job):
 
         # get this file location and add splitter as it should live there
         splitter_binary = join(
-            dirname(abspath(__file__)), 'bin', 'splitter')
+            dirname(abspath(__file__)), 'scripts', 'splitter')
         if not exists(splitter_binary):
             raise ValueError(f'{splitter_binary} does not exist.')
 

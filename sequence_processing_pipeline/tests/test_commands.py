@@ -61,7 +61,8 @@ class CommandTests(unittest.TestCase):
             encoded = '2'
             threads = 1
 
-            demux(id_map, infile, out_d, encoded, threads)
+            with open(out_d, 'r') as fp:
+                demux(id_map, fp, out_d, int(task), int(maxtask))
 
             obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1.fastq.gz'),
                                'rt').read()
