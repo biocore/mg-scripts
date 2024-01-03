@@ -37,7 +37,7 @@ jobs:
       - name: Main install
         shell: bash -l {0}
         run: |
-          conda install fastq-pair
+          conda install bioconda::fastq-pair
           pip install -e ".[all]"
 
       - name: Python linter
