@@ -57,7 +57,7 @@ class CommandTests(unittest.TestCase):
             exp_data_r2 = '\n'.join(['@baz/2', 'ATGC', '+', '!!!!',
                                      '@bing/2', 'ATGC', '+', '!!!!', ''])
 
-            out_d = tmp
+            out_d = join(tmp, 'my-test-file')
             encoded = '2'
             threads = 1
 
