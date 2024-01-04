@@ -16,67 +16,44 @@ if [[ -z "${SLURM_ARRAY_TASK_ID}" ]]; then
     exit 1
 fi
 
-if [[ "${SLURM_ARRAY_TASK_MIN}" -ne 1 ]]; then
-    echo "Min array ID is not 1"
-    exit 1
-fi
-
-if [[ -z ${MMI} ]]; then
-    echo "MMI is not set"
-    exit 1
-fi
-
-if [[ -z ${PREFIX} ]]; then
-    echo "PREFIX is not set"
-    exit 1
-fi
-
-if [[ -z ${OUTPUT} ]]; then
-    echo "OUTPUT is not set"
-    exit 1
-fi
-
-echo "MMI is ${MMI}"
-
 conda activate human-depletion
 
 set -x
 set -e
 set -o pipefail
 
-date
-hostname
-echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
-### output_path = output_path passed to Job objects + 'NuQCJob'
-### e.g.: working-directory/ConvertJob, working-directory/QCJob...
-cd {{output_path}}
-
-### set a temp directory, make a new unique one under it and
-### make sure we clean up as we're dumping to shm
-### DO NOT do this casually. Only do a clean up like this if
-### you know for sure TMPDIR is what you want.
-
-export TMPDIR={{temp_dir}}/
-# don't use mktemp -d to create a random temp dir.
-# the one passed is unique already.
-echo $TMPDIR
-
-# confirm {{temp_dir}} exists and $TMPDIR is set properly.
-if [[ ! -d ${TMPDIR} ]]; then
-    echo "Cannot access ${TMPDIR}"
+export FILES=$(printf "%s-%d" ${PREFIX} ${SLURM_ARRAY_TASK_ID})
+if [[ ! -f ${FILES} ]]; then
+    logger ${FILES} not found
     exit 1
 fi
+# set a temp directory, make a new unique one under it and
+# make sure we clean up as we're dumping to shm
+# DO NOT do this casually. Only do a clean up like this if
+# you know for sure TMPDIR is what you want.
+
+#TMPDIR=/scratch/qiita-tmp/human-filtering-tmp
+TMPDIR=/dev/shm
+mkdir -p ${TMPDIR}
+export TMPDIR=${TMPDIR}
+export TMPDIR=$(mktemp -d)
+echo $TMPDIR
 
 mkdir -p {{html_path}}
 mkdir -p {{json_path}}
 
-function mux_runner () {
-    echo "FILES:"
-    echo "${FILES}"
+function cleanup {
+  echo "Removing $TMPDIR"
+  rm -fr $TMPDIR
+  unset TMPDIR
+}
+trap cleanup EXIT
+
+export delimiter=::MUX::
+export r1_tag=/1
+export r2_tag=/2
+function mux-runner () {
     n=$(wc -l ${FILES} | cut -f 1 -d" ")
-    echo "FOO:"
-    echo "$n"
-    echo "BAR"
 
     jobd=${TMPDIR}
     id_map=${jobd}/id_map
@@ -87,7 +64,6 @@ function mux_runner () {
 
     for i in $(seq 1 ${n})
     do
-        echo "I: ${i}"
         line=$(head -n ${i} ${FILES} | tail -n 1)
         r1=$(echo ${line} | cut -f 1 -d" ")
         r2=$(echo ${line} | cut -f 2 -d" ")
@@ -99,13 +75,13 @@ function mux_runner () {
         html_name=$(echo "$s_name.html")
         json_name=$(echo "$s_name.json")
 
-        echo "${i} ${r1_name}  ${r2_name}  ${base}" >> ${id_map}
+        echo "${i}	${r1_name}	${r2_name}	${base}" >> ${id_map}
 
         fastp \
-            -l {{length_limit}} \
+            -l 45 \
             -i ${r1} \
             -I ${r2} \
-            -w {{cores_per_task}} \
+            -w ${SLURM_CPUS_PER_TASK} \
             --adapter_fasta {{knwn_adpt_path}} \
             --html {{html_path}}/${html_name} \
             --json {{json_path}}/${json_name} \
@@ -125,10 +101,16 @@ function mux_runner () {
         wait
     done
 }
-export -f mux_runner
+export -f mux-runner
 
-function minimap2_runner () {
+function minimap2-runner () {
+    if [[ -z ${fcurrent} ]]; then
+        echo "fcurrent not set"
+        exit 1
+    fi
+
     jobd=${TMPDIR}
+
     id_map=${jobd}/id_map
     if [[ ! -f ${id_map} ]]; then
         echo "No samples..."
@@ -142,7 +124,7 @@ function minimap2_runner () {
     seqs_mmpese=${jobd}/seqs.mmpese.fastq
     seqs_mmpese_r1=${jobd}/seqs.mmpese.r1.fastq
     seqs_mmpese_r2=${jobd}/seqs.mmpese.r2.fastq
-    echo "BEGIN PE OPERATION"
+
     # PE operation
     minimap2 -2 -ax sr -t 12 \
         ${fcurrent} \
@@ -160,10 +142,6 @@ function minimap2_runner () {
     rm ${seqs_r2} &
     # no need to block
 
-    echo "BEGIN SE OPERATION"
-    echo "FCURRENT IS NOW: ${fcurrent}"
-    echo "SEQS_MMPE_R1 IS: ${seqs_mmpe_r1}"
-    echo "SEQS_MMPE_R2 IS: ${seqs_mmpe_r2}"
     # SE operation
     # run r1/r2 serially to avoid minimap2 picking up on interleve
     minimap2 -2 -ax sr -t 12 \
@@ -195,9 +173,9 @@ function minimap2_runner () {
     mv ${seqs_mmpese_r1}.paired.fq ${seqs_r1}
     mv ${seqs_mmpese_r2}.paired.fq ${seqs_r2}
 }
-export -f minimap2_runner
+export -f minimap2-runner
 
-function demux_runner () {
+function demux-runner () {
     n_demux_jobs=${SLURM_CPUS_PER_TASK}
     jobd=${TMPDIR}
     id_map=${jobd}/id_map
@@ -211,17 +189,17 @@ function demux_runner () {
     fi
 
     for idx in $(seq 0 ${n_demux_jobs})
-     do
+    do
         python {{demux_path}} \
             ${id_map} \
             <(cat ${seqs_r1} ${seqs_r2}) \
             ${OUTPUT} \
             ${idx} \
             ${n_demux_jobs} &
-     done
+    done
     wait
 }
-export -f demux_runner
+export -f demux-runner
 
 mmi_files=${TMPDIR}/mmi-files
 if [[ -d ${MMI} ]]; then
@@ -229,23 +207,21 @@ if [[ -d ${MMI} ]]; then
 else
     echo ${MMI} > ${mmi_files}
 fi
-
 n_files=$(wc -l ${mmi_files} | cut -f 1 -d" ")
 
-mux_runner
+mux-runner
 
+# process with minimap2
 for idx in $(seq 1 ${n_files})
 do
     fcurrent=$(head -n ${idx} ${mmi_files} | tail -n 1)
     export fcurrent
     echo "$(date) :: $(basename ${fcurrent})"
-    minimap2_runner
+    minimap2-runner
 done
 
 mkdir -p ${OUTPUT}
 
 echo "$(date) :: demux start"
-demux_runner
+demux-runner
 echo "$(date) :: demux stop"
-
-touch ${OUTPUT}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.completed
