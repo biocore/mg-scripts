@@ -77,7 +77,8 @@ def demux(id_map, fp, out_d, task, maxtask):
     rec = '@'
 
     openfps = {}
-    for offset, idx, r1, r2, outbase in enumerate(id_map):
+
+    for offset, (idx, r1, r2, outbase) in enumerate(id_map):
         if offset % maxtask == task:
             idx = rec + idx
 

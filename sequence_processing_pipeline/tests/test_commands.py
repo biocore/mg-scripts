@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-import tempfile
+from tempfile import TemporaryDirectory
 import gzip
 import os
 from os.path import join
@@ -23,7 +23,7 @@ class CommandTests(unittest.TestCase):
                     '/foo/baz/c_R1_.fastq.gz',
                     '/foo/bar/b_R1_.fastq.gz']
 
-        with tempfile.TemporaryDirectory() as tmp:
+        with TemporaryDirectory() as tmp:
             exp = 2
             exp_1 = ('/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
                      '/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
@@ -39,9 +39,12 @@ class CommandTests(unittest.TestCase):
             self.assertEqual(obs_1, exp_2)
 
     def test_demux(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            id_map = io.StringIO("1\ta_R1\ta_R2\tProject_12345\n"
-                                 "2\tb_R1\tb_R2\tProject_12345\n")
+        with TemporaryDirectory() as tmp:
+            id_map = [
+                        ["1", "a_R1", "a_R2", "Project_12345"],
+                        ["2", "b_R1", "b_R2", "Project_12345"]
+                        ]
+
             infile_data = '\n'.join(['@1::MUX::foo/1', 'ATGC', '+', '!!!!',
                                      '@1::MUX::foo/2', 'ATGC', '+', '!!!!',
                                      '@1::MUX::bar/1', 'ATGC', '+', '!!!!',
@@ -57,19 +60,26 @@ class CommandTests(unittest.TestCase):
             exp_data_r2 = '\n'.join(['@baz/2', 'ATGC', '+', '!!!!',
                                      '@bing/2', 'ATGC', '+', '!!!!', ''])
 
-            out_d = join(tmp, 'my-test-file')
-            encoded = '2'
-            threads = 1
+            exp_data_r1 = ['@baz/1', 'ATGC', '+', '!!!!',
+                           '@bing/1', 'ATGC', '+', '!!!!']
+            exp_data_r2 = ['@baz/2', 'ATGC', '+', '!!!!',
+                           '@bing/2', 'ATGC', '+', '!!!!']
 
-            with open(out_d, 'r') as fp:
-                demux(id_map, fp, infile, encoded, threads)
+            task = 1
+            maxtask = 2
+
+            demux(id_map, infile, tmp, task, maxtask)
 
             obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1.fastq.gz'),
                                'rt').read()
             obs_r2 = gzip.open(join(tmp, 'Project_12345', 'b_R2.fastq.gz'),
                                'rt').read()
-            self.assertEqual(obs_r1, exp_data_r1)
-            self.assertEqual(obs_r2, exp_data_r2)
+            exp = '\n'.join(exp_data_r1) + '\n'
+            self.assertEqual(obs_r1, exp)
+
+            exp = '\n'.join(exp_data_r2) + '\n'
+            self.assertEqual(obs_r2, exp)
+
             self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
             self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
 
