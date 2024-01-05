@@ -11,10 +11,34 @@
 #SBATCH -c {{cores_per_task}}
 #SBATCH --gres=node_jobs:1  # use 1/4 processing slots
 
+echo "---------------"
+echo "Run details:"
+echo "$SLURM_JOB_NAME $SLURM_JOB_ID $SLURMD_NODENAME"
+echo "---------------"
+
 if [[ -z "${SLURM_ARRAY_TASK_ID}" ]]; then
     echo "Not operating within an array"
     exit 1
 fi
+
+if [[ "${SLURM_ARRAY_TASK_MIN}" -ne 1 ]]; then
+    echo "Min array ID is not 1"
+    exit 1
+fi
+if [[ -z ${MMI} ]]; then
+    echo "MMI is not set"
+    exit 1
+fi
+if [[ -z ${PREFIX} ]]; then
+    echo "PREFIX is not set"
+    exit 1
+fi
+if [[ -z ${OUTPUT} ]]; then
+    echo "OUTPUT is not set"
+    exit 1
+fi
+
+echo "MMI is ${MMI}"
 
 conda activate qp-knight-lab-processing-2022.03
 
@@ -78,10 +102,10 @@ function mux-runner () {
         echo "${i}	${r1_name}	${r2_name}	${base}" >> ${id_map}
 
         fastp \
-            -l 45 \
+            -l {{length_limit}} \
             -i ${r1} \
             -I ${r2} \
-            -w ${SLURM_CPUS_PER_TASK} \
+            -w {{cores_per_task}} \
             --adapter_fasta {{knwn_adpt_path}} \
             --html {{html_path}}/${html_name} \
             --json {{json_path}}/${json_name} \
@@ -225,3 +249,5 @@ mkdir -p ${OUTPUT}
 echo "$(date) :: demux start"
 demux-runner
 echo "$(date) :: demux stop"
+
+touch ${OUTPUT}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.completed
