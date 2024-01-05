@@ -41,6 +41,7 @@ fi
 echo "MMI is ${MMI}"
 
 conda activate qp-knight-lab-processing-2022.03
+module load {{modules_to_load}}
 
 set -x
 set -e
