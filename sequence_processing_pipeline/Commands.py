@@ -1,5 +1,5 @@
 import glob
-import pgzip
+import gzip
 import os
 from sequence_processing_pipeline.util import iter_paired_files
 
@@ -57,50 +57,41 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     return split_offset
 
 
-def demux_cmd(id_map_fp, fp_fp, out_d, encoded, threads):
+def demux_cmd(id_map_fp, fp_fp, out_d, task, maxtask):
     with open(id_map_fp, 'r') as f:
         id_map = f.readlines()
-        id_map = [line.rstrip() for line in id_map]
+        id_map = [line.strip().split('\t') for line in id_map]
 
     # fp needs to be an open file handle.
+    # ensure task and maxtask are proper ints when coming from cmd-line.
     with open(fp_fp, 'r') as fp:
-        demux(id_map, fp, out_d, encoded, threads)
+        demux(id_map, fp, out_d, int(task), int(maxtask))
 
 
-def demux(id_map, fp, out_d, encoded, threads):
+def demux(id_map, fp, out_d, task, maxtask):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
     mode = 'wt'
+    ext = '.fastq.gz'
     sep = '/'
     rec = '@'
 
-    # load mapping information
-    fpmap = {}
-    for tmp in id_map:
-        idx, r1, r2, outbase = tmp.strip().split('\t')
-        fpmap[rec + idx] = (r1, r2, outbase)
+    openfps = {}
 
-    # this is our encoded file, and the one we care about
-    idx = rec + encoded
-    fname_r1, fname_r2, outbase = fpmap[idx]
+    for offset, (idx, r1, r2, outbase) in enumerate(id_map):
+        if offset % maxtask == task:
+            idx = rec + idx
 
-    # setup output locations
-    outdir = out_d + sep + outbase
+            # setup output locations
+            outdir = out_d + sep + outbase
+            fullname_r1 = outdir + sep + r1 + ext
+            fullname_r2 = outdir + sep + r2 + ext
 
-    fullname_r1 = outdir + sep + fname_r1 + '.fastq.gz'
-    fullname_r2 = outdir + sep + fname_r2 + '.fastq.gz'
-
-    os.makedirs(outdir, exist_ok=True)
-    current_fp_r1 = pgzip.open(fullname_r1, mode, thread=threads,
-                               blocksize=2 * 10 ** 8)
-    current_fp_r2 = pgzip.open(fullname_r2, mode, thread=threads,
-                               blocksize=2 * 10 ** 8)
-
-    current_fp = (current_fp_r1, current_fp_r2)
-
-    # we assume R1 comes first... which is safe if data are coming
-    # from samtools
-    orientation_offset = 0
+            os.makedirs(outdir, exist_ok=True)
+            current_fp_r1 = gzip.open(fullname_r1, mode)
+            current_fp_r2 = gzip.open(fullname_r2, mode)
+            current_fp = {'1': current_fp_r1, '2': current_fp_r2}
+            openfps[idx] = current_fp
 
     # setup a parser
     id_ = iter(fp)
@@ -111,14 +102,17 @@ def demux(id_map, fp, out_d, encoded, threads):
     for i, s, d, q in zip(id_, seq, dumb, qual):
         fname_encoded, id_ = i.split(delimiter, 1)
 
-        if fname_encoded == idx:
-            id_ = rec + id_
+        if fname_encoded not in openfps:
+            continue
 
-            current_fp[orientation_offset].write(id_)
-            current_fp[orientation_offset].write(s)
-            current_fp[orientation_offset].write(d)
-            current_fp[orientation_offset].write(q)
-            orientation_offset = 1 - orientation_offset  # switch between 0 / 1
+        orientation = id_[-2]  # -1 is \n
+        current_fp = openfps[fname_encoded]
+        id_ = rec + id_
+        current_fp[orientation].write(id_)
+        current_fp[orientation].write(s)
+        current_fp[orientation].write(d)
+        current_fp[orientation].write(q)
 
-    for outfp in current_fp:
-        outfp.close()
+    for d in openfps.values():
+        for f in d.values():
+            f.close()

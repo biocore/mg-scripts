@@ -1,6 +1,6 @@
 from metapool import load_sample_sheet
 from os import stat, makedirs, rename
-from os.path import join, basename, dirname, exists
+from os.path import join, basename, dirname, exists, abspath
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -351,8 +351,19 @@ class NuQCJob(Job):
         if not exists(demux_path):
             raise ValueError(f"{demux_path} does not exist.")
 
+        # get this file location and add splitter as it should live there
+        splitter_binary = join(
+            dirname(abspath(__file__)), 'scripts', 'splitter')
+        if not exists(splitter_binary):
+            raise ValueError(f'{splitter_binary} does not exist.')
+
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
+
+            # generate a string of linux system modules to load before
+            # processing begins.
+            mtl = ' '.join(self.modules_to_load)
+
             f.write(template.render(job_name=job_name,
                                     queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
@@ -371,6 +382,8 @@ class NuQCJob(Job):
                                     json_path=json_path,
                                     demux_path=demux_path,
                                     temp_dir=self.temp_dir,
+                                    splitter_binary=splitter_binary,
+                                    modules_to_load=mtl,
                                     length_limit=self.length_limit))
 
         return job_script_path
