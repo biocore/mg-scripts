@@ -359,6 +359,11 @@ class NuQCJob(Job):
 
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
+
+            # generate a string of linux system modules to load before
+            # processing begins.
+            mtl = ' '.join(self.modules_to_load)
+
             f.write(template.render(job_name=job_name,
                                     queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
@@ -378,6 +383,7 @@ class NuQCJob(Job):
                                     demux_path=demux_path,
                                     temp_dir=self.temp_dir,
                                     splitter_binary=splitter_binary,
+                                    modules_to_load=mtl,
                                     length_limit=self.length_limit))
 
         return job_script_path

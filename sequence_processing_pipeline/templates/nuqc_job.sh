@@ -216,11 +216,11 @@ function demux-runner () {
     for idx in $(seq 0 ${n_demux_jobs})
     do
         python {{demux_path}} \
-            ${id_map} \
-            <(cat ${seqs_r1} ${seqs_r2}) \
-            ${OUTPUT} \
-            ${idx} \
-            ${n_demux_jobs} &
+            --id-map ${id_map} \
+            --infile <(cat ${seqs_r1} ${seqs_r2}) \
+            --output ${OUTPUT} \
+            --task ${idx} \
+            --maxtask ${n_demux_jobs} &
     done
     wait
 }

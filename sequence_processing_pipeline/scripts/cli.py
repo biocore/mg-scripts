@@ -11,10 +11,10 @@ def cli():
 @click.option('--id-map', type=click.Path(exists=True), required=True)
 @click.option('--infile', type=click.Path(exists=True), required=True)
 @click.option('--output', type=click.Path(exists=True), required=True)
-@click.option('--encoded-id', type=str, required=True)
-@click.option('--threads', type=int, required=True)
-def demux(id_map, infile, output, encoded_id, threads):
-    demux_cmd(id_map, infile, output, encoded_id, threads)
+@click.option('--task', type=int, required=True)
+@click.option('--maxtask', type=int, required=True)
+def demux(id_map, infile, output, task, maxtask):
+    demux_cmd(id_map, infile, output, task, maxtask)
 
 
 if __name__ == '__main__':
