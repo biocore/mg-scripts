@@ -12,9 +12,57 @@ from re import sub, findall, search
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
+from datetime import datetime
+import pytz
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
+
+class InstrumentUtils():
+    types = {'A': 'NovaSeq 6000', 'D': 'UNKNOWN1', 'FS': 'iSeq',
+             'K': 'UNKNOWN2', 'LH': 'NovaSeq X Plus', 'M': 'UNKNOWN3',
+             'MN': 'UNKNOWN4', 'SN': 'UNKNOWN5'}
+
+    @staticmethod
+    def get_instrument_type(run_id):
+        tmp = run_id.split('_')
+
+        # remove digits from substring to get instrument code.
+        code = ''.join([i for i in tmp[1] if not i.isdigit()])
+        return InstrumentUtils.types[code]
+
+    @staticmethod
+    def get_instrument_id(run_id):
+        tmp = run_id.split('_')
+
+        # remove letters from substring to get instrument id.
+        return ''.join([i for i in tmp[1] if i.isdigit()])
+
+    @staticmethod
+    def get_date(run_id):
+        tmp = run_id.split('_')
+
+        year = int(tmp[0][0:2]) + 2000
+        month = int(tmp[0][2:4])
+        date = int(tmp[0][4:6])
+
+        return datetime(year, month,
+                        date, tzinfo=pytz.timezone("America/Los_Angeles"))
+
+    @staticmethod
+    def get_flow_cell_mode(run_directory):
+        run_params_path = join(run_directory, 'RunParameters.xml')
+
+        if not exists(run_params_path):
+            raise ValueError(f"'{run_params_path}' doesn't exist")
+
+        # look for FlowCellMode element
+
+        with open(run_params_path, 'r') as f:
+            f.read()
+
+        return 'FOO'
 
 
 class Pipeline:
@@ -83,6 +131,9 @@ class Pipeline:
 
         self.pipeline_type = pipeline_type
 
+        if run_id is None:
+            raise PipelineError('run_id cannot be None')
+
         if config_dict:
             if 'configuration' in config_dict:
                 self.configuration = config_dict['configuration']
@@ -105,12 +156,15 @@ class Pipeline:
                 raise PipelineError(f'{configuration_file_path} is not a '
                                     'valid json file')
 
-        if run_id is None:
-            raise PipelineError('run_id cannot be None')
-
         if 'pipeline' not in self.configuration:
             raise PipelineError("'pipeline' is not a key in "
                                 f"{self.configuration_file_path}")
+
+        # confirm that the new 'instrument' attribute containing the
+        # configuration settings for the jobs, but for each instrument-type
+        # is present.
+        if 'instrument' not in self.configuration:
+            raise PipelineError("'instrument' is not found in configuration")
 
         config = self.configuration['pipeline']
         for key in ['search_paths', 'archive_path']:
@@ -143,6 +197,24 @@ class Pipeline:
             self.sample_sheet = None
 
         self.run_dir = self._search_for_run_dir()
+
+        # run_id will be valid assuming there is an existing run-directory
+        # for it.
+        instrument_type = InstrumentUtils.get_instrument_type(run_id)
+
+        if instrument_type in self.configuration['instrument']:
+            # configuration dictionaries for all Jobs have been moved into
+            # an attribute co-level with 'pipeline' called 'instrument'.
+            # Since we only need to know the configuration metadata for the
+            # instrument relevant to this job, extract it, delete the
+            # instrument attribute entirely, and place the extracted metadata
+            # in its legacy position.
+            tmp = self.configuration['instrument'][instrument_type].copy()
+            del self.configuration['instrument']
+            self.configuration = self.configuration | tmp
+        else:
+            raise PipelineError(f"'{instrument_type}' isn't found in "
+                                "configuration")
 
         # required files for successful operation
         # both RTAComplete.txt and RunInfo.xml should reside in the root of

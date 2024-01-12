@@ -12,7 +12,7 @@
       ]
     },
     "instrument": {
-      "novaseq_6000": {
+      "NovaSeq 6000": {
         "bcl2fastq": {
           "nodes": 1,
           "nprocs": 16,
@@ -98,7 +98,7 @@
           "job_max_array_length": 1000
         }
       },
-      "novaseq_x_plus": {
+      "Novaseq X Plus": {
         "bcl2fastq": {
           "nodes": 1,
           "nprocs": 16,
@@ -184,7 +184,7 @@
           "job_max_array_length": 1000
         }
       },
-      "iseq": {
+      "iSeq": {
         "bcl2fastq": {
           "nodes": 1,
           "nprocs": 16,
