@@ -1,15 +1,128 @@
 import json
 import os
 from sequence_processing_pipeline.PipelineError import PipelineError
-from sequence_processing_pipeline.Pipeline import Pipeline
+from sequence_processing_pipeline.Pipeline import Pipeline, InstrumentUtils
 import unittest
 from os import makedirs
-from os.path import abspath, basename, join
+from os.path import abspath, basename, join, exists
 from functools import partial
 import re
 from shutil import copy
 import pandas as pd
 from tempfile import NamedTemporaryFile
+from shutil import rmtree
+
+
+class TestInstrumentUtils(unittest.TestCase):
+    def test_instrument_utils(self):
+        iutils = InstrumentUtils()
+
+        # Test InstrumentUtils()' ability to decipher machine types and ids
+        # from run-ids using a set of selected real-world IDs.
+
+        run_ids = ["160623_K00180_0214_AH7VLJBBXX",
+                   "171221_D00611_0581_AH53LVBCX2",
+                   ("180220_D00611_0602_AHCWTYBCX2_RKL_0020_Embriette_"
+                    "Fermentation_Shotgun_PE150"),
+                   "231003_A01535_0398_AHLGMJDSX7",
+                   "171030_D00611_0550_BHYNNKBCXY_RKL0006_SeJin_Storage_5-8",
+                   "171209_D00611_0576_AH3TK5BCX2_Knight_FinRisk_81_83",
+                   "180112_D00611_0588_AH577HBCX2_RKL0017_reswab_5-8",
+                   "171026_D00611_0548_BHYNVHBCXY_RKL0005_AGP5_6_16_168",
+                   "171103_D00611_0555_AHYMN2BCXY_RKL0007_SeJin_Storage2_9-12",
+                   "151012_SN1001_0561_AHC7LVBCXX",
+                   "190610_K00180_0837_AH75HFBBXY_RKL_0038_iMSMS_Zuniga",
+                   "231005_A01535_0399_BHFNWNDSX7",
+                   "20230109_FS10001773_47_BTC69702-2518",
+                   ("180119_D00611_0590_AH573CBCX2_Knight_RKL0016_Reswab"
+                    "_1_4_PE150"),
+                   "160729_K00180_0227_BHCT3LBBXX",
+                   ("180129_D00611_0593_AH3TH3BCX2_Knight_RKL_0018__FinRisk"
+                    "_repool_final_PE150"),
+                   "170418_K00180_0352_AHHVLVBBXX_Knight_PE150",
+                   "200717_A00953_0129_BHF2GWDSXY",
+                   ("180512_K00180_0607_BHTKCJBBXX_RKL_0026_Feist_Dutton"
+                    "_Loss_Soloski"),
+                   "210216_A00953_0235_AH2M77DRXY",
+                   "170216_D00611_0438_ACAKFMANXX_Knight_1",
+                   "181012_K00180_0692_AHY2HLBBXX_PE150_Knight",
+                   "151130_D00611_0198_AHCFNMBCXX",
+                   "180103_D00611_0583_BH53K2BCX2",
+                   "171026_D00611_0547_AHYNT3BCXY_RKL0005_AGP1_4",
+                   "191022_MN01225_0003_A000H2WCCJ",
+                   "210917_MN01225_0015_A000H3KNNM",
+                   "200325_M05314_0240_000000000-CVYC2",
+                   "181205_M05314_0141_000000000-C5W66",
+                   "140717_M00517_0202_000000000-A7E9A",
+                   "20230811_LH00320_0010_A227GLJLT3",
+                   "231215_LH00444_0031_B222WHFLT4"]
+
+        exp_types = ["HiSeq 4000", "HiSeq 2500", "HiSeq 2500", "NovaSeq 6000",
+                     "HiSeq 2500", "HiSeq 2500", "HiSeq 2500", "HiSeq 2500",
+                     "HiSeq 2500", "RapidRun", "HiSeq 4000", "NovaSeq 6000",
+                     "iSeq", "HiSeq 2500", "HiSeq 4000", "HiSeq 2500",
+                     "HiSeq 4000", "NovaSeq 6000", "HiSeq 4000",
+                     "NovaSeq 6000", "HiSeq 2500", "HiSeq 4000", "HiSeq 2500",
+                     "HiSeq 2500", "HiSeq 2500", "MiniSeq", "MiniSeq", "MiSeq",
+                     "MiSeq", "MiSeq", "NovaSeq X Plus", "NovaSeq X Plus"]
+
+        for run_id, type in zip(run_ids, exp_types):
+            self.assertEqual(type, iutils.get_instrument_type(run_id))
+
+        exp_instruments = ["00180", "00611", "00611", "01535", "00611",
+                           "00611", "00611", "00611", "00611", "1001", "00180",
+                           "01535", "10001773", "00611", "00180", "00611",
+                           "00180", "00953", "00180", "00953", "00611",
+                           "00180", "00611", "00611", "00611", "01225",
+                           "01225", "05314", "05314", "00517", "00320",
+                           "00444"]
+
+        for run_id, instrument in zip(run_ids, exp_instruments):
+            self.assertEqual(instrument, iutils.get_instrument_id(run_id))
+
+        exp_datestamps = ["2016-06-23 00:00:00-07:53",
+                          "2017-12-21 00:00:00-07:53",
+                          "2018-02-20 00:00:00-07:53",
+                          "2023-10-03 00:00:00-07:53",
+                          "2017-10-30 00:00:00-07:53",
+                          "2017-12-09 00:00:00-07:53",
+                          "2018-01-12 00:00:00-07:53",
+                          "2017-10-26 00:00:00-07:53",
+                          "2017-11-03 00:00:00-07:53",
+                          "2015-10-12 00:00:00-07:53",
+                          "2019-06-10 00:00:00-07:53",
+                          "2023-10-05 00:00:00-07:53",
+                          "2023-01-09 00:00:00-07:53",
+                          "2018-01-19 00:00:00-07:53",
+                          "2016-07-29 00:00:00-07:53",
+                          "2018-01-29 00:00:00-07:53",
+                          "2017-04-18 00:00:00-07:53",
+                          "2020-07-17 00:00:00-07:53",
+                          "2018-05-12 00:00:00-07:53",
+                          "2021-02-16 00:00:00-07:53",
+                          "2017-02-16 00:00:00-07:53",
+                          "2018-10-12 00:00:00-07:53",
+                          "2015-11-30 00:00:00-07:53",
+                          "2018-01-03 00:00:00-07:53",
+                          "2017-10-26 00:00:00-07:53",
+                          "2019-10-22 00:00:00-07:53",
+                          "2021-09-17 00:00:00-07:53",
+                          "2020-03-25 00:00:00-07:53",
+                          "2018-12-05 00:00:00-07:53",
+                          "2014-07-17 00:00:00-07:53",
+                          "2023-08-11 00:00:00-07:53",
+                          "2023-12-15 00:00:00-07:53"]
+
+        for run_id, datestamp in zip(run_ids, exp_datestamps):
+            self.assertEqual(datestamp, str(iutils.get_date(run_id)))
+
+        # Instead of replicating an entire run-directory, simply call the
+        # method on a real-world RunParameters.xml file to verify it can
+        # parse the FlowCellMode element correctly.
+        obs = iutils.get_flow_cell_mode('sequence_processing_pipeline/tests/'
+                                        'data')
+
+        self.assertEqual(obs, 'S4')
 
 
 class TestPipeline(unittest.TestCase):
@@ -51,6 +164,8 @@ class TestPipeline(unittest.TestCase):
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
+        if exists(self.path('231003_X01535_0398_AHLGMJDSX7')):
+            rmtree(self.path('231003_X01535_0398_AHLGMJDSX7'))
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -219,6 +334,22 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      None,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path,
+                     self.qiita_id, Pipeline.METAGENOMIC_PTYPE, None)
+
+        # confirm Pipeline returns error with a run-id that's an invalid
+        # (unrecognized) instrument type code but there is a real directory.
+        faked_dir = self.path('231003_X01535_0398_AHLGMJDSX7')
+        makedirs(faked_dir, exist_ok=True)
+        with open(join(faked_dir, 'RTAComplete.txt'), 'w') as f:
+            f.write("THIS IS A FILE")
+        with open(join(faked_dir, 'RunInfo.xml'), 'w') as f:
+            f.write("THIS IS A FILE")
+        with self.assertRaisesRegex(ValueError, "Instrument code 'X' is of "
+                                                "unknown type"):
+            Pipeline(self.good_config_file,
+                     '231003_X01535_0398_AHLGMJDSX7',
                      self.good_sample_sheet_path, None,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE, None)

@@ -14,15 +14,18 @@ import pandas as pd
 from collections import defaultdict
 from datetime import datetime
 import pytz
+from xml.etree import ElementTree as ET
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class InstrumentUtils():
-    types = {'A': 'NovaSeq 6000', 'D': 'UNKNOWN1', 'FS': 'iSeq',
-             'K': 'UNKNOWN2', 'LH': 'NovaSeq X Plus', 'M': 'UNKNOWN3',
-             'MN': 'UNKNOWN4', 'SN': 'UNKNOWN5'}
+    types = {'A': 'NovaSeq 6000', 'D': 'HiSeq 2500', 'FS': 'iSeq',
+             'K': 'HiSeq 4000', 'LH': 'NovaSeq X Plus', 'M': 'MiSeq',
+             'MN': 'MiniSeq',
+             # SN – RapidRun which is HiSeq 2500
+             'SN': 'RapidRun'}
 
     @staticmethod
     def get_instrument_type(run_id):
@@ -30,7 +33,10 @@ class InstrumentUtils():
 
         # remove digits from substring to get instrument code.
         code = ''.join([i for i in tmp[1] if not i.isdigit()])
-        return InstrumentUtils.types[code]
+        try:
+            return InstrumentUtils.types[code]
+        except KeyError:
+            raise ValueError(f"Instrument code '{code}' is of unknown type")
 
     @staticmethod
     def get_instrument_id(run_id):
@@ -41,11 +47,24 @@ class InstrumentUtils():
 
     @staticmethod
     def get_date(run_id):
-        tmp = run_id.split('_')
+        ds = run_id.split('_')[0]
 
-        year = int(tmp[0][0:2]) + 2000
-        month = int(tmp[0][2:4])
-        date = int(tmp[0][4:6])
+        if len(ds) == 6:
+            year = int(ds[0:2]) + 2000
+            month = int(ds[2:4])
+            date = int(ds[4:6])
+        elif len(ds) == 8:
+            year = int(ds[0:4])
+            month = int(ds[4:6])
+            date = int(ds[6:8])
+        else:
+            raise ValueError("Couldn't parse datestamp: '%s'" % ds)
+
+        if month < 1 or month > 12:
+            raise ValueError("Invalid month: '%s'" % month)
+
+        if date < 1 or date > 31:
+            raise ValueError("Invalid date: '%s'" % date)
 
         return datetime(year, month,
                         date, tzinfo=pytz.timezone("America/Los_Angeles"))
@@ -57,12 +76,13 @@ class InstrumentUtils():
         if not exists(run_params_path):
             raise ValueError(f"'{run_params_path}' doesn't exist")
 
-        # look for FlowCellMode element
+        with open(run_params_path) as f:
+            value = ET.fromstring(f.read()).find('RfidsInfo/FlowCellMode')
+            if value is not None:
+                return value.text
 
-        with open(run_params_path, 'r') as f:
-            f.read()
-
-        return 'FOO'
+        raise ValueError("FlowCellMode element not present in "
+                         f"'{run_params_path}'")
 
 
 class Pipeline:
