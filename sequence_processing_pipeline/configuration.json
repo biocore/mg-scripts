@@ -98,7 +98,7 @@
           "job_max_array_length": 1000
         }
       },
-      "Novaseq X Plus": {
+      "NovaSeq X Plus": {
         "bcl2fastq": {
           "nodes": 1,
           "nprocs": 16,
