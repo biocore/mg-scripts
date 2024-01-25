@@ -67,7 +67,7 @@ echo $TMPDIR
 mkdir -p {{html_path}}
 mkdir -p {{json_path}}
 
-export ADAPTER_ONLY_OUTPUT=${OUTPUT}/only-adapter-only
+export ADAPTER_ONLY_OUTPUT=${OUTPUT}/only-adapter-filtered
 mkdir -p ${ADAPTER_ONLY_OUTPUT}
 
 function cleanup {
