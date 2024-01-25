@@ -118,7 +118,7 @@ function mux-runner () {
             --out1 ${r1_filt} \
             --out2 ${r2_filt}
 
-        # multiplex and write adapter store adapter filtered data all at once
+        # multiplex and write adapter filtered data all at once
         cat ${r1_filt} | \
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/" \
             >> ${seqs_r1} &
