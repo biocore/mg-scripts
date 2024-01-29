@@ -171,16 +171,14 @@ class TestPipeline(unittest.TestCase):
                               "/data/bad_configuration.json")
 
         # Pipeline should assert due to Assay having a bad value.
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
+                                                ".csv' does not appear to be a"
+                                                " valid sample-sheet."):
             Pipeline(self.good_config_file,
                      self.good_run_id,
                      self.bad_assay_type_path, None,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE, None)
-
-        self.assertTrue("Valid Assay values are ['TruSeq HT', 'Metagenomic', "
-                        "'Metatranscriptomic']"
-                        in str(e.exception))
 
         # Pipeline should assert due to an invalid config file path.
         with self.assertRaises(PipelineError) as e:

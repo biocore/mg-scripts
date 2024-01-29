@@ -582,36 +582,33 @@ class TestQCJob(unittest.TestCase):
             sheet.Header['Assay'] = 'NotMetagenomic'
             sheet.write(f)
 
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(ValueError, "tmp-sample-sheet.csv' does "
+                                                "not appear to be a valid "
+                                                "sample-sheet."):
             QCJob(self.fastq_root_path, self.output_path,
                   self.tmp_file_path, self.mmi_db_paths,
                   self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                   30, 1000)
 
-        self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
-                                            "not recognized."))
-
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-bool-test."
+                                                "csv' does not appear to be a"
+                                                " valid sample-sheet."):
             QCJob(self.fastq_root_path, self.output_path,
                   self.bad_sheet_bools_path, self.mmi_db_paths,
                   self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                   30, 1000)
 
-        self.assertEqual(str(e.exception),
-                         "'FALSE' is not a valid value for HumanFiltering")
-
     def test_assay_value(self):
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
+                                                ".csv' does not appear to be a"
+                                                " valid sample-sheet."):
             QCJob(self.fastq_root_path, self.output_path,
                   self.bad_sample_sheet_path, self.mmi_db_paths,
                   self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id, 30,
                   1000)
-
-        self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
-                         " recognized.")
 
     def test_split_file_creation(self):
         qc_job = QCJob(self.fastq_root_path, self.output_path,

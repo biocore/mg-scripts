@@ -579,36 +579,33 @@ class TestNuQCJob(unittest.TestCase):
             sheet.Header['Assay'] = 'NotMetagenomic'
             sheet.write(f)
 
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(ValueError, "tmp-sample-sheet.csv' does "
+                                                "not appear to be a valid "
+                                                "sample-sheet."):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.tmp_file_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
-        self.assertEqual(str(e.exception), ("Assay value 'NotMetagenomic' is "
-                                            "not recognized."))
-
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-bool-test."
+                                                "csv' does not appear to be a"
+                                                " valid sample-sheet."):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sheet_bools_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
-        self.assertEqual(str(e.exception),
-                         "'FALSE' is not a valid value for HumanFiltering")
-
     def test_assay_value(self):
-        with self.assertRaises(PipelineError) as e:
+        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
+                                                ".csv' does not appear to be a"
+                                                " valid sample-sheet."):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sample_sheet_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
-
-        self.assertEqual(str(e.exception), "Assay value 'Metagenomics' is not"
-                         " recognized.")
 
     def test_audit(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
