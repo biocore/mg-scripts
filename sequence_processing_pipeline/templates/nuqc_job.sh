@@ -9,7 +9,6 @@
 ### as well as sbatch -c. demux threads remains fixed at 1.
 ### Note -c set to 4 and thread counts set to 7 during testing.
 #SBATCH -c {{cores_per_task}}
-#SBATCH --gres=node_jobs:1  # use 1/4 processing slots
 
 echo "---------------"
 echo "Run details:"
@@ -57,9 +56,11 @@ fi
 # DO NOT do this casually. Only do a clean up like this if
 # you know for sure TMPDIR is what you want.
 
-#TMPDIR=/scratch/qiita-tmp/human-filtering-tmp
-TMPDIR=/dev/shm
-mkdir -p ${TMPDIR}
+# we might got back to this TMPDIR once the slurm scheduler controls it
+#    TMPDIR=/dev/shm
+# right now, let's use ${OUTPUT}, note that each worker will create a new tmp
+# folder two lines below
+TMPDIR=${OUTPUT}
 export TMPDIR=${TMPDIR}
 export TMPDIR=$(mktemp -d)
 echo $TMPDIR
@@ -100,7 +101,7 @@ function mux-runner () {
         r2_name=$(basename ${r2} .fastq.gz)
         r1_adapter_only=${ADAPTER_ONLY_OUTPUT}/${r1_name}.fastq.gz
         r2_adapter_only=${ADAPTER_ONLY_OUTPUT}/${r2_name}.fastq.gz
-        
+
         s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
         html_name=$(echo "$s_name.html")
         json_name=$(echo "$s_name.json")
