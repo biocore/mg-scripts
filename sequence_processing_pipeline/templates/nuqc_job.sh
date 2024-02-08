@@ -67,6 +67,9 @@ echo $TMPDIR
 mkdir -p {{html_path}}
 mkdir -p {{json_path}}
 
+export ADAPTER_ONLY_OUTPUT=${OUTPUT}/only-adapter-filtered
+mkdir -p ${ADAPTER_ONLY_OUTPUT}
+
 function cleanup {
   echo "Removing $TMPDIR"
   rm -fr $TMPDIR
@@ -95,7 +98,9 @@ function mux-runner () {
         base=$(echo ${line} | cut -f 3 -d" ")
         r1_name=$(basename ${r1} .fastq.gz)
         r2_name=$(basename ${r2} .fastq.gz)
-
+        r1_adapter_only=${ADAPTER_ONLY_OUTPUT}/${r1_name}.fastq.gz
+        r2_adapter_only=${ADAPTER_ONLY_OUTPUT}/${r2_name}.fastq.gz
+        
         s_name=$(basename "${r1}" | sed -r 's/\.fastq\.gz//')
         html_name=$(echo "$s_name.html")
         json_name=$(echo "$s_name.json")
@@ -113,12 +118,17 @@ function mux-runner () {
             --out1 ${r1_filt} \
             --out2 ${r2_filt}
 
+        # multiplex and write adapter filtered data all at once
         cat ${r1_filt} | \
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/" \
             >> ${seqs_r1} &
         cat ${r2_filt} | \
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/" \
             >> ${seqs_r2} &
+        cat ${r1_filt} | \
+            gzip -c > ${r1_adapter_only} &
+        cat ${r2_filt} | \
+            gzip -c > ${r2_adapter_only} &
         wait
 
         rm ${r1_filt} &
