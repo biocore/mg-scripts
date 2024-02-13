@@ -1,7 +1,7 @@
 {
   "profile": {
     "instrument_type": "novaseq",
-    "assay_type": "metatranscriptomic",
+    "assay_type": "Metatranscriptomic",
     "configuration": {
       "bcl2fastq": {
         "nodes": 1,

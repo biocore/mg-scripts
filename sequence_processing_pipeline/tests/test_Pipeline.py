@@ -1427,6 +1427,35 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
+    def test_configuration_profiles(self):
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        obs = pipeline.config_profile['profile']
+
+        # assert a profile matching self.good_sample_sheet_path was found.
+        self.assertEqual(obs['instrument_type'], "NovaSeq 6000")
+        self.assertEqual(obs['assay_type'], "Metagenomic")
+
+        obs = obs['configuration']
+
+        # sample novaseq 6000/metagenomic profile doesn't contain settings for
+        # bcl-convert and qc. Make sure that these settings exist in the final
+        # output and make sure they are set to the default values found in
+        # default.json.
+        self.assertEqual(obs['bcl-convert']['nprocs'], 16)
+        self.assertEqual(obs['qc']['wallclock_time_in_minutes'], 60)
+
+        # assert increased values over default found in novaseq 6000/
+        # metagenomic profile are found in the final configuration as well.
+        self.assertEqual(obs['bcl2fastq']['nodes'], 4)
+        self.assertEqual(obs['bcl2fastq']['nprocs'], 64)
+        self.assertEqual(obs['nu-qc']['nodes'], 4)
+        self.assertEqual(obs['nu-qc']['wallclock_time_in_minutes'], 2048)
+        self.assertEqual(obs['nu-qc']['cpus_per_task'], 32)
+
     def test_parse_project_name(self):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,

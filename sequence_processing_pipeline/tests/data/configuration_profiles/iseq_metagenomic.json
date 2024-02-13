@@ -1,7 +1,7 @@
 {
   "profile": {
     "instrument_type": "iseq",
-    "assay_type": "metagenomic",
+    "assay_type": "Metagenomic",
     "configuration": {
       "bcl2fastq": {
         "nodes": 1,
