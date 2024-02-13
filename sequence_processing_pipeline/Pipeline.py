@@ -82,9 +82,14 @@ class Pipeline:
         self.pipeline_type = pipeline_type
 
         self.configuration_file_path = configuration_file_path
+
+        # along with configuration profiles, a 'general' configuration file
+        # is needed to provide the search paths to the run-directories. These
+        # are used to locate the run-directory specified and parse the required
+        # files to select the right configuration profile.
         try:
             f = open(configuration_file_path)
-            self.configuration = json_load(f)['configuration']
+            self.configuration = json_load(f)
             f.close()
         except TypeError:
             raise PipelineError('configuration_file_path cannot be None')
@@ -98,13 +103,9 @@ class Pipeline:
         if run_id is None:
             raise PipelineError('run_id cannot be None')
 
-        if 'pipeline' not in self.configuration:
-            raise PipelineError("'pipeline' is not a key in "
-                                f"{self.configuration_file_path}")
-
-        config = self.configuration['pipeline']
-        for key in ['search_paths', 'archive_path']:
-            if key not in config:
+        for key in ['search_paths', 'archive_path', 'amplicon_search_paths',
+                    'profiles_path']:
+            if key not in self.configuration:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
 
@@ -119,11 +120,11 @@ class Pipeline:
         self.pipeline = []
 
         if sample_sheet_path:
-            self.search_paths = config['search_paths']
+            self.search_paths = self.configuration['search_paths']
             self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
             self.mapping_file = None
         else:
-            self.search_paths = config['amplicon_search_paths']
+            self.search_paths = self.configuration['amplicon_search_paths']
             self.mapping_file = self._validate_mapping_file(mapping_file_path)
             # unlike _validate_sample_sheet() which returns a SampleSheet
             # object that stores the path to the file it was created from,
@@ -155,6 +156,24 @@ class Pipeline:
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
+
+        self._configure_profile()
+
+    def _configure_profile(self):
+        # extract the instrument type from self.run_dir and the assay type
+        # from self.sample_sheet (or self.mapping_file).
+
+        # open the configuration profiles directory as specified by
+        # profiles_path in the configuration.json file. parse each json into
+        # a nested dictionary keyed by (instrument-type, assay-type) as
+        # specified by the values inside each json.
+
+        # load the default first to create a default entry for everything.
+        # then overwrite the defaults as they appear once you've identified
+        # the correct (instrument-type, assay-type) pair.
+        # set this to a new self.config_profile variable and modify the tests
+        # and code accordingly.
+        self.config_profile = None
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
