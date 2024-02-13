@@ -57,8 +57,7 @@ class Pipeline:
                       METATRANSCRIPTOMIC_PTYPE}
 
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 mapping_file_path, output_path, qiita_job_id, pipeline_type,
-                 config_dict=None):
+                 mapping_file_path, output_path, qiita_job_id, pipeline_type):
         """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
@@ -67,7 +66,6 @@ class Pipeline:
         :param mapping_file_path: Path to mapping file.
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
-        :param config_dict: (Optional) Dict used instead of config file.
         :param pipeline_type: Pipeline type ('Amplicon', 'Metagenomic', etc.)
         """
         if sample_sheet_path is not None and mapping_file_path is not None:
@@ -83,27 +81,19 @@ class Pipeline:
 
         self.pipeline_type = pipeline_type
 
-        if config_dict:
-            if 'configuration' in config_dict:
-                self.configuration = config_dict['configuration']
-                self.configuration_file_path = None
-            else:
-                raise PipelineError(f"{config_dict} does not contain the "
-                                    "key 'configuration'")
-        else:
-            self.configuration_file_path = configuration_file_path
-            try:
-                f = open(configuration_file_path)
-                self.configuration = json_load(f)['configuration']
-                f.close()
-            except TypeError:
-                raise PipelineError('configuration_file_path cannot be None')
-            except FileNotFoundError:
-                raise PipelineError(f'{configuration_file_path} does not '
-                                    'exist.')
-            except JSONDecodeError:
-                raise PipelineError(f'{configuration_file_path} is not a '
-                                    'valid json file')
+        self.configuration_file_path = configuration_file_path
+        try:
+            f = open(configuration_file_path)
+            self.configuration = json_load(f)['configuration']
+            f.close()
+        except TypeError:
+            raise PipelineError('configuration_file_path cannot be None')
+        except FileNotFoundError:
+            raise PipelineError(f'{configuration_file_path} does not '
+                                'exist.')
+        except JSONDecodeError:
+            raise PipelineError(f'{configuration_file_path} is not a '
+                                'valid json file')
 
         if run_id is None:
             raise PipelineError('run_id cannot be None')

@@ -588,9 +588,8 @@ class TestNuQCJob(unittest.TestCase):
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
 
-        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-bool-test."
-                                                "csv' does not appear to be a"
-                                                " valid sample-sheet."):
+        with self.assertRaisesRegex(ValueError, "'FALSE' is not a valid value"
+                                                " for HumanFiltering"):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.bad_sheet_bools_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8gb',
