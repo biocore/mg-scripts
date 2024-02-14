@@ -26,7 +26,7 @@
       "queue": "qiita",
       "wallclock_time_in_minutes": 60,
       "mmi_db": "/databases/minimap2/human-phix-db.mmi",
-      "modules_to_load": ["fastp_0.20.1", "samtools_1.12", " minimap2_2.18"],
+      "modules_to_load": ["fastp_0.20.1", "samtools_1.12", "minimap2_2.18"],
       "fastp_executable_path": "fastp",
       "minimap2_executable_path": "minimap2",
       "samtools_executable_path": "samtools",

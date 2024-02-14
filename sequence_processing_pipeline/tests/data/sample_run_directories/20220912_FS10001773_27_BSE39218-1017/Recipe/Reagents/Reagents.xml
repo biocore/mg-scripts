@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<ArrayOfRotaryValvePort xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <RotaryValvePort Port="1" Reagent="Park" PositionCounts="99" />
+  <RotaryValvePort Port="2" Reagent="Block" PositionCounts="199" />
+  <RotaryValvePort Port="3" Reagent="TMP" PositionCounts="398" />
+  <RotaryValvePort Port="4" Reagent="HCX_Mixing" PositionCounts="597" />
+  <RotaryValvePort Port="5" Reagent="HCX1" PositionCounts="796" />
+  <RotaryValvePort Port="6" Reagent="WCM" PositionCounts="995" />
+  <RotaryValvePort Port="7" Reagent="HCX2" PositionCounts="1194" />
+  <RotaryValvePort Port="8" Reagent="WAM" PositionCounts="1393" />
+  <RotaryValvePort Port="9" Reagent="HCX3" PositionCounts="1592" />
+  <RotaryValvePort Port="10" Reagent="WSM" PositionCounts="1791" />
+  <RotaryValvePort Port="11" Reagent="HCX_Air" PositionCounts="1990" />
+  <RotaryValvePort Port="12" Reagent="WB7" PositionCounts="2189" />
+  <RotaryValvePort Port="13" Reagent="Reuse" PositionCounts="2388" />
+  <RotaryValvePort Port="14" Reagent="WPM" PositionCounts="2587" />
+  <RotaryValvePort Port="15" Reagent="HP14" PositionCounts="2786" />
+  <RotaryValvePort Port="16" Reagent="WST" PositionCounts="2985" />
+  <RotaryValvePort Port="17" Reagent="WLM1" PositionCounts="3184" />
+  <RotaryValvePort Port="18" Reagent="WDR" PositionCounts="3383" />
+  <RotaryValvePort Port="19" Reagent="HP10" PositionCounts="3582" />
+  <RotaryValvePort Port="20" Reagent="WB6" PositionCounts="3781" />
+  <RotaryValvePort Port="21" Reagent="WEX" PositionCounts="3980" />
+  <RotaryValvePort Port="22" Reagent="WIM-2" PositionCounts="4179" />
+  <RotaryValvePort Port="23" Reagent="HP14-2" PositionCounts="4378" />
+  <RotaryValvePort Port="24" Reagent="WIM-1" PositionCounts="4577" />
+  <RotaryValvePort Port="25" Reagent="WRM" PositionCounts="4776" />
+  <RotaryValvePort Port="26" Reagent="HT1" PositionCounts="4975" />
+  <RotaryValvePort Port="27" Reagent="WLM2" PositionCounts="5174" />
+  <RotaryValvePort Port="28" Reagent="WPK" PositionCounts="5373" />
+  <RotaryValvePort Port="29" Reagent="HP11" PositionCounts="5572" />
+  <RotaryValvePort Port="30" Reagent="Air" PositionCounts="5771" />
+  <RotaryValvePort Port="31" Reagent="Block2" PositionCounts="5970" />
+  <RotaryValvePort Port="32" Reagent="Block3" PositionCounts="5970" />
+</ArrayOfRotaryValvePort>

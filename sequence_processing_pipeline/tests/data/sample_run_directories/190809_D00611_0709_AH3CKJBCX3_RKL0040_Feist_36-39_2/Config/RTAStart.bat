@@ -1,0 +1,3 @@
+title RTA 1.18.66.3 - D:\Illumina\HiSeqTemp\190809_D00611_0709_AH3CKJBCX3_RKL0040_Feist_36-39_2
+pushd "C:\Illumina\RTA"
+"C:\Illumina\RTA\RTA.exe"  "D:\Illumina\HiSeqTemp\190809_D00611_0709_AH3CKJBCX3_RKL0040_Feist_36-39_2\Images" "Z:\Illumina_HiSeq" Read=All Threads=8 CopyIntensityFilesToNetwork=0 instrumentType=hiseq Mode=RapidRunV2 templatecycles=5 SampleSheet="SampleSheet.csv" OutputDirectory2=D:\Illumina\BaseSpaceTemp CompressBcls=True RemapQScores=v8RRv2bins

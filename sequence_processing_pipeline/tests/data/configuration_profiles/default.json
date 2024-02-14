@@ -36,7 +36,7 @@
         "modules_to_load": [
           "fastp_0.20.1",
           "samtools_1.12",
-          " minimap2_2.18"
+          "minimap2_2.18"
         ],
         "fastp_executable_path": "fastp",
         "minimap2_executable_path": "minimap2",
@@ -50,11 +50,11 @@
         "cpus_per_task": 8,
         "queue": "qiita",
         "wallclock_time_in_minutes": 240,
-        "minimap2_databases": "/panfs/cguccion/23_06_25_Pangenome_Assembley/downloaded_fastqs/fastq_files/pangenome_individual_mmi",
+        "minimap2_databases": "/scratch/databases/minimap2",
         "modules_to_load": [
           "fastp_0.20.1",
           "samtools_1.12",
-          " minimap2_2.18"
+          "minimap2_2.18"
         ],
         "fastp_executable_path": "fastp",
         "minimap2_executable_path": "minimap2",

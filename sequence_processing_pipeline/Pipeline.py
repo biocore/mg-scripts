@@ -8,12 +8,11 @@ from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
-from re import sub, findall, search
+from re import sub, findall, search, match
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
 from datetime import datetime
-import pytz
 from xml.etree import ElementTree as ET
 
 
@@ -21,6 +20,9 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class InstrumentUtils():
+    # TODO: This list was developed internally by the lab. It is fairly
+    #  authoritative but should be compared against an list from IGM or
+    #  Illumina if possible.
     types = {'A': 'NovaSeq 6000', 'D': 'HiSeq 2500', 'FS': 'iSeq',
              'K': 'HiSeq 4000', 'LH': 'NovaSeq X Plus', 'M': 'MiSeq',
              'MN': 'MiniSeq',
@@ -28,60 +30,97 @@ class InstrumentUtils():
              'SN': 'RapidRun'}
 
     @staticmethod
-    def get_instrument_type(run_id):
-        tmp = run_id.split('_')
+    def get_instrument_id(run_directory):
+        run_info = join(run_directory, 'RunInfo.xml')
 
-        # remove digits from substring to get instrument code.
-        code = ''.join([i for i in tmp[1] if not i.isdigit()])
+        if not exists(run_info):
+            raise ValueError(f"'{run_info}' doesn't exist")
+
+        with open(run_info) as f:
+            # Instrument element should appear in all valid RunInfo.xml
+            # files.
+            return ET.fromstring(f.read()).find('Run/Instrument').text
+
+    @staticmethod
+    def get_instrument_type(run_directory):
+        # extract all letters at the beginning of the string, stopping
+        # at the first digit.
+        code = match(r"^(.*?)\d.*",
+                     InstrumentUtils.get_instrument_id(run_directory))
+
+        if code is None:
+            raise ValueError("Could not determine instrument code")
+        else:
+            code = code.group(1)
+
+        # map instrument code to a name string and return it, if possible.
         try:
             return InstrumentUtils.types[code]
         except KeyError:
             raise ValueError(f"Instrument code '{code}' is of unknown type")
 
     @staticmethod
-    def get_instrument_id(run_id):
-        tmp = run_id.split('_')
+    def get_date(run_directory):
+        run_info = join(run_directory, 'RunInfo.xml')
 
-        # remove letters from substring to get instrument id.
-        return ''.join([i for i in tmp[1] if i.isdigit()])
+        if not exists(run_info):
+            raise ValueError(f"'{run_info}' doesn't exist")
+
+        with open(run_info) as f:
+            # Date element should appear in all valid RunInfo.xml
+            # files.
+            date_string = ET.fromstring(f.read()).find('Run/Date').text
+
+        # date is recorded in RunInfo.xml in various formats. Iterate
+        # through all known formats until the date is properly parsed.
+
+        # For now, assume timestamps w/Z are not actually in 'Zulu' or
+        # UTC time w/out confirming the machines were actually set for
+        # and/or reporting UTC time.
+        formats = ["%y%m%d", "%Y-%m-%dT%H:%M:%s", "%Y-%m-%dT%H:%M:%SZ",
+                   "%m/%d/%Y %I:%M:%S %p"]
+
+        for format in formats:
+            try:
+                date = datetime.strptime(date_string, format)
+                return date.date()
+            except ValueError:
+                # assume ValueErrors are due to incorrect format, rather than
+                # incorrect value from the XML file.
+                pass
+
+        raise ValueError(f"'{date_string}' could not be parsed")
 
     @staticmethod
-    def get_date(run_id):
-        ds = run_id.split('_')[0]
+    def get_flow_cell_mode(run_dir):
+        # TODO: What is currently returned is the most descriptive information
+        #  found in runParameters.xml or elsewhere regarding flowcell mode.
+        # In some cases, this information may need to be mapped according to
+        # a dictionary of known flowcells used by IGM and their types to get
+        # the actual mode of flowcell.
+        type = InstrumentUtils.get_instrument_type(run_dir)
 
-        if len(ds) == 6:
-            year = int(ds[0:2]) + 2000
-            month = int(ds[2:4])
-            date = int(ds[4:6])
-        elif len(ds) == 8:
-            year = int(ds[0:4])
-            month = int(ds[4:6])
-            date = int(ds[6:8])
-        else:
-            raise ValueError("Couldn't parse datestamp: '%s'" % ds)
-
-        if month < 1 or month > 12:
-            raise ValueError("Invalid month: '%s'" % month)
-
-        if date < 1 or date > 31:
-            raise ValueError("Invalid date: '%s'" % date)
-
-        return datetime(year, month,
-                        date, tzinfo=pytz.timezone("America/Los_Angeles"))
-
-    @staticmethod
-    def get_flow_cell_mode(run_directory):
-        run_params_path = join(run_directory, 'RunParameters.xml')
+        run_params_path = join(run_dir, 'RunParameters.xml')
 
         if not exists(run_params_path):
             raise ValueError(f"'{run_params_path}' doesn't exist")
 
+        # adjust the search path through RunParameters.xml based on the
+        # schemas observed w/each instrument type.
+        search_strings = {'MiSeq': 'FlowcellRFIDTag',
+                          'HiSeq 4000': 'Setup/Flowcell',
+                          'iSeq': 'FlowcellEEPROMTag',
+                          'NovaSeq X Plus': 'FlowCellType',
+                          'HiSeq 2500': 'Setup/Flowcell',
+                          'NovaSeq 6000': 'RfidsInfo/FlowCellMode',
+                          'RapidRun': 'Setup/Flowcell'}
+
         with open(run_params_path) as f:
-            value = ET.fromstring(f.read()).find('RfidsInfo/FlowCellMode')
+            value = ET.fromstring(f.read()).find(search_strings[type])
             if value is not None:
                 return value.text
 
-        raise ValueError("FlowCellMode element not present in "
+        raise ValueError("Flowcell information could not be found in "
                          f"'{run_params_path}'")
 
 
