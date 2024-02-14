@@ -83,45 +83,13 @@ class InstrumentUtils():
         for format in formats:
             try:
                 date = datetime.strptime(date_string, format)
-                return date.date()
+                return str(date.date())
             except ValueError:
                 # assume ValueErrors are due to incorrect format, rather than
                 # incorrect value from the XML file.
                 pass
 
         raise ValueError(f"'{date_string}' could not be parsed")
-
-    @staticmethod
-    def get_flow_cell_mode(run_dir):
-        # TODO: What is currently returned is the most descriptive information
-        #  found in runParameters.xml or elsewhere regarding flowcell mode.
-        # In some cases, this information may need to be mapped according to
-        # a dictionary of known flowcells used by IGM and their types to get
-        # the actual mode of flowcell.
-        type = InstrumentUtils.get_instrument_type(run_dir)
-
-        run_params_path = join(run_dir, 'RunParameters.xml')
-
-        if not exists(run_params_path):
-            raise ValueError(f"'{run_params_path}' doesn't exist")
-
-        # adjust the search path through RunParameters.xml based on the
-        # schemas observed w/each instrument type.
-        search_strings = {'MiSeq': 'FlowcellRFIDTag',
-                          'HiSeq 4000': 'Setup/Flowcell',
-                          'iSeq': 'FlowcellEEPROMTag',
-                          'NovaSeq X Plus': 'FlowCellType',
-                          'HiSeq 2500': 'Setup/Flowcell',
-                          'NovaSeq 6000': 'RfidsInfo/FlowCellMode',
-                          'RapidRun': 'Setup/Flowcell'}
-
-        with open(run_params_path) as f:
-            value = ET.fromstring(f.read()).find(search_strings[type])
-            if value is not None:
-                return value.text
-
-        raise ValueError("Flowcell information could not be found in "
-                         f"'{run_params_path}'")
 
 
 class Pipeline:
@@ -273,7 +241,7 @@ class Pipeline:
     def _configure_profile(self):
         # extract the instrument type from self.run_dir and the assay type
         # from self.sample_sheet (or self.mapping_file).
-        instr_type = InstrumentUtils.get_instrument_type(self.run_id)
+        instr_type = InstrumentUtils.get_instrument_type(self.run_dir)
 
         if isinstance(self.sample_sheet, str):
             # if self.sample_sheet is a file instead of a KLSampleSheet()
@@ -375,13 +343,13 @@ class Pipeline:
         if base_profile is None:
             raise ValueError("a 'default' profile was not found")
 
-        # overwrite the configuration values in the base-profile with those
-        # in the matching profile as appropriate.
-        for attribute in selected_profile['profile']['configuration']:
-            value = selected_profile['profile']['configuration'][attribute]
-            base_profile['profile']['configuration'][attribute] = value
-
         if selected_profile:
+            # overwrite the configuration values in the base-profile with those
+            # in the matching profile as appropriate.
+            for attribute in selected_profile['profile']['configuration']:
+                value = selected_profile['profile']['configuration'][attribute]
+                base_profile['profile']['configuration'][attribute] = value
+
             # overwrite default info w/selected profile (if one was found)
             # so that complete profile can be written to working directory
             # as a log.

@@ -1,9 +1,9 @@
 import json
 import os
 from sequence_processing_pipeline.PipelineError import PipelineError
-from sequence_processing_pipeline.Pipeline import Pipeline
+from sequence_processing_pipeline.Pipeline import Pipeline, InstrumentUtils
 import unittest
-from os import makedirs
+from os import makedirs, walk
 from os.path import abspath, basename, join
 from functools import partial
 import re
@@ -1436,7 +1436,7 @@ class TestPipeline(unittest.TestCase):
         obs = pipeline.config_profile['profile']
 
         # assert a profile matching self.good_sample_sheet_path was found.
-        self.assertEqual(obs['instrument_type'], "NovaSeq 6000")
+        self.assertEqual(obs['instrument_type'], "MiSeq")
         self.assertEqual(obs['assay_type'], "Metagenomic")
 
         obs = obs['configuration']
@@ -1450,10 +1450,10 @@ class TestPipeline(unittest.TestCase):
 
         # assert increased values over default found in novaseq 6000/
         # metagenomic profile are found in the final configuration as well.
-        self.assertEqual(obs['bcl2fastq']['nodes'], 4)
-        self.assertEqual(obs['bcl2fastq']['nprocs'], 64)
-        self.assertEqual(obs['nu-qc']['nodes'], 4)
-        self.assertEqual(obs['nu-qc']['wallclock_time_in_minutes'], 2048)
+        self.assertEqual(obs['bcl2fastq']['nodes'], 2)
+        self.assertEqual(obs['bcl2fastq']['nprocs'], 62)
+        self.assertEqual(obs['nu-qc']['nodes'], 2)
+        self.assertEqual(obs['nu-qc']['wallclock_time_in_minutes'], 2028)
         self.assertEqual(obs['nu-qc']['cpus_per_task'], 32)
 
     def test_parse_project_name(self):
@@ -2196,6 +2196,57 @@ class TestAmpliconPipeline(unittest.TestCase):
         # process_run_info_file() are handled by generate_dummy_sample_sheet().
         # These are indirectly tested as generate_dummy_sample_sheet() is
         # called by Pipeline's constructor.
+
+
+class TestInstrumentUtils(unittest.TestCase):
+    def setUp(self):
+        package_root = abspath('./sequence_processing_pipeline')
+        self.path = partial(join, package_root, 'tests', 'data')
+
+    def test_instrument_utils(self):
+        iutils = InstrumentUtils()
+
+        exp = {'231108_M04586_0992_000000000-L7342': {'id': 'M04586',
+                                                      'type': 'MiSeq',
+                                                      'date': '2023-11-08'},
+               '200320_K00180_0957_AHCYKKBBXY_PE150_Knight': {'id': 'K00180',
+                                                              'type': ('HiSeq '
+                                                                       '4000'),
+                                                              'date': ('2020-0'
+                                                                       '3-20')
+                                                              },
+               '20220912_FS10001773_27_BSE39218-1017': {'id': 'FS10001773',
+                                                        'type': 'iSeq',
+                                                        'date': '2022-09-12'},
+               '231215_LH00444_0031_B222WHFLT4': {'id': 'LH00444',
+                                                  'type': 'NovaSeq X Plus',
+                                                  'date': '2023-12-16'},
+               '190809_D00611_0709_AH3CKJBCX3_RKL0040_Feist_36-39_2': {
+                   'id': 'D00611',
+                   'type': 'HiSeq 2500',
+                   'date': '2019-08-09'},
+               '231215_A01535_0435_BH23F5DSXC': {'id': 'A01535',
+                                                 'type': 'NovaSeq 6000',
+                                                 'date': '2023-12-15'},
+               '150629_SN1001_0511_AH5L7GBCXX': {'id': 'SN1001',
+                                                 'type': 'RapidRun',
+                                                 'date': '2015-06-29'}}
+
+        run_directories = []
+        for root, dirs, files in walk(self.path('sample_run_directories')):
+            for run_id in dirs:
+                run_directories.append((run_id, join(root, run_id)))
+
+            # don't walk recursively. stop after first level.
+            break
+
+        for run_id, run_dir in run_directories:
+            self.assertEqual(iutils.get_instrument_id(run_dir),
+                             exp[run_id]['id'])
+            self.assertEqual(iutils.get_instrument_type(run_dir),
+                             exp[run_id]['type'])
+            self.assertEqual(iutils.get_date(run_dir),
+                             exp[run_id]['date'])
 
 
 good_dummy_sheet1 = [
