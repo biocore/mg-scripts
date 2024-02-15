@@ -1,25 +1,95 @@
 from json import load as json_load
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
-from os import makedirs, listdir
+from os import makedirs, listdir, walk
 from os.path import join, exists, isdir, basename
 from metapool import load_sample_sheet, AmpliconSampleSheet
 from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
-from re import sub, findall, search
+from re import sub, findall, search, match
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
+from datetime import datetime
+from xml.etree import ElementTree as ET
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
-class Pipeline:
-    assay_types = ['TruSeq HT', 'Metagenomic', 'Metatranscriptomic']
+class InstrumentUtils():
+    types = {'A': 'NovaSeq 6000', 'D': 'HiSeq 2500', 'FS': 'iSeq',
+             'K': 'HiSeq 4000', 'LH': 'NovaSeq X Plus', 'M': 'MiSeq',
+             'MN': 'MiniSeq',
+             # SN – RapidRun which is HiSeq 2500
+             'SN': 'RapidRun'}
 
+    @staticmethod
+    def get_instrument_id(run_directory):
+        run_info = join(run_directory, 'RunInfo.xml')
+
+        if not exists(run_info):
+            raise ValueError(f"'{run_info}' doesn't exist")
+
+        with open(run_info) as f:
+            # Instrument element should appear in all valid RunInfo.xml
+            # files.
+            return ET.fromstring(f.read()).find('Run/Instrument').text
+
+    @staticmethod
+    def get_instrument_type(run_directory):
+        # extract all letters at the beginning of the string, stopping
+        # at the first digit.
+        code = match(r"^(.*?)\d.*",
+                     InstrumentUtils.get_instrument_id(run_directory))
+
+        if code is None:
+            raise ValueError("Could not determine instrument code")
+        else:
+            code = code.group(1)
+
+        # map instrument code to a name string and return it, if possible.
+        try:
+            return InstrumentUtils.types[code]
+        except KeyError:
+            raise ValueError(f"Instrument code '{code}' is of unknown type")
+
+    @staticmethod
+    def get_date(run_directory):
+        run_info = join(run_directory, 'RunInfo.xml')
+
+        if not exists(run_info):
+            raise ValueError(f"'{run_info}' doesn't exist")
+
+        with open(run_info) as f:
+            # Date element should appear in all valid RunInfo.xml
+            # files.
+            date_string = ET.fromstring(f.read()).find('Run/Date').text
+
+        # date is recorded in RunInfo.xml in various formats. Iterate
+        # through all known formats until the date is properly parsed.
+
+        # For now, assume timestamps w/Z are not actually in 'Zulu' or
+        # UTC time w/out confirming the machines were actually set for
+        # and/or reporting UTC time.
+        formats = ["%y%m%d", "%Y-%m-%dT%H:%M:%s", "%Y-%m-%dT%H:%M:%SZ",
+                   "%m/%d/%Y %I:%M:%S %p"]
+
+        for format in formats:
+            try:
+                date = datetime.strptime(date_string, format)
+                return str(date.date())
+            except ValueError:
+                # assume ValueErrors are due to incorrect format, rather than
+                # incorrect value from the XML file.
+                pass
+
+        raise ValueError(f"'{date_string}' could not be parsed")
+
+
+class Pipeline:
     sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
                   'empo_2', 'empo_3', 'env_biome', 'env_feature',
                   'env_material', 'env_package', 'geo_loc_name',
@@ -56,9 +126,14 @@ class Pipeline:
     pipeline_types = {METAGENOMIC_PTYPE, AMPLICON_PTYPE,
                       METATRANSCRIPTOMIC_PTYPE}
 
+    METAGENOMIC_ATYPE = 'Metagenomic'
+    METATRANSCRIPTOMIC_ATYPE = 'Metatranscriptomic'
+    AMPLICON_ATYPE = 'TruSeq HT'
+
+    assay_types = [AMPLICON_ATYPE, METAGENOMIC_ATYPE, METATRANSCRIPTOMIC_ATYPE]
+
     def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 mapping_file_path, output_path, qiita_job_id, pipeline_type,
-                 config_dict=None):
+                 mapping_file_path, output_path, qiita_job_id, pipeline_type):
         """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
@@ -67,7 +142,6 @@ class Pipeline:
         :param mapping_file_path: Path to mapping file.
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
-        :param config_dict: (Optional) Dict used instead of config file.
         :param pipeline_type: Pipeline type ('Amplicon', 'Metagenomic', etc.)
         """
         if sample_sheet_path is not None and mapping_file_path is not None:
@@ -83,38 +157,31 @@ class Pipeline:
 
         self.pipeline_type = pipeline_type
 
-        if config_dict:
-            if 'configuration' in config_dict:
-                self.configuration = config_dict['configuration']
-                self.configuration_file_path = None
-            else:
-                raise PipelineError(f"{config_dict} does not contain the "
-                                    "key 'configuration'")
-        else:
-            self.configuration_file_path = configuration_file_path
-            try:
-                f = open(configuration_file_path)
-                self.configuration = json_load(f)['configuration']
-                f.close()
-            except TypeError:
-                raise PipelineError('configuration_file_path cannot be None')
-            except FileNotFoundError:
-                raise PipelineError(f'{configuration_file_path} does not '
-                                    'exist.')
-            except JSONDecodeError:
-                raise PipelineError(f'{configuration_file_path} is not a '
-                                    'valid json file')
+        self.configuration_file_path = configuration_file_path
+
+        # along with configuration profiles, a 'general' configuration file
+        # is needed to provide the search paths to the run-directories. These
+        # are used to locate the run-directory specified and parse the required
+        # files to select the right configuration profile.
+        try:
+            f = open(configuration_file_path)
+            self.configuration = json_load(f)
+            f.close()
+        except TypeError:
+            raise PipelineError('configuration_file_path cannot be None')
+        except FileNotFoundError:
+            raise PipelineError(f'{configuration_file_path} does not '
+                                'exist.')
+        except JSONDecodeError:
+            raise PipelineError(f'{configuration_file_path} is not a '
+                                'valid json file')
 
         if run_id is None:
             raise PipelineError('run_id cannot be None')
 
-        if 'pipeline' not in self.configuration:
-            raise PipelineError("'pipeline' is not a key in "
-                                f"{self.configuration_file_path}")
-
-        config = self.configuration['pipeline']
-        for key in ['search_paths', 'archive_path']:
-            if key not in config:
+        for key in ['search_paths', 'archive_path', 'amplicon_search_paths',
+                    'profiles_path']:
+            if key not in self.configuration:
                 raise PipelineError(f"'{key}' is not a key in "
                                     f"{self.configuration_file_path}")
 
@@ -129,11 +196,11 @@ class Pipeline:
         self.pipeline = []
 
         if sample_sheet_path:
-            self.search_paths = config['search_paths']
+            self.search_paths = self.configuration['search_paths']
             self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
             self.mapping_file = None
         else:
-            self.search_paths = config['amplicon_search_paths']
+            self.search_paths = self.configuration['amplicon_search_paths']
             self.mapping_file = self._validate_mapping_file(mapping_file_path)
             # unlike _validate_sample_sheet() which returns a SampleSheet
             # object that stores the path to the file it was created from,
@@ -165,6 +232,133 @@ class Pipeline:
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
+
+        self._configure_profile()
+
+    def _configure_profile(self):
+        # extract the instrument type from self.run_dir and the assay type
+        # from self.sample_sheet (or self.mapping_file).
+        instr_type = InstrumentUtils.get_instrument_type(self.run_dir)
+
+        if isinstance(self.sample_sheet, str):
+            # if self.sample_sheet is a file instead of a KLSampleSheet()
+            # type, then this is an Amplicon run.
+            assay_type = Pipeline.AMPLICON_ATYPE
+        else:
+            assay_type = self.sample_sheet.Header['Assay']
+            if assay_type not in Pipeline.assay_types:
+                raise ValueError(f"'{assay_type} is not a valid Assay type")
+
+        # open the configuration profiles directory as specified by
+        # profiles_path in the configuration.json file. parse each json into
+        # a nested dictionary keyed by (instrument-type, assay-type) as
+        # specified by the values inside each json.
+        profile_dir = self.configuration['profiles_path']
+
+        if not exists(profile_dir):
+            raise ValueError(f"'{profile_dir}' doesn't exist")
+
+        # profiles directory can be arbitrarily nested to help organize
+        # profiles; profiles can also be named arbitrarily. Non-JSON files
+        # such as notes can be in the directory as well. The only assertion
+        # is that all JSON files found will be of the profile format, discussed
+        # below.
+        profile_paths = []
+        for root, dirs, files in walk(profile_dir):
+            for some_file in files:
+                some_path = join(root, some_file)
+                if some_path.endswith('.json'):
+                    profile_paths.append(some_path)
+
+        # There must be at least one valid profile for the Pipeline to
+        # continue operation. There must also be a default profile, described
+        # below.
+        if not profile_paths:
+            raise ValueError(f"'{profile_dir}' doesn't contain profile files")
+
+        profiles = []
+
+        for profile_path in profile_paths:
+            with open(profile_path, 'r') as f:
+                # open each profile and perform minimum validation on its
+                # contents.
+                contents = json_load(f)
+
+                # all files must contain a root element 'profile'. This helps
+                # to identify it as a profile, rather than another type of
+                # JSON file.
+                if 'profile' not in contents:
+                    raise ValueError("'profile' is not an attribute in "
+                                     f"'{profile_path}'")
+
+                # the 'profile' attribute must have a dictionary as its value.
+                # all profiles must contain 'instrument_type' and 'assay_type',
+                # unless instrument_type == 'default', in which case the
+                # profile defines the defaults across all instrument-types and
+                # assay-types.
+                if 'instrument_type' not in contents['profile']:
+                    raise ValueError("'instrument_type' is not an attribute "
+                                     f"in '{profile_path}'.profile")
+
+                if 'assay_type' not in contents['profile']:
+                    if contents['profile']['instrument_type'] != 'default':
+                        raise ValueError("'assay_type' is not an attribute "
+                                         f"in '{profile_path}'.profile")
+
+                profiles.append(contents)
+
+        # The default profile provides 'fall-through' configuration settings
+        # for all items. This allows the user to not have to redefine settings
+        # for all items for all instrument and assay combinations.
+
+        # the final profile is created by taking the default profile and using
+        # it as a base. If a profile matching the run-directory's instrument
+        # and assay types is found, settings from that profile will overwrite
+        # the base-profile settings as appropriate.
+        base_profile = None
+        selected_profile = None
+
+        # iterate through all the profiles, searching for a default
+        # profile and the first profile w/matching instrument and assay types.
+        # if a matching profile isn't found, that's okay, but if a default
+        # profile isn't found, then raise an Error.
+
+        for profile in profiles:
+            p_i_type = profile['profile']['instrument_type']
+            if p_i_type == 'default':
+                base_profile = profile
+            else:
+                p_a_type = profile['profile']['assay_type']
+
+                # if both items have been found, it's safe to break early.
+                if base_profile is not None and selected_profile is not None:
+                    break
+
+                if p_i_type == instr_type and p_a_type == assay_type:
+                    selected_profile = profile
+
+        if base_profile is None:
+            raise ValueError("a 'default' profile was not found")
+
+        if selected_profile:
+            # overwrite the configuration values in the base-profile with those
+            # in the matching profile as appropriate.
+            for attribute in selected_profile['profile']['configuration']:
+                value = selected_profile['profile']['configuration'][attribute]
+                base_profile['profile']['configuration'][attribute] = value
+
+            # overwrite default info w/selected profile (if one was found)
+            # so that complete profile can be written to working directory
+            # as a log.
+            base_profile['profile']['instrument_type'] = instr_type
+            base_profile['profile']['assay_type'] = assay_type
+
+        # load the default first to create a default entry for everything.
+        # then overwrite the defaults as they appear once you've identified
+        # the correct (instrument-type, assay-type) pair.
+        # set this to a new self.config_profile variable and modify the tests
+        # and code accordingly.
+        self.config_profile = base_profile
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products

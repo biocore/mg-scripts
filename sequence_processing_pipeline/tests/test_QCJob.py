@@ -591,9 +591,8 @@ class TestQCJob(unittest.TestCase):
                   'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                   30, 1000)
 
-        with self.assertRaisesRegex(ValueError, "bad-sample-sheet-bool-test."
-                                                "csv' does not appear to be a"
-                                                " valid sample-sheet."):
+        with self.assertRaisesRegex(ValueError, "'FALSE' is not a valid value"
+                                                " for HumanFiltering"):
             QCJob(self.fastq_root_path, self.output_path,
                   self.bad_sheet_bools_path, self.mmi_db_paths,
                   self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
