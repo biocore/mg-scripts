@@ -31,13 +31,15 @@ setup(name='sequence-processing-pipeline',
       author="Qiita development team",
       author_email="qiita.help@gmail.com",
       url='https://github.com/biocore/mg-scripts',
-      packages=['sequence_processing_pipeline'],
       setup_requires=['numpy', 'cython'],
       include_package_data=True,
+      packages=['sequence_processing_pipeline'],
       package_data={
-        'templates': ['nuqc_job.sh'],
-        'scripts': ['splitter'],
-      },
+          'sequence_processing_pipeline': [
+              'templates/*',
+              'scripts/*'
+              ]
+          },
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
         'pgzip', 'jinja2',
