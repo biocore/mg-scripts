@@ -1,8 +1,0 @@
-drwxr-xr-x    2 1003     1001         4096 Mar 23 16:30 .
-drwxr-xr-x   12 1003     1001         4096 May 16 00:18 ..
--rwxr--r--    1 1003     1001         3728 Mar 23 16:30 HiSeqControlSoftware.Options.cfg
--rwxr--r--    1 1003     1001          985 Mar 23 16:30 RTAStart.log
--rwxr--r--    1 1003     1001        33530 Mar 23 16:30 Variability_HiSeq_E.bin
--rwxr--r--    1 1003     1001       147112 Mar 23 16:30 hcykkbbxy_2020-03-20 17-36-37_Effective.cfg
--rwxr--r--    1 1003     1001         8229 Mar 23 16:30 hcykkbbxy_2020-03-20 17-36-37_Override.cfg
--rwxr--r--    1 1003     1001         9289 Mar 23 16:30 hcykkbbxy_2020-03-20 17-36-37_SortedOverride.cfg

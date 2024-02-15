@@ -20,9 +20,6 @@ logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class InstrumentUtils():
-    # TODO: This list was developed internally by the lab. It is fairly
-    #  authoritative but should be compared against an list from IGM or
-    #  Illumina if possible.
     types = {'A': 'NovaSeq 6000', 'D': 'HiSeq 2500', 'FS': 'iSeq',
              'K': 'HiSeq 4000', 'LH': 'NovaSeq X Plus', 'M': 'MiSeq',
              'MN': 'MiniSeq',
@@ -302,6 +299,10 @@ class Pipeline:
                 if 'instrument_type' not in contents['profile']:
                     raise ValueError("'instrument_type' is not an attribute "
                                      f"in '{profile_path}'.profile")
+
+                import json
+                print(profile_path)
+                print(json.dumps(contents['profile'], indent=2))
 
                 if 'assay_type' not in contents['profile']:
                     if contents['profile']['instrument_type'] != 'default':

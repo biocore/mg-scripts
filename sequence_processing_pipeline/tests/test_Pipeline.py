@@ -51,6 +51,7 @@ class TestPipeline(unittest.TestCase):
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
+        self.delete_bad_json_file()
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -83,6 +84,14 @@ class TestPipeline(unittest.TestCase):
         except FileNotFoundError:
             # make method idempotent
             pass
+
+    def delete_bad_json_file(self):
+        for fp in [self.bad_json_file, self.another_bad_json_file]:
+            try:
+                os.remove(fp)
+            except FileNotFoundError:
+                # make method idempotent
+                pass
 
     def _make_mapping_file(self, output_file_path):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
@@ -217,6 +226,105 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      None,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path,
+                     self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
+
+        # Pipeline should assert if config file is not valid JSON.
+        # good_sample_sheet_path is obviously not a valid JSON file.
+        with self.assertRaisesRegex(PipelineError, "good-sample-sheet.csv is "
+                                                   "not a valid json file"):
+            Pipeline(self.good_sample_sheet_path,
+                     self.good_run_id,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path,
+                     self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
+
+    def test_additional_creation(self):
+        self.bad_json_file = self.path('configuration_profiles', 'bad.json')
+
+        # test Error returned when root attribute 'profile' does not exist.
+
+        with open(self.bad_json_file, 'w') as f:
+            f.write('{ "not_profile": { "instrument_type": "default", '
+                    '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
+                    '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
+                    '"modules_to_load": [ "bcl2fastq_2.20.0.422" ], '
+                    '"executable_path": "bcl2fastq", '
+                    '"per_process_memory_limit": "10gb" } } } }')
+
+        with self.assertRaisesRegex(ValueError, "'profile' is not an attribute"
+                                                " in 'sequence_processing_"
+                                                "pipeline/tests/data/"
+                                                "configuration_profiles/"
+                                                "bad.json'"):
+            Pipeline(self.good_config_file,
+                     self.good_run_id,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path,
+                     self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
+
+        # test Error returned when 'instrument_type' does not exist.
+
+        self.bad_json_file = self.path('configuration_profiles', 'bad.json')
+        self.another_bad_json_file = self.path('configuration_profiles',
+                                               'more_bad.json')
+
+        with open(self.bad_json_file, 'w') as f:
+            f.write('{ "profile": { "not_instrument_type": "default", '
+                    '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
+                    '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
+                    '"modules_to_load": [ "bcl2fastq_2.20.0.422" ], '
+                    '"executable_path": "bcl2fastq", '
+                    '"per_process_memory_limit": "10gb" } } } }')
+
+        with self.assertRaisesRegex(ValueError, "'instrument_type' is not an "
+                                                "attribute in 'sequence_"
+                                                "processing_pipeline/tests/"
+                                                "data/configuration_profiles/"
+                                                "bad.json'"):
+            Pipeline(self.good_config_file,
+                     self.good_run_id,
+                     self.good_sample_sheet_path, None,
+                     self.output_file_path,
+                     self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
+
+        # test Error returned when 'assay_type' does not exist in default
+        # profile. Error should not be returned in this case as default
+        # shouldn't have an assay_type.
+
+        with open(self.bad_json_file, 'w') as f:
+            f.write('{ "profile": { "instrument_type": "default", '
+                    '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
+                    '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
+                    '"modules_to_load": [ "bcl2fastq_2.20.0.422" ], '
+                    '"executable_path": "bcl2fastq", '
+                    '"per_process_memory_limit": "10gb" } } } }')
+
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        self.assertIsNotNone(pipeline)
+
+        # test Error returned when a non-default profile is missing assay_type
+
+        with open(self.another_bad_json_file, 'w') as f:
+            f.write('{ "profile": { "instrument_type": "MiSeq", '
+                    '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
+                    '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
+                    '"modules_to_load": [ "bcl2fastq_2.20.0.422" ], '
+                    '"executable_path": "bcl2fastq", '
+                    '"per_process_memory_limit": "10gb" } } } }')
+
+        with self.assertRaisesRegex(ValueError, "'assay_type' is not an "
+                                                "attribute in 'sequence_"
+                                                "processing_pipeline/tests/"
+                                                "data/configuration_profiles/"
+                                                "more_bad.json'"):
+            Pipeline(self.good_config_file,
+                     self.good_run_id,
                      self.good_sample_sheet_path, None,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
