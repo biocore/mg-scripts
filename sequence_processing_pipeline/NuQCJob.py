@@ -1,6 +1,7 @@
+from jinja2 import BaseLoader, TemplateNotFound
 from metapool import load_sample_sheet
 from os import stat, makedirs, rename
-from os.path import join, basename, dirname, exists, abspath
+from os.path import join, basename, dirname, exists, abspath, getmtime
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -8,10 +9,29 @@ from shutil import move
 import logging
 from sequence_processing_pipeline.Commands import split_similar_size_bins
 from sequence_processing_pipeline.util import iter_paired_files
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment
 import glob
 import re
 from sys import executable
+import pathlib
+
+
+# taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
+class KISSLoader(BaseLoader):
+    def __init__(self, path):
+        # pin the path for loader to the location sequence_processing_pipeline
+        # (the location of this file), along w/the relative path to the
+        # templates directory.
+        self.path = join(pathlib.Path(__file__).parent.resolve(), path)
+
+    def get_source(self, environment, template):
+        path = join(self.path, template)
+        if not exists(path):
+            raise TemplateNotFound(template)
+        mtime = getmtime(path)
+        with open(path) as f:
+            source = f.read()
+        return source, path, lambda: mtime == getmtime(path)
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -72,9 +92,7 @@ class NuQCJob(Job):
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,
         # rather than the project's root path.
-        self.jinja_env = Environment(loader=PackageLoader('sequence_processing'
-                                                          '_pipeline',
-                                                          'templates'))
+        self.jinja_env = Environment(loader=KISSLoader('templates'))
 
         self.counts = {}
         self.known_adapters_path = known_adapters_path
