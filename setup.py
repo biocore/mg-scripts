@@ -34,7 +34,12 @@ setup(name='sequence-processing-pipeline',
       setup_requires=['numpy', 'cython'],
       include_package_data=True,
       packages=['sequence_processing_pipeline'],
-      package_data={'sequence_processing_pipeline': ['templates/*', 'scripts/*']},
+      package_data={
+          'sequence_processing_pipeline': [
+              'templates/*',
+              'scripts/*'
+              ]
+          },
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
         'pgzip', 'jinja2',
