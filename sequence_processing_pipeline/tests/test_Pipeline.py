@@ -46,12 +46,14 @@ class TestPipeline(unittest.TestCase):
         with open(self.good_config_file, 'r') as f:
             self.good_config = json.load(f)
 
+        self.delete_these = []
+
     def tearDown(self):
         # Pipeline is now the only class aware of these files, hence they
         # can be deleted at the end of testing.
         self.delete_runinfo_file()
         self.delete_rtacomplete_file()
-        self.delete_bad_json_file()
+        self.delete_more_files()
 
     def make_runinfo_file_unreadable(self):
         os.chmod(self.runinfo_file, 0o000)
@@ -85,13 +87,9 @@ class TestPipeline(unittest.TestCase):
             # make method idempotent
             pass
 
-    def delete_bad_json_file(self):
-        for fp in [self.bad_json_file, self.another_bad_json_file]:
-            try:
-                os.remove(fp)
-            except FileNotFoundError:
-                # make method idempotent
-                pass
+    def delete_more_files(self):
+        for file_path in self.delete_these:
+            os.remove(file_path)
 
     def _make_mapping_file(self, output_file_path):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
@@ -240,12 +238,11 @@ class TestPipeline(unittest.TestCase):
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
-    def test_additional_creation(self):
-        self.bad_json_file = self.path('configuration_profiles', 'bad.json')
+        bad_json_file = self.path('configuration_profiles', 'bad.json')
+        self.delete_these.append(bad_json_file)
 
         # test Error returned when root attribute 'profile' does not exist.
-
-        with open(self.bad_json_file, 'w') as f:
+        with open(bad_json_file, 'w') as f:
             f.write('{ "not_profile": { "instrument_type": "default", '
                     '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
                     '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
@@ -265,12 +262,9 @@ class TestPipeline(unittest.TestCase):
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
         # test Error returned when 'instrument_type' does not exist.
+        bad_json_file = self.path('configuration_profiles', 'bad.json')
 
-        self.bad_json_file = self.path('configuration_profiles', 'bad.json')
-        self.another_bad_json_file = self.path('configuration_profiles',
-                                               'more_bad.json')
-
-        with open(self.bad_json_file, 'w') as f:
+        with open(bad_json_file, 'w') as f:
             f.write('{ "profile": { "not_instrument_type": "default", '
                     '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
                     '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
@@ -292,8 +286,7 @@ class TestPipeline(unittest.TestCase):
         # test Error returned when 'assay_type' does not exist in default
         # profile. Error should not be returned in this case as default
         # shouldn't have an assay_type.
-
-        with open(self.bad_json_file, 'w') as f:
+        with open(bad_json_file, 'w') as f:
             f.write('{ "profile": { "instrument_type": "default", '
                     '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
                     '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
@@ -310,7 +303,11 @@ class TestPipeline(unittest.TestCase):
 
         # test Error returned when a non-default profile is missing assay_type
 
-        with open(self.another_bad_json_file, 'w') as f:
+        another_bad_json_file = self.path('configuration_profiles',
+                                          'more_bad.json')
+        self.delete_these.append(another_bad_json_file)
+
+        with open(another_bad_json_file, 'w') as f:
             f.write('{ "profile": { "instrument_type": "MiSeq", '
                     '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
                     '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '

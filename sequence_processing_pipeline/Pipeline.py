@@ -300,10 +300,6 @@ class Pipeline:
                     raise ValueError("'instrument_type' is not an attribute "
                                      f"in '{profile_path}'.profile")
 
-                import json
-                print(profile_path)
-                print(json.dumps(contents['profile'], indent=2))
-
                 if 'assay_type' not in contents['profile']:
                     if contents['profile']['instrument_type'] != 'default':
                         raise ValueError("'assay_type' is not an attribute "
