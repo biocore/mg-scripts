@@ -202,6 +202,26 @@ class NuQCJob(Job):
         for fp in files_to_move:
             move(fp, dst)
 
+    @staticmethod
+    def _move_trimmed_files(project_name, output_path):
+        '''
+        Given output_path, move all fastqs to a new subdir named project_name.
+        :param project_name: The name of the new folder to be created.
+        :param output_path: The path to scan for fastq files.
+        :return: None
+        '''
+
+        if exists(output_path):
+            pattern = f"{output_path}/*.fastq.gz"
+
+            # this directory shouldn't already exist.
+            makedirs(join(output_path, project_name), exist_ok=False)
+
+            for trimmed_file in list(glob.glob(pattern)):
+                move(trimmed_file, join(output_path, project_name))
+        else:
+            raise ValueError(f"'{output_path}' does not exist")
+
     def run(self, callback=None):
         # now a single job-script will be created to process all projects at
         # the same time, and intelligently handle adapter-trimming as needed
@@ -243,6 +263,15 @@ class NuQCJob(Job):
             source_dir = join(self.output_path, project_name)
             pattern = f"{source_dir}/*.fastq.gz"
             completed_files = list(glob.glob(pattern))
+
+            # if the 'only-adapter-filtered' directory exists, move the files
+            # into a unique location so that files from multiple projects
+            # don't overwrite each other.
+            trimmed_only_path = join(self.output_path,
+                                     'only-adapter-filtered')
+
+            if exists(trimmed_only_path):
+                NuQCJob._move_trimmed_files(project_name, trimmed_only_path)
 
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')
