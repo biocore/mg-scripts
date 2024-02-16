@@ -1,11 +1,12 @@
 import shutil
 import unittest
-from os.path import join, abspath, exists
+from os.path import join, abspath, exists, dirname
 from functools import partial
 from sequence_processing_pipeline.NuQCJob import NuQCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, remove
 from metapool import load_sample_sheet
+import glob
 
 
 class TestNuQCJob(unittest.TestCase):
@@ -545,6 +546,10 @@ class TestNuQCJob(unittest.TestCase):
         shutil.rmtree(self.output_path)
         if exists(self.tmp_file_path):
             remove(self.tmp_file_path)
+
+        # for test_move_trimmed_files()
+        if exists(self.path('NuQCJob')):
+            shutil.rmtree(self.path('NuQCJob'))
 
     def test_nuqcjob_creation(self):
         # use good-sample-sheet as the basis for a sample Metatranscriptomic
@@ -1204,6 +1209,41 @@ class TestNuQCJob(unittest.TestCase):
 
         self._helper(job.json_regex, good_names, bad_names)
 
+    def test_move_trimmed(self):
+        # Note: this test does not make use of the output_dir that other
+        # tests use.
+
+        for dummy_fp in SAMPLE_DIR:
+            dummy_fp = self.path(dummy_fp)
+            dummy_path = dirname(dummy_fp)
+            makedirs(dummy_path, exist_ok=True)
+            with open(dummy_fp, 'w') as f:
+                f.write("This is a dummy file.\n")
+
+        trimmed_only_path = self.path('NuQCJob', 'only-adapter-filtered')
+
+        NuQCJob._move_trimmed_files('NPH_15288', trimmed_only_path)
+
+        new_path = join(trimmed_only_path, 'NPH_15288')
+        pattern = f"{new_path}/*.fastq.gz"
+
+        exp = [
+            ('only-adapter-filtered/NPH_15288/359180345_S58_L001_R1_001.'
+             'fastq.gz'),
+            ('only-adapter-filtered/NPH_15288/359180337_S27_L001_R1_001.'
+             'fastq.gz'),
+            ('only-adapter-filtered/NPH_15288/359180338_S51_L001_R2_001.'
+             'fastq.gz'),
+            ('only-adapter-filtered/NPH_15288/359180338_S51_L001_R1_001.'
+             'fastq.gz'),
+            ('only-adapter-filtered/NPH_15288/359180337_S27_L001_R2_001.'
+             'fastq.gz')]
+
+        for trimmed_file in list(glob.glob(pattern)):
+            trimmed_file = trimmed_file.split('NuQCJob/')[-1]
+            if trimmed_file not in exp:
+                self.assertIn(trimmed_file, exp)
+
     def _helper(self, regex, good_names, bad_names):
         for good_name in good_names:
             substr = regex.search(good_name)
@@ -1213,6 +1253,27 @@ class TestNuQCJob(unittest.TestCase):
             substr = regex.search(bad_name)
             self.assertIsNone(substr, msg=f'Regex failed on {bad_name}')
 
+
+SAMPLE_DIR = [
+    'NuQCJob/only-adapter-filtered/359180345_S58_L001_R1_001.fastq.gz',
+    'NuQCJob/only-adapter-filtered/359180337_S27_L001_R1_001.fastq.gz',
+    'NuQCJob/only-adapter-filtered/359180338_S51_L001_R2_001.fastq.gz',
+    'NuQCJob/only-adapter-filtered/359180338_S51_L001_R1_001.fastq.gz',
+    'NuQCJob/only-adapter-filtered/359180337_S27_L001_R2_001.fastq.gz',
+    'NuQCJob/NPH_15288/fastp_reports_dir/html/359180354_S22_L001_R1_001.html',
+    'NuQCJob/NPH_15288/fastp_reports_dir/html/359180338_S51_L001_R1_001.html',
+    'NuQCJob/NPH_15288/fastp_reports_dir/html/359180345_S58_L001_R1_001.html',
+    'NuQCJob/NPH_15288/fastp_reports_dir/html/359180337_S27_L001_R1_001.html',
+    'NuQCJob/NPH_15288/fastp_reports_dir/html/359180353_S17_L001_R1_001.html',
+    'NuQCJob/NPH_15288/fastp_reports_dir/json/359180353_S17_L001_R1_001.json',
+    'NuQCJob/NPH_15288/fastp_reports_dir/json/359180337_S27_L001_R1_001.json',
+    'NuQCJob/NPH_15288/fastp_reports_dir/json/359180345_S58_L001_R1_001.json',
+    'NuQCJob/NPH_15288/fastp_reports_dir/json/359180338_S51_L001_R1_001.json',
+    'NuQCJob/NPH_15288/fastp_reports_dir/json/359180354_S22_L001_R1_001.json',
+    'NuQCJob/process_all_fastq_files.sh',
+    'NuQCJob/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d.1897981.completed',
+    'NuQCJob/logs/slurm-1897981_1.out',
+    'NuQCJob/tmp/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d-1']
 
 if __name__ == '__main__':
     unittest.main()

@@ -92,6 +92,10 @@ class FastQCJob(Job):
             files = [x for x in files if x.endswith('.fastq.gz') and
                      'zero_files' not in x]
 
+            # remove fastq files in the only-adapter-filtered
+            # folder from consideration if they are present.
+            files = [x for x in files if 'only-adapter-filtered' not in x]
+
             # break files up into R1, R2, I1, I2
             # assume _R1_ does not occur in the path as well.
             r1_only = [x for x in files if '_R1_' in x]
