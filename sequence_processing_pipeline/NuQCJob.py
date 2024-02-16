@@ -211,9 +211,6 @@ class NuQCJob(Job):
         :return: None
         '''
 
-        # method made static and output_path made a parameter for easier
-        # testing.
-
         if exists(output_path):
             pattern = f"{output_path}/*.fastq.gz"
 
