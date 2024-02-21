@@ -1,7 +1,9 @@
 from itertools import zip_longest
 from os import makedirs, walk
 from os.path import basename, exists, split, join
-from sequence_processing_pipeline.PipelineError import PipelineError
+from sequence_processing_pipeline.PipelineError import (PipelineError,
+                                                        JobFailedError,
+                                                        ExecFailedError)
 from subprocess import Popen, PIPE
 from time import sleep
 import logging
@@ -177,7 +179,7 @@ class Job:
                 f'stdout: {stdout}\n'
                 f'stderr: {stderr}\n')
             logging.error(msg)
-            raise PipelineError(message=msg)
+            raise ExecFailedError(message=msg)
 
         if callback is not None:
             callback(jid=proc.pid, status='COMPLETED')
@@ -185,8 +187,8 @@ class Job:
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
     def submit_job(self, script_path, job_parameters=None,
-                   script_parameters=None, wait=True, exec_from=None,
-                   callback=None):
+                   script_parameters=None, wait=True,
+                   exec_from=None, callback=None):
         """
         Submit a Torque job script and optionally wait for it to finish.
         :param script_path: The path to a Torque job (bash) script.
@@ -228,7 +230,8 @@ class Job:
                                        "JobID,JobName,State,Elapsed,ExitCode")
 
             if result['return_code'] != 0:
-                raise ValueError(result['stderr'])
+                # sacct did not successfully submit the job.
+                raise ExecFailedError(result['stderr'])
 
             # [-1] remove the extra \n
             jobs_data = result['stdout'].split('\n')[:-1]
@@ -279,22 +282,23 @@ class Job:
                         # job completed successfully
                         return job_info
                     else:
-                        raise PipelineError(f"job {job_id} exited with exit_"
-                                            f"status {job_info['exit_status']}"
-                                            )
+                        exit_status = job_info['exit_status']
+                        raise JobFailedError(f"job {job_id} exited with exit_"
+                                             f"status {exit_status}")
                 else:
                     # with no other info, assume job completed successfully
                     return job_info
             else:
                 # job exited unsuccessfully
-                raise PipelineError(f"job {job_id} exited with status "
-                                    f"{job_info['job_state']}")
+                raise JobFailedError(f"job {job_id} exited with status "
+                                     f"{job_info['job_state']}")
         else:
             # job was never in the queue - return an error.
             if callback is not None:
                 callback(jid=job_id, status='ERROR')
 
-            raise PipelineError("job %s never appeared in the queue." % job_id)
+            raise JobFailedError(f"job {job_id} never appeared in the "
+                                 "queue.")
 
     def _group_commands(self, cmds):
         # break list of commands into chunks of max_array_length (Typically
