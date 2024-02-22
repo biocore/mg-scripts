@@ -451,7 +451,8 @@ class NuQCJob(Job):
 
     def parse_logs(self):
         log_path = join(self.output_path, 'Logs')
-        files = glob.glob(join(log_path, '*.out'))
+        # sorted lists give predictable results
+        files = sorted(glob.glob(join(log_path, '*.out')))
 
         msgs = []
 

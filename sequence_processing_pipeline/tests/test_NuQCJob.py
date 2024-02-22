@@ -647,8 +647,8 @@ class TestNuQCJob(unittest.TestCase):
         # job w/sacct.
         self.assertTrue(job._toggle_force_job_fail())
 
-        exp = ("This job died.\n[ERROR] Generic Standin Error (GSE).\n[ERROR]"
-               " Another Standin Error (ASE).")
+        exp = ("This job died.\n[ERROR] Another Standin Error (ASE).\n[ERROR]"
+               " Generic Standin Error (GSE).")
 
         try:
             job.run()
