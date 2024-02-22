@@ -567,8 +567,12 @@ class TestNuQCJob(unittest.TestCase):
                                      "[ERROR] Another Standin Error (ASE)."]
         }
 
+        self.foobar = []
+
         for log_file in log_files:
             fp = join(self.qc_log_path, log_file)
+            self.foobar.append(fp)
+
             with open(fp, 'w') as f:
                 lines = log_files[log_file]
                 for line in lines:
@@ -650,10 +654,18 @@ class TestNuQCJob(unittest.TestCase):
         exp = ("This job died.\n[ERROR] Another Standin Error (ASE).\n[ERROR]"
                " Generic Standin Error (GSE).")
 
+        for foo in self.foobar:
+            print("checking %s..." % foo)
+            self.assertTrue(exists(foo))
+
         try:
             job.run()
         except JobFailedError as e:
+            print(">>>%s<<<" % str(e))
+            print(">>>%s<<<" % exp)
             self.assertEqual(str(e), exp)
+
+        self.assertTrue(False)
 
     def test_assay_value(self):
         with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
