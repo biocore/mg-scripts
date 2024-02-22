@@ -219,7 +219,7 @@ class Job:
         logging.debug("job scheduler call: %s" % cmd)
 
         if self.force_job_fail:
-            raise JobFailedError("This job died.")
+            raise JobFailedError("I AM MESSAGE ONE")
 
         # if system_call does not raise a PipelineError(), then the scheduler
         # successfully submitted the job. In this case, it should return

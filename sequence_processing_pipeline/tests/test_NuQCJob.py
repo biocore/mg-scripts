@@ -567,11 +567,8 @@ class TestNuQCJob(unittest.TestCase):
                                      "[ERROR] Another Standin Error (ASE)."]
         }
 
-        self.foobar = []
-
         for log_file in log_files:
             fp = join(self.qc_log_path, log_file)
-            self.foobar.append(fp)
 
             with open(fp, 'w') as f:
                 lines = log_files[log_file]
@@ -654,19 +651,13 @@ class TestNuQCJob(unittest.TestCase):
         exp = ("This job died.\n[ERROR] Another Standin Error (ASE).\n[ERROR]"
                " Generic Standin Error (GSE).")
 
-        for foo in self.foobar:
-            print("checking %s..." % foo)
-            self.assertTrue(exists(foo))
-            with open(foo, 'r') as f:
-                lines = f.readlines()
-                print("\tLINES: %s" % lines)
-
         try:
             job.run()
         except JobFailedError as e:
-            print(">>>%s<<<" % str(e))
-            print(">>>%s<<<" % exp)
-            self.assertEqual(str(e), exp)
+            print("JobFailedError CAUGHT: %s" % str(e))
+            #print(">>>%s<<<" % str(e))
+            #print(">>>%s<<<" % exp)
+            #self.assertEqual(str(e), exp)
 
         self.assertTrue(False)
 
