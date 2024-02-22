@@ -264,7 +264,8 @@ class NuQCJob(Job):
             info.insert(0, str(e))
             # raise JobFailedError('\n'.join(info))
             raise JobFailedError("I AM MESSAGE TWO")
-        print("IF YOU CAN SEE THIS MESSAGE THEN JobFailedError WAS NOT CAUGHT AS EXPECTED")
+        print("IF YOU CAN SEE THIS MESSAGE THEN JobFailedError"
+              " WAS NOT CAUGHT AS EXPECTED")
 
         job_id = job_info['job_id']
         logging.debug(f'NuQCJob {job_id} completed')
