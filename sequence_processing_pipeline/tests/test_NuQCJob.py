@@ -3,7 +3,8 @@ import unittest
 from os.path import join, abspath, exists, dirname
 from functools import partial
 from sequence_processing_pipeline.NuQCJob import NuQCJob
-from sequence_processing_pipeline.PipelineError import PipelineError
+from sequence_processing_pipeline.PipelineError import (PipelineError,
+                                                        JobFailedError)
 from os import makedirs, remove
 from metapool import load_sample_sheet
 import glob
@@ -542,6 +543,37 @@ class TestNuQCJob(unittest.TestCase):
 
         self.sample_ids = self.feist_ids + self.gerwick_ids + self.nyu_ids
 
+        self.qc_log_path = join(self.output_path, "NuQCJob", "logs")
+        makedirs(self.qc_log_path, exist_ok=True)
+
+        log_files = {
+            'slurm-9999999_35.out': ["---------------",
+                                     "Run details:",
+                                     ("hds-fe848a9e-c0e9-49d9-978d-"
+                                      "27565a314e8b 1908305 b2-018"),
+                                     "---------------",
+                                     "+ this",
+                                     "+ that",
+                                     "+ blah",
+                                     "[ERROR] Generic Standin Error (GSE)."],
+            'slurm-9999999_17.out': ["---------------",
+                                     "Run details:",
+                                     ("hds-fe848a9e-c0e9-49d9-978d-"
+                                      "27565a314e8b 1908305 b2-018"),
+                                     "---------------",
+                                     "+ this",
+                                     "+ that",
+                                     "+ blah",
+                                     "[ERROR] Another Standin Error (ASE)."]
+        }
+
+        for log_file in log_files:
+            fp = join(self.qc_log_path, log_file)
+            with open(fp, 'w') as f:
+                lines = log_files[log_file]
+                for line in lines:
+                    f.write(f"{line}\n")
+
     def tearDown(self):
         shutil.rmtree(self.output_path)
         if exists(self.tmp_file_path):
@@ -600,6 +632,28 @@ class TestNuQCJob(unittest.TestCase):
                     'queue_name', 1, 1440, '8gb',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                     1000, '')
+
+    def test_error_msg_from_logs(self):
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, self.mmi_db_paths,
+                      'queue_name', 1, 1440, '8gb',
+                      'fastp', 'minimap2', 'samtools', [],
+                      self.qiita_job_id, 1000, '')
+
+        self.assertFalse(job is None)
+
+        # an internal method to force submit_job() to raise a JobFailedError
+        # instead of submitting the job w/sbatch and waiting for a failed
+        # job w/sacct.
+        self.assertTrue(job._toggle_force_job_fail())
+
+        exp = ("This job died.\n[ERROR] Generic Standin Error (GSE).\n[ERROR]"
+               " Another Standin Error (ASE).")
+
+        try:
+            job.run()
+        except JobFailedError as e:
+            self.assertEqual(str(e), exp)
 
     def test_assay_value(self):
         with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"

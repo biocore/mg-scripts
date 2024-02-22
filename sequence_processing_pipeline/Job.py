@@ -24,6 +24,7 @@ class Job:
         self.job_name = job_name
         self.root_dir = root_dir
         self._directory_check(self.root_dir, create=False)
+        self.force_job_fail = False
 
         self.output_path = join(output_path, self.job_name)
         self._directory_check(self.output_path, create=True)
@@ -78,6 +79,9 @@ class Job:
         expected output.
         """
         raise PipelineError("Base class run() method not implemented.")
+
+    def parse_logs(self):
+        raise PipelineError("Base class parse_logs() method not implemented.")
 
     def _which(self, file_path, modules_to_load=None):
         """
@@ -213,6 +217,10 @@ class Job:
             cmd = f'cd {exec_from};' + cmd
 
         logging.debug("job scheduler call: %s" % cmd)
+
+        if self.force_job_fail:
+            raise JobFailedError("This job died.")
+
         # if system_call does not raise a PipelineError(), then the scheduler
         # successfully submitted the job. In this case, it should return
         # the id of the job in stdout.
@@ -360,3 +368,11 @@ class Job:
                     break
 
         return sorted(list(set(found) ^ set(sample_ids)))
+
+    def _toggle_force_job_fail(self):
+        if self.force_job_fail is True:
+            self.force_job_fail = False
+        else:
+            self.force_job_fail = True
+
+        return self.force_job_fail
