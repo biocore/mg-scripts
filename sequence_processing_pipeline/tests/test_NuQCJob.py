@@ -657,6 +657,9 @@ class TestNuQCJob(unittest.TestCase):
         for foo in self.foobar:
             print("checking %s..." % foo)
             self.assertTrue(exists(foo))
+            with open(foo, 'r') as f:
+                lines = f.readlines()
+                print("\tLINES: %s" % lines)
 
         try:
             job.run()

@@ -457,6 +457,7 @@ class NuQCJob(Job):
         msgs = []
 
         for some_file in files:
+            print("PARSE_LOGS.SOME_FILE: %s" % some_file)
             with open(some_file, 'r') as f:
                 msgs += [line for line in f.readlines()
                          if 'error' in line.lower()]
