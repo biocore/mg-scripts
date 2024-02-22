@@ -651,12 +651,13 @@ class TestNuQCJob(unittest.TestCase):
         try:
             job.run()
         except JobFailedError as e:
+            print(">>>%s<<<" % str(e))
             # assert that the text of the original error message was
             # preserved, while including known strings from each of the
             # sample log-files.
             self.assertIn('This job died.', str(e))
-            self.assertIn('[ERROR] Another Standin Error (ASE)', str(e))
             self.assertIn('[ERROR] Generic Standin Error (GSE)', str(e))
+            self.assertIn('[ERROR] Another Standin Error (ASE)', str(e))
 
     def test_assay_value(self):
         with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
