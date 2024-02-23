@@ -365,11 +365,11 @@ class TestPipeline(unittest.TestCase):
         # filenames.
         obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
         exp = [(f'tests/data/output_dir/{self.good_run_id}'
-                '_NYU_BMS_Melanoma_13059_blanks.tsv'),
+                '_NYU_BMS_Melanoma_13059_wetlab.tsv'),
                (f'tests/data/output_dir/{self.good_run_id}'
-                '_Feist_11661_blanks.tsv'),
+                '_Feist_11661_wetlab.tsv'),
                (f'tests/data/output_dir/{self.good_run_id}'
-                '_Gerwick_6123_blanks.tsv')]
+                '_Gerwick_6123_wetlab.tsv')]
 
         # sort the lists to ensure both are in a fixed order.
         obs.sort()
@@ -380,13 +380,13 @@ class TestPipeline(unittest.TestCase):
         # confirm files contain the expected number of lines.
         # This is going to be based on the number of samples named 'BLANK*'
         # in good-sample-sheet.csv.
-        exp_lines = {f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+        exp_lines = {f'{self.good_run_id}_NYU_BMS_Melanoma_13059_wetlab.tsv':
                      33,
-                     f'{self.good_run_id}_Feist_11661_blanks.tsv': 8,
-                     f'{self.good_run_id}_Gerwick_6123_blanks.tsv': 2}
+                     f'{self.good_run_id}_Feist_11661_wetlab.tsv': 8,
+                     f'{self.good_run_id}_Gerwick_6123_wetlab.tsv': 2}
 
         exp_first_lines = {
-            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_wetlab.tsv':
             'BLANK1.1A\t2021-10-21\t193\t'
             'Control\tNegative\tSterile w'
             'ater blank\turban biome\tres'
@@ -397,7 +397,7 @@ class TestPipeline(unittest.TestCase):
             'genome\t256318\tBLANK1.1A\tN'
             'YU_BMS_Melanoma\tTRUE\t'
             'UCSD\tFALSE',
-            f'{self.good_run_id}_Feist_11661_blanks.tsv':
+            f'{self.good_run_id}_Feist_11661_wetlab.tsv':
             'BLANK.40.12G\t2021-10-21\t193\tControl'
             '\tNegative\tSterile water blank\turban '
             'biome\tresearch facility\tsterile water'
@@ -405,7 +405,7 @@ class TestPipeline(unittest.TestCase):
             'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
             'nk\tmetagenome\t256318\tBLANK.40.12G\t'
             'Feist\tTRUE\tUCSD\tFALSE',
-            f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
+            f'{self.good_run_id}_Gerwick_6123_wetlab.tsv':
             'BLANK.41.12G\t2021-10-21\t193\tControl'
             '\tNegative\tSterile water blank\turban'
             ' biome\tresearch facility\tsterile wat'
@@ -416,7 +416,7 @@ class TestPipeline(unittest.TestCase):
         }
 
         exp_last_lines = {
-            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
+            f'{self.good_run_id}_NYU_BMS_Melanoma_13059_wetlab.tsv':
             'BLANK4.4H\t2021-10-21\t193\t'
             'Control\tNegative\tSterile w'
             'ater blank\turban biome\tres'
@@ -427,7 +427,7 @@ class TestPipeline(unittest.TestCase):
             'genome\t256318\tBLANK4.4H\tN'
             'YU_BMS_Melanoma\tTRUE\t'
             'UCSD\tFALSE',
-            f'{self.good_run_id}_Feist_11661_blanks.tsv':
+            f'{self.good_run_id}_Feist_11661_wetlab.tsv':
             'BLANK.43.12H\t2021-10-21\t193\tControl'
             '\tNegative\tSterile water blank\turban'
             ' biome\tresearch facility\tsterile wat'
@@ -435,7 +435,7 @@ class TestPipeline(unittest.TestCase):
             '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
             ' blank\tmetagenome\t256318\tBLANK.43.1'
             '2H\tFeist\tTRUE\tUCSD\tFALSE',
-            f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
+            f'{self.good_run_id}_Gerwick_6123_wetlab.tsv':
             'BLANK.41.12G\t2021-10-21\t193\tContro'
             'l\tNegative\tSterile water blank\turb'
             'an biome\tresearch facility\tsterile '
@@ -1822,7 +1822,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         obs = [x.split('sequence_processing_pipeline/')[1] for x in paths]
 
         exp = [(f'tests/data/output_dir/{self.good_run_id}'
-                '_ABTX_20230208_ABTX_11052_blanks.tsv')]
+                '_ABTX_20230208_ABTX_11052_wetlab.tsv')]
 
         # sort the lists to ensure both are in a fixed order.
         obs.sort()
