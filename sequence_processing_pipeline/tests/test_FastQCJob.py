@@ -1132,10 +1132,8 @@ class TestFastQCJob(unittest.TestCase):
             # sample log-files.
             print(str(e))
             self.assertIn('This job died.', str(e))
-            '''
             self.assertIn('something error: Generic Standin Error (GSE)',
                           str(e))
-            '''
             self.assertIn('something error: Another Standin Error (ASE)',
                           str(e))
 

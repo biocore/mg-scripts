@@ -157,7 +157,6 @@ class ConvertJob(Job):
         logging.info(f'Successful job: {job_info}')
 
     def parse_logs(self):
-        # TODO: Handle bcl2fastq logs too.
         log_path = join(self.output_path, 'Logs')
         errors = join(log_path, 'Errors.log')
 
