@@ -46,8 +46,8 @@ class TestJob(unittest.TestCase):
         obs = job._system_call('ls ' + join(package_root, 'tests', 'bin'),
                                callback=my_callback)
 
-        exp = ['bcl-convert\nbcl2fastq\nfastqc\n',
-               'bcl2fastq\nbcl-convert\nfastqc\n']
+        exp = ['bcl2fastq\nbcl-convert\nfastqc\n',
+               'bcl-convert\nbcl2fastq\nfastqc\n']
 
         self.assertIn(obs['stdout'], exp)
         self.assertEqual(obs['stderr'], '')

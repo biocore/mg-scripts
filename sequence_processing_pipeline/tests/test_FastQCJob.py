@@ -2,7 +2,8 @@ import unittest
 from os.path import join, exists, isfile
 from functools import partial
 from sequence_processing_pipeline.FastQCJob import FastQCJob
-from sequence_processing_pipeline.PipelineError import PipelineError
+from sequence_processing_pipeline.PipelineError import (PipelineError,
+                                                        JobFailedError)
 from os import makedirs, listdir, mkdir
 from shutil import rmtree, move
 from json import load
@@ -15,6 +16,7 @@ class TestFastQCJob(unittest.TestCase):
         self.path = partial(join, package_root, 'tests', 'data')
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.output_path = self.path('output_dir2')
+        self.fastqc_log_path = join(self.output_path, 'logs')
         self.raw_fastq_files_path = ('sequence_processing_pipeline/tests/data'
                                      '/211021_A00000_0000_SAMPLE/Data/Fastq/p'
                                      'roject1')
@@ -526,6 +528,41 @@ class TestFastQCJob(unittest.TestCase):
         for file_name in file_names:
             with open(file_name, 'w') as f2:
                 f2.write("This is a file.")
+
+        # set up dummy logs
+        self.fastqc_log_path = join(self.output_path, "FastQCJob", "logs")
+        makedirs(self.fastqc_log_path, exist_ok=True)
+
+        log_files = {
+            'slurm-9999999_35.out': ["---------------",
+                                     "Run details:",
+                                     ("hds-fe848a9e-c0e9-49d9-978d-"
+                                      "27565a314e8b 1908305 b2-018"),
+                                     "---------------",
+                                     "+ this",
+                                     "+ that",
+                                     "+ blah",
+                                     ("something error: Generic Standin Error"
+                                      " (GSE).")],
+            'slurm-9999999_17.out': ["---------------",
+                                     "Run details:",
+                                     ("hds-fe848a9e-c0e9-49d9-978d-"
+                                      "27565a314e8b 1908305 b2-018"),
+                                     "---------------",
+                                     "+ this",
+                                     "+ that",
+                                     "+ blah",
+                                     ("something error: Another Standin Error"
+                                      " (ASE).")]
+        }
+
+        for log_file in log_files:
+            fp = join(self.fastqc_log_path, log_file)
+
+            with open(fp, 'w') as f:
+                lines = log_files[log_file]
+                for line in lines:
+                    f.write(f"{line}\n")
 
     def tearDown(self):
         rmtree(self.output_path)
@@ -1070,6 +1107,35 @@ class TestFastQCJob(unittest.TestCase):
             exp = {"job_id": "2345.barnacle",
                    "failed_indexes": [3, 4]}
             self.assertDictEqual(obs, exp)
+
+    def test_error_msg_from_logs(self):
+        job = FastQCJob(self.qc_root_path, self.output_path,
+                        self.raw_fastq_files_path.replace('/project1', ''),
+                        self.processed_fastq_files_path,
+                        16, 16,
+                        'sequence_processing_pipeline/tests/bin/fastqc', [],
+                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
+                        self.config_yml, 1000, False)
+
+        self.assertFalse(job is None)
+
+        # an internal method to force submit_job() to raise a JobFailedError
+        # instead of submitting the job w/sbatch and waiting for a failed
+        # job w/sacct.
+        self.assertTrue(job._toggle_force_job_fail())
+
+        try:
+            job.run()
+        except JobFailedError as e:
+            # assert that the text of the original error message was
+            # preserved, while including known strings from each of the
+            # sample log-files.
+            print(str(e))
+            self.assertIn('This job died.', str(e))
+            self.assertIn('something error: Generic Standin Error (GSE)',
+                          str(e))
+            self.assertIn('something error: Another Standin Error (ASE)',
+                          str(e))
 
 
 if __name__ == '__main__':
