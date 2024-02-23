@@ -1,7 +1,8 @@
 from os.path import join, abspath
 from os import makedirs
 from sequence_processing_pipeline.ConvertJob import ConvertJob
-from sequence_processing_pipeline.PipelineError import PipelineError
+from sequence_processing_pipeline.PipelineError import (PipelineError,
+                                                        JobFailedError)
 from functools import partial
 import unittest
 from shutil import rmtree
@@ -893,6 +894,17 @@ class TestConvertJob(unittest.TestCase):
             with open(line, 'w') as f2:
                 f2.write("This is a file.")
 
+        # convert to Log directory and file created by bcl-convert.
+        # this is separate from the standard 'log' directory created
+        # by all jobs.
+        self.convert_log_path = join(faked_output_path, 'Logs')
+        makedirs(self.convert_log_path, exist_ok=True)
+        self.convert_log_path = join(self.convert_log_path, 'Errors.log')
+        with open(self.convert_log_path, 'w') as f:
+            f.write("2024-01-01T12:12:12Z thread 99999 ERROR: Sample Sheet "
+                    "Error: in OverrideCycles: Read # 2 specified does not "
+                    "add up to the 8 bases expected from RunInfo.xml\n")
+
     def tearDown(self):
         rmtree(self.good_input_path)
         rmtree(self.good_output_path)
@@ -929,6 +941,27 @@ class TestConvertJob(unittest.TestCase):
                          SCRIPT_EXP.format(ssp=self.base_path('').rstrip('/'),
                                            gop=self.good_output_path,
                                            run_dir=run_dir))
+
+    def test_error_msg_from_logs(self):
+        run_dir = self.base_path('211021_A00000_0000_SAMPLE')
+        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+
+        job = ConvertJob(run_dir, self.good_output_path,
+                         self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
+                         'tests/bin/bcl-convert', [], qiita_id)
+
+        # an internal method to force submit_job() to raise a JobFailedError
+        # instead of submitting the job w/sbatch and waiting for a failed
+        # job w/sacct.
+        self.assertTrue(job._toggle_force_job_fail())
+
+        error_msg = ("This job died.\n2024-01-01T12:12:12Z thread 99999 ERROR:"
+                     " Sample Sheet Error: in OverrideCycles: Read # 2 "
+                     "specified does not add up to the 8 bases expected from"
+                     " RunInfo.xml")
+
+        with self.assertRaisesRegex(JobFailedError, error_msg):
+            job.run()
 
     def test_audit(self):
         # the faked output should be in self.good_output_path/ConvertJob.
