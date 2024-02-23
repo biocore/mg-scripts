@@ -6,6 +6,7 @@ from sequence_processing_pipeline.PipelineError import (PipelineError,
 from functools import partial
 from json import dumps
 import logging
+import glob
 
 
 class FastQCJob(Job):
@@ -309,37 +310,17 @@ class FastQCJob(Job):
             f.write('\n'.join(self.commands))
 
     def parse_logs(self):
-        '''
-        log_path = join(self.output_path, 'Logs')
-        errors = join(log_path, 'Errors.log')
-        warnings = join(log_path, 'Warnings.log')
-        # info = join(log_path, "Info.log")
-
+        log_path = join(self.output_path, 'logs')
+        files = sorted(glob.glob(join(log_path, '*.out')))
         msgs = []
 
-        if not exists(errors):
-            # we do not raise an Error in this case because it's expected that
-            # parse_logs() will be called in response to an exceptional
-            # condition.
-            msgs.append(f"'{errors} does not exist")
+        for some_file in files:
+            with open(some_file, 'r') as f:
+                msgs += [line for line in f.readlines()
+                         # note 'error' is not same
+                         # requirement as found in QCJob.
+                         # ('error:'). This is a very
+                         # generalized filter.
+                         if 'error' in line.lower()]
 
-        if not exists(warnings):
-            # we do not raise an Error in this case because it's expected that
-            # parse_logs() will be called in response to an exceptional
-            # condition. We usually expect bcl-convert to write all three
-            # files.
-            msgs.append(f"'{warnings} does not exist")
-
-        with open(errors, 'r') as f:
-            lines = f.readlines()
-            for line in [x.strip() for x in lines]:
-                msgs.append(line)
-
-        with open(warnings, 'r') as f:
-            lines = f.readlines()
-            for line in [x.strip() for x in lines]:
-                msgs.append(line)
-
-        return msgs
-        '''
-        return []
+        return [msg.strip() for msg in msgs]

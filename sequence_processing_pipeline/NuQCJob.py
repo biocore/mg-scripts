@@ -458,6 +458,6 @@ class NuQCJob(Job):
         for some_file in files:
             with open(some_file, 'r') as f:
                 msgs += [line for line in f.readlines()
-                         if 'error' in line.lower()]
+                         if 'error:' in line.lower()]
 
         return [msg.strip() for msg in msgs]

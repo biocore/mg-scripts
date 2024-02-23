@@ -555,7 +555,8 @@ class TestNuQCJob(unittest.TestCase):
                                      "+ this",
                                      "+ that",
                                      "+ blah",
-                                     "[ERROR] Generic Standin Error (GSE)."],
+                                     ("something error: Generic Standin Error"
+                                      " (GSE).")],
             'slurm-9999999_17.out': ["---------------",
                                      "Run details:",
                                      ("hds-fe848a9e-c0e9-49d9-978d-"
@@ -564,7 +565,8 @@ class TestNuQCJob(unittest.TestCase):
                                      "+ this",
                                      "+ that",
                                      "+ blah",
-                                     "[ERROR] Another Standin Error (ASE)."]
+                                     ("something error: Another Standin Error"
+                                      " (ASE).")]
         }
 
         for log_file in log_files:
@@ -651,13 +653,14 @@ class TestNuQCJob(unittest.TestCase):
         try:
             job.run()
         except JobFailedError as e:
-            print(">>>%s<<<" % str(e))
             # assert that the text of the original error message was
             # preserved, while including known strings from each of the
             # sample log-files.
             self.assertIn('This job died.', str(e))
-            self.assertIn('[ERROR] Generic Standin Error (GSE)', str(e))
-            self.assertIn('[ERROR] Another Standin Error (ASE)', str(e))
+            self.assertIn('something error: Generic Standin Error (GSE)',
+                          str(e))
+            self.assertIn('something error: Another Standin Error (ASE)',
+                          str(e))
 
     def test_assay_value(self):
         with self.assertRaisesRegex(ValueError, "bad-sample-sheet-metagenomics"
