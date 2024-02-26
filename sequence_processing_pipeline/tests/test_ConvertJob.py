@@ -980,6 +980,21 @@ class TestConvertJob(unittest.TestCase):
         obs = job.audit(self.sample_ids + ['not-a-sample', 'BLANK1'])
         self.assertListEqual(obs, ['BLANK1', 'not-a-sample'])
 
+    def test_parse_sample_sheet(self):
+        js_path = self.base_path('sample-convertjob.sh')
+        obs = ConvertJob.parse_job_script(js_path)
+
+        exp = {
+            'run_directory': ('/sequencing/igm_runs/210820_A00953_0380_'
+                              'BHJ53TDSX2'),
+            'sample_sheet_path': ('/qmounts/qiita_data/working_dir/'
+                                  '3f6b1fe3-1f5d-4fec-af47-31a2e35fef91/'
+                                  '2024-02-08_U19_Wisconsin_15445_reruns'
+                                  '_NovaSeq_nonNA.csv')
+        }
+
+        self.assertDictEqual(obs, exp)
+
 
 SCRIPT_EXP = ''.join([
     '#!/bin/bash\n',

@@ -174,3 +174,39 @@ class ConvertJob(Job):
                 msgs.append(line)
 
         return msgs
+
+    @staticmethod
+    def parse_job_script(job_script_path):
+        # Returns run-directory and sample-sheet path from a job-script.
+
+        if not exists(job_script_path):
+            raise ValueError(f"'{job_script_path}' is not a valid path")
+
+        with open(job_script_path, 'r') as f:
+            lines = f.readlines()
+            lines = [x.strip() for x in lines]
+
+        # As this code creates this file, we can expect it to be of a certain
+        # format.
+        if lines[0] != '#!/bin/bash':
+            raise ValueError(f"'{job_script_path}' is not a valid path")
+
+        result = {}
+
+        m = re.match('^cd (.*)$', lines[12])
+
+        if m:
+            result['run_directory'] = m.group(1)
+        else:
+            raise ValueError("could not detect run_directory in "
+                             f"'{job_script_path}'")
+
+        m = re.match('^bcl-convert --sample-sheet "(.*?)" ', lines[14])
+
+        if m:
+            result['sample_sheet_path'] = m.group(1)
+        else:
+            raise ValueError("could not detect sample-sheet path in "
+                             f"'{job_script_path}'")
+
+        return result
