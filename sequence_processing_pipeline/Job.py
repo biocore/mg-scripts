@@ -8,6 +8,7 @@ from subprocess import Popen, PIPE
 from time import sleep
 import logging
 from inspect import stack
+import re
 
 
 class Job:
@@ -376,3 +377,47 @@ class Job:
             self.force_job_fail = True
 
         return self.force_job_fail
+
+    def extract_project_names_from_fastq_dir(self, path_to_fastq_dir):
+        '''
+        Returns list of <project_qiita-ids> based on a fastq path.
+        :param path_to_fastq_dir: Path to a nested dir containing fastq files.
+        :return: list of strings of the form PROJECT-NAME_QIITA-ID.
+        '''
+        tmp = []
+
+        # given a nested directory containing fastq.gz files from any part
+        # of the SPP, get a list of paths to just the fastq files.
+        for root, dirs, files in walk(path_to_fastq_dir):
+            for file_name in files:
+                if file_name.endswith('.fastq.gz'):
+                    if not file_name.startswith('Undetermined'):
+                        # do not include the Undetermined files found in
+                        # ConvertJob, because they do not contain a project
+                        # name in their path, by definition.
+                        # don't record the full_path w/filename, as we're
+                        # not interested in the files themselves, just their
+                        # basedirs().
+                        tmp.append(root)
+
+        # break up the path into a set of unique directory names. at least
+        # some of these will be of the form PROJECT-NAME_QIITA-ID. Flatten
+        # out the list of lists into a single list.
+        tmp = [some_root.split('/') for some_root in tmp]
+        tmp = [dir_name for sub_list in tmp for dir_name in sub_list]
+
+        # remove any duplicate entries from the list.
+        tmp = list(set(tmp))
+
+        # file-paths for fastq.gz files are going to include the names of
+        # standard directories e.g. 'ConvertJob', 'trimmed_sequences' as well
+        # as directories named PROJECT-NAME_QIITA-ID. Base Job() class is not
+        # aware of all the possibilities in the path supplied by the user.
+        # Hence, this method filters for names that fit the above format.
+        results = []
+        for dir_name in tmp:
+            m = re.match(r'^(\w+_\d{5})$', dir_name)
+            if m:
+                results.append(m.groups(0)[0])
+
+        return sorted(results)

@@ -42,7 +42,6 @@ class TestGenPrepFileJob(unittest.TestCase):
                              join(self.working_directory_root, 'OutputPath'),
                              sample_sheet_path,
                              'seqpro',
-                             self.project_list,
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd')
         results = job._system_call(f'find {self.run_dir}')
@@ -82,7 +81,6 @@ class TestGenPrepFileJob(unittest.TestCase):
                              join(self.working_directory_root, 'OutputPath'),
                              sample_sheet_path,
                              'seqpro',
-                             self.project_list,
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd')
 
@@ -148,7 +146,6 @@ class TestReplication(unittest.TestCase):
                              join(self.working_directory_root, 'OutputPath'),
                              sample_sheet_path,
                              'seqpro',
-                             self.project_list,
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd')
 
@@ -197,7 +194,6 @@ class TestReplication(unittest.TestCase):
                                   'OutputPath'),
                              sample_sheet_path,
                              'seqpro',
-                             self.project_list,
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd',
                              is_amplicon=True)
