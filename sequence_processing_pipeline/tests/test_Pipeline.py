@@ -28,6 +28,7 @@ class TestPipeline(unittest.TestCase):
         makedirs(self.output_file_path, exist_ok=True)
         self.maxDiff = None
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.mp_sheet_path = self.path('multi-project-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
         self.bad_assay_type_path = self.path('bad-sample-sheet-metagenomics'
@@ -123,6 +124,31 @@ class TestPipeline(unittest.TestCase):
             # validated successfully.
             obs_df = pipeline._validate_mapping_file(tmp.name)
             self.assertEqual(list(obs_df['sample_name']), exp)
+
+    def test_get_sample_names_from_sample_sheet(self):
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.mp_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        # get all names from all projects in the sample-sheet.
+        # get all names in project 'Wisconsin_U19_15445'
+        # get all names in project 'Wisconsin_U19_NA_15446'
+        # attempt to get names from a project not in the sheet.
+        # what happens when the fully-qualified project name is used
+        # (includes qiita_id)?
+        # get all names in project 'Wisconsin_U19_NA_15446'
+
+        params = [None, 'Wisconsin_U19', 'Wisconsin_U19_NA', 'NotAProject',
+                  'Wisconsin_U19_15445', 'Wisconsin_U19_NA_15446']
+
+        exps = [{'3A', '4A', '5B', '6A', '7A', '8A'}, {'3A', '4A', '5B'},
+                {'6A', '8A', '7A'}, set(), {'3A', '4A', '5B'},
+                {'6A', '8A', '7A'}]
+
+        for param, exp in zip(params, exps):
+            obs = set(pipeline._get_sample_names_from_sample_sheet(param))
+            self.assertEqual(obs, exp)
 
     def test_required_file_checks(self):
         # begin this test by deleting the RunInfo.txt file and verifying that
