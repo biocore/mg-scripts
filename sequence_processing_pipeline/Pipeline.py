@@ -660,8 +660,24 @@ class Pipeline:
             # in a third-party library, convert the data structure to
             # JSON using the exposed method and obtain from the result.
             jsn = json_loads(self.sample_sheet.to_json())
-            return [x['Sample_Name'] for x in jsn['Data'] if
-                    f'{project_name}_' in x['Sample_Project']]
+
+            results = []
+
+            for sample in jsn['Data']:
+                # handle case where project_name includes an appended qiita-id.
+                if sample['Sample_Project'] == project_name:
+                    results.append(sample['Sample_Name'])
+                    continue
+
+                # handle case where project_name does not include a qiita-id.
+                # exact matching is required for cases where one project name
+                # in a sheet is a superset of another project in the same
+                # sheet.
+                m = search(r'^(.+)_(\d+)$', sample['Sample_Project'])
+                if m[1] == project_name:
+                    results.append(sample['Sample_Name'])
+
+            return results
 
     def _get_sample_names_from_mapping_file(self, project_name):
         if project_name is None:
