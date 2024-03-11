@@ -232,8 +232,11 @@ class Job:
 
         job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
-        # Just to give sometime for everything to be set up properly
-        sleep(5)
+        # Just to give some time for everything to be set up properly
+        sleep(10)
+
+        exit_count = 0
+
         while wait:
             result = self._system_call(f"sacct -P -n --job {job_id} --format "
                                        "JobID,JobName,State,Elapsed,ExitCode")
@@ -276,9 +279,13 @@ class Job:
             # if job is completed after having run or exited after having
             # run, then stop waiting.
             if not set(states) - {'COMPLETED', 'FAILED', 'CANCELLED'}:
+                # break
+                exit_count += 1
+
+            if exit_count > 4:
                 break
 
-            sleep(5)
+            sleep(10)
 
         if job_info['job_id'] is not None:
             # job was once in the queue
