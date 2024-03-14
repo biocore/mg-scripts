@@ -308,8 +308,6 @@ class Pipeline:
             i_type = profile['profile']['instrument_type']
             a_type = profile['profile']['assay_type']
 
-            print("PROFILE FOUND: %s, %s" % (i_type, a_type))
-
             if i_type == instr_type and a_type == assay_type:
                 selected_profile = profile
                 break
