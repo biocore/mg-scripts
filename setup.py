@@ -48,4 +48,4 @@ setup(name='sequence-processing-pipeline',
         ],
       entry_points={
           'console_scripts': ['demux=sequence_processing_pipeline.scripts.cli'
-                              ':demux',], })
+                              ':demux', ], })
