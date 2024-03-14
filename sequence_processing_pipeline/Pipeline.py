@@ -314,7 +314,7 @@ class Pipeline:
 
         if selected_profile is None:
             raise ValueError(f"a matching profile ({instr_type}, {assay_type}"
-                             ") was not found")
+                             ") was not found. Please notify an administrator")
 
         self.config_profile = selected_profile
 
