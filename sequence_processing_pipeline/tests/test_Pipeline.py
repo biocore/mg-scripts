@@ -4,7 +4,7 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from sequence_processing_pipeline.Pipeline import Pipeline, InstrumentUtils
 import unittest
 from os import makedirs, walk
-from os.path import abspath, basename, join
+from os.path import abspath, basename, join, exists
 from functools import partial
 import re
 from shutil import copy
@@ -90,7 +90,9 @@ class TestPipeline(unittest.TestCase):
 
     def delete_more_files(self):
         for file_path in self.delete_these:
-            os.remove(file_path)
+            if exists(file_path):
+                # if file no longer exists, that's okay.
+                os.remove(file_path)
 
     def _make_mapping_file(self, output_file_path):
         cols = ('sample_name', 'barcode', 'library_construction_protocol',
@@ -309,31 +311,11 @@ class TestPipeline(unittest.TestCase):
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
-        # test Error returned when 'assay_type' does not exist in default
-        # profile. Error should not be returned in this case as default
-        # shouldn't have an assay_type.
-        with open(bad_json_file, 'w') as f:
-            f.write('{ "profile": { "instrument_type": "default", '
-                    '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
-                    '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
-                    '"modules_to_load": [ "bcl2fastq_2.20.0.422" ], '
-                    '"executable_path": "bcl2fastq", '
-                    '"per_process_memory_limit": "10gb" } } } }')
-
-        pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
-                            self.output_file_path, self.qiita_id,
-                            Pipeline.METAGENOMIC_PTYPE)
-
-        self.assertIsNotNone(pipeline)
-
         # test Error returned when a non-default profile is missing assay_type
+        bad_json_file = self.path('configuration_profiles', 'bad.json')
+        self.delete_these.append(bad_json_file)
 
-        another_bad_json_file = self.path('configuration_profiles',
-                                          'more_bad.json')
-        self.delete_these.append(another_bad_json_file)
-
-        with open(another_bad_json_file, 'w') as f:
+        with open(bad_json_file, 'w') as f:
             f.write('{ "profile": { "instrument_type": "MiSeq", '
                     '"configuration": { "bcl2fastq": { "nodes": 1, "nprocs": '
                     '16, "queue": "qiita", "wallclock_time_in_minutes": 216, '
@@ -345,7 +327,7 @@ class TestPipeline(unittest.TestCase):
                                                 "attribute in 'sequence_"
                                                 "processing_pipeline/tests/"
                                                 "data/configuration_profiles/"
-                                                "more_bad.json'"):
+                                                "bad.json'"):
             Pipeline(self.good_config_file,
                      self.good_run_id,
                      self.good_sample_sheet_path, None,

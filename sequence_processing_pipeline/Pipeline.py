@@ -271,8 +271,7 @@ class Pipeline:
                     profile_paths.append(some_path)
 
         # There must be at least one valid profile for the Pipeline to
-        # continue operation. There must also be a default profile, described
-        # below.
+        # continue operation.
         if not profile_paths:
             raise ValueError(f"'{profile_dir}' doesn't contain profile files")
 
@@ -293,72 +292,33 @@ class Pipeline:
 
                 # the 'profile' attribute must have a dictionary as its value.
                 # all profiles must contain 'instrument_type' and 'assay_type',
-                # unless instrument_type == 'default', in which case the
-                # profile defines the defaults across all instrument-types and
-                # assay-types.
                 if 'instrument_type' not in contents['profile']:
                     raise ValueError("'instrument_type' is not an attribute "
                                      f"in '{profile_path}'.profile")
 
                 if 'assay_type' not in contents['profile']:
-                    if contents['profile']['instrument_type'] != 'default':
-                        raise ValueError("'assay_type' is not an attribute "
-                                         f"in '{profile_path}'.profile")
+                    raise ValueError("'assay_type' is not an attribute "
+                                     f"in '{profile_path}'.profile")
 
                 profiles.append(contents)
 
-        # The default profile provides 'fall-through' configuration settings
-        # for all items. This allows the user to not have to redefine settings
-        # for all items for all instrument and assay combinations.
-
-        # the final profile is created by taking the default profile and using
-        # it as a base. If a profile matching the run-directory's instrument
-        # and assay types is found, settings from that profile will overwrite
-        # the base-profile settings as appropriate.
-        base_profile = None
         selected_profile = None
 
-        # iterate through all the profiles, searching for a default
-        # profile and the first profile w/matching instrument and assay types.
-        # if a matching profile isn't found, that's okay, but if a default
-        # profile isn't found, then raise an Error.
-
         for profile in profiles:
-            p_i_type = profile['profile']['instrument_type']
-            if p_i_type == 'default':
-                base_profile = profile
-            else:
-                p_a_type = profile['profile']['assay_type']
+            i_type = profile['profile']['instrument_type']
+            a_type = profile['profile']['assay_type']
 
-                # if both items have been found, it's safe to break early.
-                if base_profile is not None and selected_profile is not None:
-                    break
+            print("PROFILE FOUND: %s, %s" % (i_type, a_type))
 
-                if p_i_type == instr_type and p_a_type == assay_type:
-                    selected_profile = profile
+            if i_type == instr_type and a_type == assay_type:
+                selected_profile = profile
+                break
 
-        if base_profile is None:
-            raise ValueError("a 'default' profile was not found")
+        if selected_profile is None:
+            raise ValueError(f"a matching profile ({instr_type}, {assay_type}"
+                             ") was not found")
 
-        if selected_profile:
-            # overwrite the configuration values in the base-profile with those
-            # in the matching profile as appropriate.
-            for attribute in selected_profile['profile']['configuration']:
-                value = selected_profile['profile']['configuration'][attribute]
-                base_profile['profile']['configuration'][attribute] = value
-
-            # overwrite default info w/selected profile (if one was found)
-            # so that complete profile can be written to working directory
-            # as a log.
-            base_profile['profile']['instrument_type'] = instr_type
-            base_profile['profile']['assay_type'] = assay_type
-
-        # load the default first to create a default entry for everything.
-        # then overwrite the defaults as they appear once you've identified
-        # the correct (instrument-type, assay-type) pair.
-        # set this to a new self.config_profile variable and modify the tests
-        # and code accordingly.
-        self.config_profile = base_profile
+        self.config_profile = selected_profile
 
     def _search_for_run_dir(self):
         # this method will catch a run directory as well as its products
