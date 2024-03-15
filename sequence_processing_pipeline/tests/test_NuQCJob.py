@@ -1144,7 +1144,8 @@ class TestNuQCJob(unittest.TestCase):
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
                       1000, '')
 
-        job_script_path = job._generate_job_script()
+        # 2k as a parameter will promote the default value.
+        job_script_path = job._generate_job_script(2048)
 
         self.assertTrue(exists(job_script_path))
 

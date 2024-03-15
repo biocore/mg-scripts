@@ -24,15 +24,16 @@ class CommandTests(unittest.TestCase):
                     '/foo/bar/b_R1_.fastq.gz']
 
         with TemporaryDirectory() as tmp:
-            exp = 2
-            exp_1 = ('/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
-                     '/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
-            exp_2 = '/foo/baz/c_R1_.fastq.gz\t/foo/baz/c_R2_.fastq.gz\tbaz\n'
-
+            exp = (2, 1073741824)
             stat.return_value = MockStat()  # 512MB
             glob.return_value = mockglob
             obs = split_similar_size_bins('foo', 1, tmp + '/prefix')
             self.assertEqual(obs, exp)
+
+            exp_1 = ('/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
+                     '/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
+            exp_2 = '/foo/baz/c_R1_.fastq.gz\t/foo/baz/c_R2_.fastq.gz\tbaz\n'
+
             obs_1 = open(tmp + '/prefix-1').read()
             self.assertEqual(obs_1, exp_1)
             obs_1 = open(tmp + '/prefix-2').read()

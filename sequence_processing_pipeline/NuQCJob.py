@@ -97,7 +97,7 @@ class NuQCJob(Job):
 
         self.counts = {}
         self.known_adapters_path = known_adapters_path
-        self.max_file_list_size_in_gb = bucket_size
+        self.bucket_size = bucket_size
         self.length_limit = length_limit
 
         # NuQCJob() impl uses -c (--cores-per-task) switch instead of
@@ -227,14 +227,18 @@ class NuQCJob(Job):
         # now a single job-script will be created to process all projects at
         # the same time, and intelligently handle adapter-trimming as needed
         # as well as human-filtering.
-        job_script_path = self._generate_job_script()
 
         batch_location = join(self.temp_dir, self.batch_prefix)
 
-        batch_count = 0 if self.force_job_fail else \
-            split_similar_size_bins(self.root_dir,
-                                    self.max_file_list_size_in_gb,
-                                    batch_location)
+        if self.force_job_fail:
+            batch_count = 0
+            max_size = 0
+        else:
+            batch_count, max_size = split_similar_size_bins(self.root_dir,
+                                                            self.bucket_size,
+                                                            batch_location)
+
+        job_script_path = self._generate_job_script(max_size)
 
         self.counts[self.batch_prefix] = batch_count
 
@@ -391,11 +395,17 @@ class NuQCJob(Job):
                 'projects': lst,
                 'sample_ids': sample_ids}
 
-    def _generate_job_script(self):
+    def _generate_job_script(self, max_bucket_size):
         # bypass generating job script for a force-fail job, since it is
         # not needed.
         if self.force_job_fail:
             return None
+
+        # max_bucket_size is in bytes. 3221225472 bytes = 3GB.
+        if max_bucket_size > 3221225472:
+            gres_value = 4
+        else:
+            gres_value = 2
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
@@ -445,7 +455,8 @@ class NuQCJob(Job):
                                     temp_dir=self.temp_dir,
                                     splitter_binary=splitter_binary,
                                     modules_to_load=mtl,
-                                    length_limit=self.length_limit))
+                                    length_limit=self.length_limit,
+                                    gres_value=gres_value))
 
         return job_script_path
 
