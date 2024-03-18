@@ -9,7 +9,7 @@
 ### as well as sbatch -c. demux threads remains fixed at 1.
 ### Note -c set to 4 and thread counts set to 7 during testing.
 #SBATCH -c {{cores_per_task}}
-#SBATCH --gres=node_jobs:4
+#SBATCH --gres=node_jobs:{{gres_value}}
 
 
 echo "---------------"
