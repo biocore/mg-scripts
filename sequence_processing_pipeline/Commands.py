@@ -46,7 +46,7 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
             if bucket_size > max_bucket_size:
                 max_bucket_size = bucket_size
 
-            # reset bucket_size to 0.
+            # reset bucket_size.
             bucket_size = r1_size + r2_size
 
             if fp is not None:

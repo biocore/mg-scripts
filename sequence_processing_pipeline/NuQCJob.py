@@ -401,11 +401,22 @@ class NuQCJob(Job):
         if self.force_job_fail:
             return None
 
-        # max_bucket_size is in bytes. 3221225472 bytes = 3GB.
-        if max_bucket_size > 3221225472:
+        gigabyte = 1073741824
+
+        if max_bucket_size > (3 * gigabyte):
             gres_value = 4
         else:
             gres_value = 2
+
+        if max_bucket_size < gigabyte:
+            mod_wall_time_limit = self.wall_time_limit
+            mod_jmem = self.jmem
+        elif max_bucket_size < (2 * gigabyte):
+            mod_wall_time_limit = self.wall_time_limit * 1.5
+            mod_jmem = self.jmem * 4.5
+        else:
+            mod_wall_time_limit = self.wall_time_limit * 2
+            mod_jmem = self.jmem * 7.5
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
@@ -438,8 +449,8 @@ class NuQCJob(Job):
             f.write(template.render(job_name=job_name,
                                     queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
-                                    wall_time_limit=self.wall_time_limit,
-                                    mem_in_gb=self.jmem,
+                                    wall_time_limit=mod_wall_time_limit,
+                                    mem_in_gb=mod_jmem,
                                     # Note NuQCJob now maps node_count to
                                     # SLURM -N parameter to act like other
                                     # Job classes.
