@@ -83,7 +83,8 @@ class NuQCJob(Job):
         self.queue_name = queue_name
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
-        self.jmem = jmem
+        # raise an Error if jmem is not a valid floating point value.
+        self.jmem = float(jmem)
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
@@ -408,15 +409,18 @@ class NuQCJob(Job):
         else:
             gres_value = 2
 
+        # As slurm expects memory sizes to be integer values, convert results
+        # to int to drop floating point component before passing to jinja2 as
+        # a string.
         if max_bucket_size < gigabyte:
             mod_wall_time_limit = self.wall_time_limit
-            mod_jmem = self.jmem
+            mod_jmem = str(int(self.jmem))
         elif max_bucket_size < (2 * gigabyte):
             mod_wall_time_limit = self.wall_time_limit * 1.5
-            mod_jmem = self.jmem * 4.5
+            mod_jmem = str(int(self.jmem * 4.5))
         else:
             mod_wall_time_limit = self.wall_time_limit * 2
-            mod_jmem = self.jmem * 7.5
+            mod_jmem = str(int(self.jmem * 7.5))
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
