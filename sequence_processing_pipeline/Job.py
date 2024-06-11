@@ -423,7 +423,7 @@ class Job:
         # Hence, this method filters for names that fit the above format.
         results = []
         for dir_name in tmp:
-            m = re.match(r'^(\w+_\d{5})$', dir_name)
+            m = re.match(r'^(\w[\w\-_]*_\d{5})$', dir_name)
             if m:
                 results.append(m.groups(0)[0])
 

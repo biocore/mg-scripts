@@ -601,7 +601,6 @@ class TestNuQCJob(unittest.TestCase):
         # sample-sheet.
         with open(self.tmp_file_path, 'w') as f:
             sheet = load_sample_sheet(self.good_sample_sheet_path)
-            sheet.Header['Assay'] = 'Metatranscriptomic'
             sheet.write(f)
 
         nuqcjob = NuQCJob(self.fastq_root_path, self.output_path,
