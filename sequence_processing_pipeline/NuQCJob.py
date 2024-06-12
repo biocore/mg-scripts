@@ -80,7 +80,7 @@ class NuQCJob(Job):
         self.sample_ids = metadata['sample_ids']
         self.project_data = metadata['projects']
         self.chemistry = metadata['chemistry']
-        self.minimap_database_paths = minimap_database_paths
+        self.mmi_file_paths = minimap_database_paths
         self.queue_name = queue_name
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
@@ -245,7 +245,7 @@ class NuQCJob(Job):
 
         self.counts[self.batch_prefix] = batch_count
 
-        export_params = [f"MMI={self.minimap_database_paths}",
+        export_params = [f"MMI={self.mmi_file_paths}",
                          f"PREFIX={batch_location}",
                          f"OUTPUT={self.output_path}",
                          f"TMPDIR={self.temp_dir}"]
@@ -398,6 +398,42 @@ class NuQCJob(Job):
                 'projects': lst,
                 'sample_ids': sample_ids}
 
+    def _generate_mmi_filter_cmds(self, mmi_db_paths, working_dir):
+        initial_input = join(working_dir, "seqs.r1.fastq")
+        final_output = join(working_dir, "seqs.r1.ALIGN.fastq")
+
+        cmds = []
+
+        tmp_file1 = join(working_dir, "foo")
+        tmp_file2 = join(working_dir, "bar")
+
+        for count, mmi_db_path in enumerate(mmi_db_paths):
+            if count == 0:
+                # prime initial state with unfiltered file and create first of
+                # two tmp files.
+                input = initial_input
+                output = tmp_file1
+            elif count % 2 == 0:
+                # alternate between two tmp file names so that the input and
+                # output are never the same file.
+                input = tmp_file2
+                output = tmp_file1
+            else:
+                input = tmp_file1
+                output = tmp_file2
+
+            cmds.append(f"minimap2 -2 -ax sr -t 16 {mmi_db_path} {input} -a |"
+                        f" samtools fastq -@ 16 -f 12 -F 256 > {output}")
+
+        # rename the latest tmp file to the final output filename.
+        cmds.append(f"mv {output} {final_output}")
+
+        # simple cleanup erases tmp files if they exist.
+        cmds.append(f"[ -e {tmp_file1} ] && rm {tmp_file1}")
+        cmds.append(f"[ -e {tmp_file2} ] && rm {tmp_file2}")
+
+        return "\n".join(cmds)
+
     def _generate_job_script(self, max_bucket_size):
         # bypass generating job script for a force-fail job, since it is
         # not needed.
@@ -406,20 +442,7 @@ class NuQCJob(Job):
 
         gigabyte = 1073741824
 
-        if max_bucket_size > (3 * gigabyte):
-            gres_value = 4
-        else:
-            gres_value = 2
-
-        # As slurm expects memory sizes to be integer values, convert results
-        # to int to drop floating point component before passing to jinja2 as
-        # a string.
-        if max_bucket_size < gigabyte:
-            mod_wall_time_limit = self.wall_time_limit
-        elif max_bucket_size < (2 * gigabyte):
-            mod_wall_time_limit = self.wall_time_limit * 1.5
-        else:
-            mod_wall_time_limit = self.wall_time_limit * 2
+        gres_value = 4 if max_bucket_size > (3 * gigabyte) else 2
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
@@ -442,6 +465,12 @@ class NuQCJob(Job):
         if not exists(splitter_binary):
             raise ValueError(f'{splitter_binary} does not exist.')
 
+        # this method relies on an environment variable defined in nu_qc.sh
+        # used to define where unfiltered fastq files are and where temp
+        # files can be created. (${jobd})
+        mmi_filter_cmds = self._generate_mmi_filter_cmds(self.mmi_file_paths,
+                                                         "${jobd}")
+
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file
 
@@ -452,7 +481,7 @@ class NuQCJob(Job):
             f.write(template.render(job_name=job_name,
                                     queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
-                                    wall_time_limit=mod_wall_time_limit,
+                                    wall_time_limit=self.wall_time_limit,
                                     mem_in_gb=self.jmem,
                                     # Note NuQCJob now maps node_count to
                                     # SLURM -N parameter to act like other
@@ -471,7 +500,8 @@ class NuQCJob(Job):
                                     modules_to_load=mtl,
                                     length_limit=self.length_limit,
                                     gres_value=gres_value,
-                                    movi_path=self.movi_path))
+                                    movi_path=self.movi_path,
+                                    mmi_filter_cmds=mmi_filter_cmds))
 
         return job_script_path
 

@@ -9,7 +9,7 @@
 ### as well as sbatch -c. demux threads remains fixed at 1.
 ### Note -c set to 4 and thread counts set to 7 during testing.
 #SBATCH -c {{cores_per_task}}
-#SBATCH --gres=node_jobs::{{gres_value}}
+#SBATCH --gres=node_jobs:{{gres_value}}
 
 
 echo "---------------"
@@ -47,7 +47,7 @@ fi
 # DO NOT do this casually. Only do a clean up like this if
 # you know for sure TMPDIR is what you want.
 
-WKDIR=${OUTPUT}
+WKDIR=${OUTPUT}/
 TMPDIR=${OUTPUT}
 export TMPDIR=${TMPDIR}
 export TMPDIR=$(mktemp -d)
@@ -95,13 +95,13 @@ function mux-runner () {
         echo -e "${i}\t${r1_name}\t${r2_name}\t${base}" >> ${id_map}
 
         fastp \
-            -l 100 \
+            -l {{length_limit}} \
             -i ${r1} \
             -I ${r2} \
             -w 16 \
             --adapter_fasta /home/qiita_test/qiita-spots/qp-knight-lab-processing/fastp_known_adapters_formatted.fna \
-            --html ${WKDIR}NuQCJob/fastp_reports_dir/html/${html_name} \
-            --json ${WKDIR}NuQCJob/fastp_reports_dir/json/${json_name} \
+            --html {{html_path}}/${html_name} \
+            --json {{json_path}}/${json_name} \
             --stdout > ${r1_filt}
 
         # multiplex and write adapter filtered data all at once
@@ -116,9 +116,11 @@ function mux-runner () {
         wait
     done
 
-    minimap2 -2 -ax sr -t 16 /scratch/databases/minimap2/human-pangenome/human-GCA-phix-db.mmi ${jobd}/seqs.r1.fastq -a | \
-        samtools fastq -@ 16 -f 12 -F 256 | minimap2 -2 -ax sr -t 16 /scratch/databases/minimap2/human-pangenome/human-GRC-db.mmi - -a | \
-        samtools fastq -@ 16 -f 12 -F 256 > ${jobd}/seqs.r1.ALIGN.fastq
+    # minimap/samtools pair commands are now generated in NuQCJob._generate_mmi_filter_cmds()
+    # and passed to this template. This method assumes ${jobd} is the correct location to
+    # filter files, the initial file is "${jobd}/seqs.r1.fastq"), and the output name is
+    # "${jobd}/seqs.r1.ALIGN.fastq".
+    {{mmi_filter_cmds}}
 
     {{movi_path}} query \
         --index /scratch/movi_hg38_chm13_hprc94 \
