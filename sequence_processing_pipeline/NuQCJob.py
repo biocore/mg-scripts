@@ -43,8 +43,8 @@ class NuQCJob(Job):
                  minimap_database_paths, queue_name, node_count,
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id,
-                 max_array_length, known_adapters_path, bucket_size=8,
-                 length_limit=100, cores_per_task=4):
+                 max_array_length, known_adapters_path, movi_path,
+                 bucket_size=8, length_limit=100, cores_per_task=4):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -63,6 +63,7 @@ class NuQCJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param known_adapters_path: The path to an .fna file of known adapters.
+        :param movi_path: The path to the Movi executable.
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
         :param cores_per_task: Number of CPU cores per node to request.
@@ -84,12 +85,13 @@ class NuQCJob(Job):
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
         # raise an Error if jmem is not a valid floating point value.
-        self.jmem = float(jmem)
+        self.jmem = str(int(jmem))
         self.fastp_path = fastp_path
         self.minimap2_path = minimap2_path
         self.samtools_path = samtools_path
         self.qiita_job_id = qiita_job_id
         self.suffix = 'fastq.gz'
+        self.movi_path = movi_path
 
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,
@@ -414,13 +416,10 @@ class NuQCJob(Job):
         # a string.
         if max_bucket_size < gigabyte:
             mod_wall_time_limit = self.wall_time_limit
-            mod_jmem = str(int(self.jmem))
         elif max_bucket_size < (2 * gigabyte):
             mod_wall_time_limit = self.wall_time_limit * 1.5
-            mod_jmem = str(int(self.jmem * 4.5))
         else:
             mod_wall_time_limit = self.wall_time_limit * 2
-            mod_jmem = str(int(self.jmem * 7.5))
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
@@ -454,7 +453,7 @@ class NuQCJob(Job):
                                     queue_name=self.queue_name,
                                     # should be 4 * 24 * 60 = 4 days
                                     wall_time_limit=mod_wall_time_limit,
-                                    mem_in_gb=mod_jmem,
+                                    mem_in_gb=self.jmem,
                                     # Note NuQCJob now maps node_count to
                                     # SLURM -N parameter to act like other
                                     # Job classes.
@@ -471,7 +470,8 @@ class NuQCJob(Job):
                                     splitter_binary=splitter_binary,
                                     modules_to_load=mtl,
                                     length_limit=self.length_limit,
-                                    gres_value=gres_value))
+                                    gres_value=gres_value,
+                                    movi_path=self.movi_path))
 
         return job_script_path
 

@@ -120,7 +120,7 @@ function mux-runner () {
         samtools fastq -@ 16 -f 12 -F 256 | minimap2 -2 -ax sr -t 16 /scratch/databases/minimap2/human-pangenome/human-GRC-db.mmi - -a | \
         samtools fastq -@ 16 -f 12 -F 256 > ${jobd}/seqs.r1.ALIGN.fastq
 
-    /home/qiita/qiita_spots/Movi/build/movi-default query \
+    {{movi_path}} query \
         --index /scratch/movi_hg38_chm13_hprc94 \
         --read ${jobd}/seqs.r1.ALIGN.fastq \
         --stdout > ${jobd}/seqs.movi.txt

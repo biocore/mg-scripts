@@ -4,7 +4,7 @@ from os.path import join, abspath, exists, basename
 from functools import partial
 from sequence_processing_pipeline.QCJob import QCJob
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os import makedirs
+from os import makedirs, remove
 from metapool import load_sample_sheet
 import re
 from json import load
@@ -544,15 +544,12 @@ class TestQCJob(unittest.TestCase):
 
         self.sample_ids = self.feist_ids + self.gerwick_ids + self.nyu_ids
 
-    '''
     def tearDown(self):
         shutil.rmtree(self.output_path)
         if exists(self.tmp_file_path):
             remove(self.tmp_file_path)
-    '''
 
     def test_qcjob_creation(self):
-        # CHARLIE
         with self.assertRaises(PipelineError) as e:
             QCJob(self.fastq_root_path, self.output_path,
                   'not/path/to/sample/sheet', self.mmi_db_paths,
@@ -568,15 +565,11 @@ class TestQCJob(unittest.TestCase):
             sheet = load_sample_sheet(self.good_sample_sheet_path)
             sheet.write(f)
 
-        print(self.tmp_file_path)
-
-        qcjob = QCJob(self.fastq_root_path, self.output_path,
-                      self.tmp_file_path, self.mmi_db_paths,
-                      self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
-                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      30, 1000)
-
-        self.assertFalse(qcjob is None)
+            QCJob(self.fastq_root_path, self.output_path,
+                  self.tmp_file_path, self.mmi_db_paths,
+                  self.kraken2_db_path, 'queue_name', 1, 16, 1440, '8gb',
+                  'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                  30, 1000)
 
         # use good-sample-sheet as the basis for a sample-sheet with a
         # bad assay type
