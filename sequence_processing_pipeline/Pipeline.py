@@ -688,8 +688,15 @@ class Pipeline:
             for res in bioinformatics.to_dict('records'):
                 p_name, q_id = self._parse_project_name(res['Sample_Project'],
                                                         short_names)
+                contains_replicates = False
+
+                if 'contains_replicates' in res:
+                    if res['contains_replicates'] == 'True':
+                        contains_replicates = True
+
                 results.append({'project_name': p_name,
-                                'qiita_id': q_id})
+                                'qiita_id': q_id,
+                                'contains_replicates': contains_replicates})
 
         return results
 

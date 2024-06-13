@@ -37,7 +37,7 @@ class TestJob(unittest.TestCase):
         obs = job._find_files(package_root)
         obs = [re.sub(r'^.*?/sequence_processing_pipeline',
                       r'sequence_processing_pipeline', x) for x in obs]
-        self.assertIn('sequence_processing_pipeline/QCJob.py', obs)
+        self.assertIn('sequence_processing_pipeline/NuQCJob.py', obs)
 
         callback_results = []
 

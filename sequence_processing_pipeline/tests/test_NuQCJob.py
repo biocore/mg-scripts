@@ -28,6 +28,9 @@ class TestNuQCJob(unittest.TestCase):
         self.output_path = self.path('output_dir')
         self.fastq_root_path = join(self.output_path, 'ConvertJob')
         self.tmp_file_path = self.path('tmp-sample-sheet.csv')
+        self.movi_path = self.path('/home/user/Movi/build/movi-default')
+        self.gres_value = 4
+        self.pmls_path = self.path('pmls.py')
 
         try:
             shutil.rmtree(self.output_path)
@@ -593,7 +596,8 @@ class TestNuQCJob(unittest.TestCase):
                     'not/path/to/sample/sheet', self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '')
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path,
+                    bucket_size=8, length_limit=100, cores_per_task=4)
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
@@ -601,14 +605,14 @@ class TestNuQCJob(unittest.TestCase):
         # sample-sheet.
         with open(self.tmp_file_path, 'w') as f:
             sheet = load_sample_sheet(self.good_sample_sheet_path)
-            sheet.Header['Assay'] = 'Metatranscriptomic'
             sheet.write(f)
 
         nuqcjob = NuQCJob(self.fastq_root_path, self.output_path,
                           self.tmp_file_path, self.mmi_db_paths,
                           'queue_name', 1, 1440, '8',
                           'fastp', 'minimap2', 'samtools', [],
-                          self.qiita_job_id, 1000, '')
+                          self.qiita_job_id, 1000, '', self.movi_path,
+                          self.gres_value, self.pmls_path)
 
         self.assertFalse(nuqcjob is None)
 
@@ -624,9 +628,9 @@ class TestNuQCJob(unittest.TestCase):
                                                 "sample-sheet."):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.tmp_file_path, self.mmi_db_paths,
-                    'queue_name', 1, 1440, '8',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '')
+                    'queue_name', 1, 1440, '8', 'fastp', 'minimap2',
+                    'samtools', [], self.qiita_job_id, 1000, '',
+                    self.movi_path, self.gres_value, self.pmls_path)
 
         with self.assertRaisesRegex(ValueError, "'FALSE' is not a valid value"
                                                 " for HumanFiltering"):
@@ -634,14 +638,15 @@ class TestNuQCJob(unittest.TestCase):
                     self.bad_sheet_bools_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '')
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path)
 
     def test_error_msg_from_logs(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, self.mmi_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [],
-                      self.qiita_job_id, 1000, '')
+                      self.qiita_job_id, 1000, '', self.movi_path,
+                      self.gres_value, self.pmls_path)
 
         self.assertFalse(job is None)
 
@@ -670,14 +675,15 @@ class TestNuQCJob(unittest.TestCase):
                     self.bad_sample_sheet_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '')
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path)
 
     def test_audit(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, self.mmi_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '')
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         obs = job.audit(self.sample_ids)
 
@@ -1107,7 +1113,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '')
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
                    'NuQCJob')
@@ -1130,7 +1137,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '')
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # test _confirm_job_completed() fails when a .completed file isn't
         # manually created.
@@ -1142,7 +1150,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '')
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # 2k as a parameter will promote the default value.
         job_script_path = job._generate_job_script(2048)
@@ -1155,7 +1164,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '')
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # a sample of known valid fastq file-names plus a few edge-cases.
         good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.fastq.gz',
@@ -1270,6 +1280,28 @@ class TestNuQCJob(unittest.TestCase):
                      '2166_S69_L001_I1_001.json']
 
         self._helper(job.json_regex, good_names, bad_names)
+
+    def test_generate_mmi_filter_cmds(self):
+        # CHARLIE
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 1440, '8',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
+
+        obs = job._generate_mmi_filter_cmds('/my_work_dir')
+
+        exp = ("minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+               "r1.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > /my_work_"
+               "dir/foo\nminimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_"
+               "dir/foo -a | samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir"
+               "/bar\nmv /my_work_dir/bar /my_work_dir/seqs.r1.ALIGN.fastq\n"
+               "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo\n[ -e /my_work"
+               "_dir/bar ] && rm /my_work_dir/bar")
+
+        self.assertEqual(obs, exp)
 
     def test_move_trimmed(self):
         # Note: this test does not make use of the output_dir that other

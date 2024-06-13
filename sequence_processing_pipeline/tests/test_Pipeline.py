@@ -1501,9 +1501,12 @@ class TestPipeline(unittest.TestCase):
 
     def test_get_project_info(self):
         exp_proj_info = [
-            {'project_name': 'NYU_BMS_Melanoma_13059', 'qiita_id': '13059'},
-            {'project_name': 'Feist_11661', 'qiita_id': '11661'},
-            {'project_name': 'Gerwick_6123', 'qiita_id': '6123'}]
+            {'project_name': 'NYU_BMS_Melanoma_13059', 'qiita_id': '13059',
+             'contains_replicates': False},
+            {'project_name': 'Feist_11661', 'qiita_id': '11661',
+             'contains_replicates': False},
+            {'project_name': 'Gerwick_6123', 'qiita_id': '6123',
+             'contains_replicates': False}]
 
         exp_project_names = ['NYU_BMS_Melanoma_13059', 'Feist_11661',
                              'Gerwick_6123']
