@@ -98,8 +98,8 @@ function mux-runner () {
             -l {{length_limit}} \
             -i ${r1} \
             -I ${r2} \
-            -w 16 \
-            --adapter_fasta /home/qiita_test/qiita-spots/qp-knight-lab-processing/fastp_known_adapters_formatted.fna \
+            -w {{cores_per_task}} \
+            --adapter_fasta {{knwn_adpt_path}} \
             --html {{html_path}}/${html_name} \
             --json {{json_path}}/${json_name} \
             --stdout > ${r1_filt}
@@ -127,8 +127,7 @@ function mux-runner () {
         --read ${jobd}/seqs.r1.ALIGN.fastq \
         --stdout > ${jobd}/seqs.movi.txt
         
-    cat ${jobd}/seqs.movi.txt | \
-        python /home/qiita/qiita_spots/human_host_filtration/scripts/qiita_filter_pmls.py - | \
+    cat ${jobd}/seqs.movi.txt | python {{pmls_path}} - | \
         seqtk subseq ${jobd}/seqs.r1.ALIGN.fastq - > ${jobd}/seqs.r1.final.fastq
          
     {{splitter_binary}} ${jobd}/seqs.r1.final.fastq \
@@ -137,6 +136,9 @@ function mux-runner () {
         ${jobd}/reads.r2.fastq ${delimiter} ${r2_tag} &
     wait
     fastq_pair -t 50000000 ${jobd}/reads.r1.fastq ${jobd}/reads.r2.fastq
+
+    # keep seqs.movi.txt and migrate it to NuQCJob directory.
+    mv ${jobd}/seqs.movi.txt {{output_path}}/seqs.movi.${SLURM_ARRAY_TASK_ID}.txt
 }
 export -f mux-runner
 

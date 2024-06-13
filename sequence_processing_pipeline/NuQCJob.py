@@ -43,8 +43,8 @@ class NuQCJob(Job):
                  minimap_database_paths, queue_name, node_count,
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id,
-                 max_array_length, known_adapters_path, movi_path,
-                 bucket_size=8, length_limit=100, cores_per_task=4):
+                 max_array_length, known_adapters_path, movi_path, gres_value,
+                 pmls_path, bucket_size=8, length_limit=100, cores_per_task=4):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -64,6 +64,8 @@ class NuQCJob(Job):
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param known_adapters_path: The path to an .fna file of known adapters.
         :param movi_path: The path to the Movi executable.
+        :param gres_value: Cluster-related parameter.
+        :param pmls_path: The path to the pmls script.
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
         :param cores_per_task: Number of CPU cores per node to request.
@@ -92,6 +94,8 @@ class NuQCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.suffix = 'fastq.gz'
         self.movi_path = movi_path
+        self.gres_value = gres_value
+        self.pmls_path = pmls_path
 
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,
@@ -346,6 +350,9 @@ class NuQCJob(Job):
                                            empty_files_directory,
                                            self.minimum_bytes)
 
+            # Keep seqs.movi.txt and move it somewhere safe.
+            # Maybe worth saving it as seqs.movi.${SLURM_ARRAY_TASK_ID}.txt
+
     def _confirm_job_completed(self):
         # since NuQCJob processes across all projects in a run, there isn't
         # a need to iterate by project_name and job_id.
@@ -407,6 +414,8 @@ class NuQCJob(Job):
         tmp_file1 = join(working_dir, "foo")
         tmp_file2 = join(working_dir, "bar")
 
+        cores_to_allocate = int(self.cores_per_task / 2)
+
         for count, mmi_db_path in enumerate(mmi_db_paths):
             if count == 0:
                 # prime initial state with unfiltered file and create first of
@@ -422,8 +431,9 @@ class NuQCJob(Job):
                 input = tmp_file1
                 output = tmp_file2
 
-            cmds.append(f"minimap2 -2 -ax sr -t 16 {mmi_db_path} {input} -a |"
-                        f" samtools fastq -@ 16 -f 12 -F 256 > {output}")
+            cmds.append(f"minimap2 -2 -ax sr -t {cores_to_allocate} "
+                        f"{mmi_db_path} {input} -a | samtools fastq -@ "
+                        f"{cores_to_allocate} -f 12 -F 256 > {output}")
 
         # rename the latest tmp file to the final output filename.
         cmds.append(f"mv {output} {final_output}")
@@ -439,10 +449,6 @@ class NuQCJob(Job):
         # not needed.
         if self.force_job_fail:
             return None
-
-        gigabyte = 1073741824
-
-        gres_value = 4 if max_bucket_size > (3 * gigabyte) else 2
 
         job_script_path = join(self.output_path, 'process_all_fastq_files.sh')
         template = self.jinja_env.get_template("nuqc_job.sh")
@@ -499,9 +505,10 @@ class NuQCJob(Job):
                                     splitter_binary=splitter_binary,
                                     modules_to_load=mtl,
                                     length_limit=self.length_limit,
-                                    gres_value=gres_value,
+                                    gres_value=self.gres_value,
                                     movi_path=self.movi_path,
-                                    mmi_filter_cmds=mmi_filter_cmds))
+                                    mmi_filter_cmds=mmi_filter_cmds,
+                                    pmls_path=self.pmls_path))
 
         return job_script_path
 

@@ -29,6 +29,8 @@ class TestNuQCJob(unittest.TestCase):
         self.fastq_root_path = join(self.output_path, 'ConvertJob')
         self.tmp_file_path = self.path('tmp-sample-sheet.csv')
         self.movi_path = self.path('/home/user/Movi/build/movi-default')
+        self.gres_value = 4
+        self.pmls_path = self.path('pmls.py')
 
         try:
             shutil.rmtree(self.output_path)
@@ -594,8 +596,8 @@ class TestNuQCJob(unittest.TestCase):
                     'not/path/to/sample/sheet', self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '', self.movi_path, bucket_size=8,
-                    length_limit=100, cores_per_task=4)
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path,
+                    bucket_size=8, length_limit=100, cores_per_task=4)
 
         self.assertEqual(str(e.exception), "file 'not/path/to/sample/sheet' "
                                            "does not exist.")
@@ -609,7 +611,8 @@ class TestNuQCJob(unittest.TestCase):
                           self.tmp_file_path, self.mmi_db_paths,
                           'queue_name', 1, 1440, '8',
                           'fastp', 'minimap2', 'samtools', [],
-                          self.qiita_job_id, 1000, '', self.movi_path)
+                          self.qiita_job_id, 1000, '', self.movi_path,
+                          self.gres_value, self.pmls_path)
 
         self.assertFalse(nuqcjob is None)
 
@@ -625,9 +628,9 @@ class TestNuQCJob(unittest.TestCase):
                                                 "sample-sheet."):
             NuQCJob(self.fastq_root_path, self.output_path,
                     self.tmp_file_path, self.mmi_db_paths,
-                    'queue_name', 1, 1440, '8',
-                    'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '', self.movi_path)
+                    'queue_name', 1, 1440, '8', 'fastp', 'minimap2',
+                    'samtools', [], self.qiita_job_id, 1000, '',
+                    self.movi_path, self.gres_value, self.pmls_path)
 
         with self.assertRaisesRegex(ValueError, "'FALSE' is not a valid value"
                                                 " for HumanFiltering"):
@@ -635,14 +638,15 @@ class TestNuQCJob(unittest.TestCase):
                     self.bad_sheet_bools_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '', self.movi_path)
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path)
 
     def test_error_msg_from_logs(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, self.mmi_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [],
-                      self.qiita_job_id, 1000, '', self.movi_path)
+                      self.qiita_job_id, 1000, '', self.movi_path,
+                      self.gres_value, self.pmls_path)
 
         self.assertFalse(job is None)
 
@@ -671,14 +675,15 @@ class TestNuQCJob(unittest.TestCase):
                     self.bad_sample_sheet_path, self.mmi_db_paths,
                     'queue_name', 1, 1440, '8',
                     'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                    1000, '', self.movi_path)
+                    1000, '', self.movi_path, self.gres_value, self.pmls_path)
 
     def test_audit(self):
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, self.mmi_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '', self.movi_path)
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         obs = job.audit(self.sample_ids)
 
@@ -1108,7 +1113,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '', self.movi_path)
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         my_path = ('sequence_processing_pipeline/tests/data/output_dir/'
                    'NuQCJob')
@@ -1131,7 +1137,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '', self.movi_path)
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # test _confirm_job_completed() fails when a .completed file isn't
         # manually created.
@@ -1143,7 +1150,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '', self.movi_path)
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # 2k as a parameter will promote the default value.
         job_script_path = job._generate_job_script(2048)
@@ -1156,7 +1164,8 @@ class TestNuQCJob(unittest.TestCase):
                       self.good_sample_sheet_path, double_db_paths,
                       'queue_name', 1, 1440, '8',
                       'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
-                      1000, '', self.movi_path)
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
 
         # a sample of known valid fastq file-names plus a few edge-cases.
         good_names = ['11407-AAGTAGGAAGGA_S3249_L002_R1_001.fastq.gz',
