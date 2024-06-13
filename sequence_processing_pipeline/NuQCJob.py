@@ -405,7 +405,7 @@ class NuQCJob(Job):
                 'projects': lst,
                 'sample_ids': sample_ids}
 
-    def _generate_mmi_filter_cmds(self, mmi_db_paths, working_dir):
+    def _generate_mmi_filter_cmds(self, working_dir):
         initial_input = join(working_dir, "seqs.r1.fastq")
         final_output = join(working_dir, "seqs.r1.ALIGN.fastq")
 
@@ -416,7 +416,7 @@ class NuQCJob(Job):
 
         cores_to_allocate = int(self.cores_per_task / 2)
 
-        for count, mmi_db_path in enumerate(mmi_db_paths):
+        for count, mmi_db_path in enumerate(self.mmi_file_paths):
             if count == 0:
                 # prime initial state with unfiltered file and create first of
                 # two tmp files.
@@ -474,8 +474,7 @@ class NuQCJob(Job):
         # this method relies on an environment variable defined in nu_qc.sh
         # used to define where unfiltered fastq files are and where temp
         # files can be created. (${jobd})
-        mmi_filter_cmds = self._generate_mmi_filter_cmds(self.mmi_file_paths,
-                                                         "${jobd}")
+        mmi_filter_cmds = self._generate_mmi_filter_cmds("${jobd}")
 
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             # the job resources should come from a configuration file

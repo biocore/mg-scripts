@@ -1281,6 +1281,28 @@ class TestNuQCJob(unittest.TestCase):
 
         self._helper(job.json_regex, good_names, bad_names)
 
+    def test_generate_mmi_filter_cmds(self):
+        # CHARLIE
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(self.fastq_root_path, self.output_path,
+                      self.good_sample_sheet_path, double_db_paths,
+                      'queue_name', 1, 1440, '8',
+                      'fastp', 'minimap2', 'samtools', [], self.qiita_job_id,
+                      1000, '', self.movi_path, self.gres_value,
+                      self.pmls_path)
+
+        obs = job._generate_mmi_filter_cmds('/my_work_dir')
+
+        exp = ("minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+               "r1.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > /my_work_"
+               "dir/foo\nminimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_"
+               "dir/foo -a | samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir"
+               "/bar\nmv /my_work_dir/bar /my_work_dir/seqs.r1.ALIGN.fastq\n"
+               "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo\n[ -e /my_work"
+               "_dir/bar ] && rm /my_work_dir/bar")
+
+        self.assertEqual(obs, exp)
+
     def test_move_trimmed(self):
         # Note: this test does not make use of the output_dir that other
         # tests use.
