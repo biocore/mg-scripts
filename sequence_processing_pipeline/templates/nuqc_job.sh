@@ -138,7 +138,7 @@ function mux-runner () {
     fastq_pair -t 50000000 ${jobd}/reads.r1.fastq ${jobd}/reads.r2.fastq
 
     # keep seqs.movi.txt and migrate it to NuQCJob directory.
-    mv ${jobd}/seqs.movi.txt {{output_path}}/seqs.movi.${SLURM_ARRAY_TASK_ID}.txt
+    mv ${jobd}/seqs.movi.txt.gz {{output_path}}/seqs.movi.${SLURM_ARRAY_TASK_ID}.txt.gz
 }
 export -f mux-runner
 
