@@ -102,7 +102,7 @@ function mux-runner () {
             --adapter_fasta {{knwn_adpt_path}} \
             --html {{html_path}}/${html_name} \
             --json {{json_path}}/${json_name} \
-            --stdout > ${r1_filt}
+            --stdout | gzip > ${r1_filt}
 
         # multiplex and write adapter filtered data all at once
         cat ${r1_filt} | \
