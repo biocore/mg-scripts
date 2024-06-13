@@ -76,7 +76,7 @@ function mux-runner () {
     id_map=${jobd}/id_map
     seqs_r1=${jobd}/seqs.r1.fastq
     seqs_r2=${jobd}/seqs.r2.fastq
-    r1_filt=${jobd}/seqs.r1.adapter-removed.fastq
+    r1_filt=${jobd}/seqs.r1.adapter-removed.fastq.gz
 
     for i in $(seq 1 ${n})
     do
