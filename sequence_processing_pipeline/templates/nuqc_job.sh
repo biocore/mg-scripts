@@ -105,9 +105,9 @@ function mux-runner () {
             --stdout | gzip > ${r1_filt}
 
         # multiplex and write adapter filtered data all at once
-        cat ${r1_filt} | \
+        zcat ${r1_filt} | \
             sed -r "1~4s/^@(.*)/@${i}${delimiter}\1/" \
-            >> ${seqs_r1} &
+            >> ${seqs_r1} 
         cat ${r1_filt} | \
             gzip -c > ${r1_adapter_only} &
         wait
