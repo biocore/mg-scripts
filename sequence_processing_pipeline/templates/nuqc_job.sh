@@ -124,7 +124,7 @@ function mux-runner () {
 
     {{movi_path}} query \
         --index /scratch/movi_hg38_chm13_hprc94 \
-        --read ${jobd}/seqs.r1.ALIGN.fastq \
+        --read <(zcat ${jobd}/seqs.r1.ALIGN.fastq.gz) \
         --stdout > ${jobd}/seqs.movi.txt
         
     python {{pmls_path}} <(zcat ${jobd}/seqs.movi.txt.gz) | \
