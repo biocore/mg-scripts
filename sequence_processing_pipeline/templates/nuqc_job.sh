@@ -74,7 +74,7 @@ function mux-runner () {
 
     jobd=${TMPDIR}
     id_map=${jobd}/id_map
-    seqs_r1=${jobd}/seqs.r1.fastq
+    seqs_r1=${jobd}/seqs.r1.fastq.gz
     seqs_r2=${jobd}/seqs.r2.fastq
     r1_filt=${jobd}/seqs.r1.adapter-removed.fastq.gz
 
