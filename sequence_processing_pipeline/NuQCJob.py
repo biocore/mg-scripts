@@ -350,9 +350,6 @@ class NuQCJob(Job):
                                            empty_files_directory,
                                            self.minimum_bytes)
 
-            # Keep seqs.movi.txt and move it somewhere safe.
-            # Maybe worth saving it as seqs.movi.${SLURM_ARRAY_TASK_ID}.txt
-
     def _confirm_job_completed(self):
         # since NuQCJob processes across all projects in a run, there isn't
         # a need to iterate by project_name and job_id.
