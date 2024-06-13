@@ -125,7 +125,7 @@ function mux-runner () {
     {{movi_path}} query \
         --index /scratch/movi_hg38_chm13_hprc94 \
         --read <(zcat ${jobd}/seqs.r1.ALIGN.fastq.gz) \
-        --stdout > ${jobd}/seqs.movi.txt
+        --stdout | gzip > ${jobd}/seqs.movi.txt.gz
         
     python {{pmls_path}} <(zcat ${jobd}/seqs.movi.txt.gz) | \
         seqtk subseq ${jobd}/seqs.r1.ALIGN.fastq.gz - | gzip > ${jobd}/seqs.r1.final.fastq.gz
