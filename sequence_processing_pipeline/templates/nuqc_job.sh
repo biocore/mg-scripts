@@ -102,7 +102,7 @@ function mux-runner () {
             --adapter_fasta {{knwn_adpt_path}} \
             --html {{html_path}}/${html_name} \
             --json {{json_path}}/${json_name} \
-            --stdout > ${r1_filt}
+            --stdout | gzip > ${r1_filt}
 
         # multiplex and write adapter filtered data all at once
         cat ${r1_filt} | \
@@ -127,8 +127,8 @@ function mux-runner () {
         --read ${jobd}/seqs.r1.ALIGN.fastq \
         --stdout > ${jobd}/seqs.movi.txt
         
-    cat ${jobd}/seqs.movi.txt | python {{pmls_path}} - | \
-        seqtk subseq ${jobd}/seqs.r1.ALIGN.fastq - > ${jobd}/seqs.r1.final.fastq
+    python {{pmls_path}} <(zcat ${jobd}/seqs.movi.txt.gz) | \
+        seqtk subseq ${jobd}/seqs.r1.ALIGN.fastq.gz - | gzip > ${jobd}/seqs.r1.final.fastq.gz
          
     {{splitter_binary}} ${jobd}/seqs.r1.final.fastq \
         ${jobd}/reads.r1.fastq ${delimiter} ${r1_tag} &
