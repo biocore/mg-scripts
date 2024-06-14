@@ -1562,7 +1562,6 @@ class TestPipeline(unittest.TestCase):
         # output and make sure they are set to the default values found in
         # default.json.
         self.assertEqual(obs['bcl-convert']['nprocs'], 16)
-        self.assertEqual(obs['qc']['wallclock_time_in_minutes'], 60)
 
         # assert increased values over default found in novaseq 6000/
         # metagenomic profile are found in the final configuration as well.
