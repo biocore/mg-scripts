@@ -30,7 +30,7 @@
         "cpus_per_task": 32,
         "queue": "qiita",
         "wallclock_time_in_minutes": 2028,
-        "minimap2_databases": ["/databases/minimap2/db_1.mmi", "/databases/minimap2/db_2.mmi”],
+        "minimap2_databases": ["/databases/minimap2/db_1.mmi", "/databases/minimap2/db_2.mmi"],
         "modules_to_load": [
           "fastp_0.20.1",
           "samtools_1.12",
