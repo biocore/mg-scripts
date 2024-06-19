@@ -36,6 +36,7 @@ class TestPipeline(unittest.TestCase):
         self.good_run_dir = self.path(self.good_run_id)
         self.runinfo_file = self.path(self.good_run_id, 'RunInfo.xml')
         self.rtacomplete_file = self.path(self.good_run_id, 'RTAComplete.txt')
+        self.good_sheet_w_replicates = self.path('good_sheet_w_replicates.csv')
 
         # most of the tests here were written with the assumption that these
         # files already exist.
@@ -151,6 +152,20 @@ class TestPipeline(unittest.TestCase):
         for param, exp in zip(params, exps):
             obs = set(pipeline._get_sample_names_from_sample_sheet(param))
             self.assertEqual(obs, exp)
+
+    def test_get_orig_names_from_sheet_with_replicates(self):
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sheet_w_replicates, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        obs = pipeline.get_orig_names_from_sheet('Feist_11661')
+        exp = {'BLANK.43.12G', 'BLANK.43.12H', 'JBI.KHP.HGL.021',
+               'JBI.KHP.HGL.022', 'JBI.KHP.HGL.023', 'JBI.KHP.HGL.024',
+               'RMA.KHP.rpoS.Mage.Q97D', 'RMA.KHP.rpoS.Mage.Q97E',
+               'RMA.KHP.rpoS.Mage.Q97L', 'RMA.KHP.rpoS.Mage.Q97N'}
+
+        self.assertEqual(set(obs), exp)
 
     def test_required_file_checks(self):
         # begin this test by deleting the RunInfo.txt file and verifying that

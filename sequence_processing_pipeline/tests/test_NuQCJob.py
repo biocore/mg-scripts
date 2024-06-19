@@ -1282,7 +1282,6 @@ class TestNuQCJob(unittest.TestCase):
         self._helper(job.json_regex, good_names, bad_names)
 
     def test_generate_mmi_filter_cmds(self):
-        # CHARLIE
         double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
         job = NuQCJob(self.fastq_root_path, self.output_path,
                       self.good_sample_sheet_path, double_db_paths,
