@@ -36,6 +36,7 @@ class TestNuQCJob(unittest.TestCase):
         self.fastq_root_path = join(self.output_path, "ConvertJob")
         self.tmp_file_path = self.path("tmp-sample-sheet.csv")
         self.movi_path = self.path("/home/user/Movi/build/movi-default")
+        self.gres_value = 4
         self.pmls_path = self.path("pmls.py")
 
         try:
@@ -891,6 +892,7 @@ class TestNuQCJob(unittest.TestCase):
                 1000,
                 "",
                 self.movi_path,
+                self.gres_value,
                 self.pmls_path,
                 bucket_size=8,
                 length_limit=100,
@@ -924,6 +926,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -959,6 +962,7 @@ class TestNuQCJob(unittest.TestCase):
                 1000,
                 "",
                 self.movi_path,
+                self.gres_value,
                 self.pmls_path,
             )
 
@@ -982,6 +986,7 @@ class TestNuQCJob(unittest.TestCase):
                 1000,
                 "",
                 self.movi_path,
+                self.gres_value,
                 self.pmls_path,
             )
 
@@ -1003,6 +1008,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -1051,6 +1057,7 @@ class TestNuQCJob(unittest.TestCase):
                 1000,
                 "",
                 self.movi_path,
+                self.gres_value,
                 self.pmls_path,
             )
 
@@ -1072,6 +1079,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -1852,6 +1860,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -1890,6 +1899,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -1916,6 +1926,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -1943,6 +1954,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 
@@ -2098,6 +2110,7 @@ class TestNuQCJob(unittest.TestCase):
             1000,
             "",
             self.movi_path,
+            self.gres_value,
             self.pmls_path,
         )
 

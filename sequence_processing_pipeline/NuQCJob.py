@@ -43,8 +43,8 @@ class NuQCJob(Job):
                  minimap_database_paths, queue_name, node_count,
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id,
-                 max_array_length, known_adapters_path, movi_path, pmls_path,
-                 bucket_size=8, length_limit=100, cores_per_task=4):
+                 max_array_length, known_adapters_path, movi_path, gres_value,
+                 pmls_path, bucket_size=8, length_limit=100, cores_per_task=4):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -64,6 +64,7 @@ class NuQCJob(Job):
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param known_adapters_path: The path to an .fna file of known adapters.
         :param movi_path: The path to the Movi executable.
+        :param gres_value: Cluster-related parameter.
         :param pmls_path: The path to the pmls script.
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
@@ -93,6 +94,7 @@ class NuQCJob(Job):
         self.qiita_job_id = qiita_job_id
         self.suffix = 'fastq.gz'
         self.movi_path = movi_path
+        self.gres_value = gres_value
         self.pmls_path = pmls_path
 
         # for projects that use sequence_processing_pipeline as a dependency,
@@ -499,6 +501,7 @@ class NuQCJob(Job):
                                     splitter_binary=splitter_binary,
                                     modules_to_load=mtl,
                                     length_limit=self.length_limit,
+                                    gres_value=self.gres_value,
                                     movi_path=self.movi_path,
                                     mmi_filter_cmds=mmi_filter_cmds,
                                     pmls_path=self.pmls_path))
