@@ -249,8 +249,7 @@ class NuQCJob(Job):
 
         self.counts[self.batch_prefix] = batch_count
 
-        export_params = [f"MMI={self.mmi_file_paths}",
-                         f"PREFIX={batch_location}",
+        export_params = [f"PREFIX={batch_location}",
                          f"OUTPUT={self.output_path}",
                          f"TMPDIR={self.temp_dir}"]
 
@@ -403,8 +402,9 @@ class NuQCJob(Job):
                 'sample_ids': sample_ids}
 
     def _generate_mmi_filter_cmds(self, working_dir):
-        initial_input = join(working_dir, "seqs.r1.fastq")
-        final_output = join(working_dir, "seqs.r1.ALIGN.fastq")
+        initial_input = join(working_dir, "seqs.interleaved.fastq")
+        final_output = join(working_dir, "seqs.interleaved.filter_"
+                                         "alignment.fastq")
 
         cmds = []
 
