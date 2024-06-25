@@ -531,7 +531,9 @@ class Pipeline:
             df = pd.concat([df, addl_info],
                            ignore_index=True).drop_duplicates()
 
-        df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
+        blanks = df[df["sample_name"].str.startswith("BLANK")]
+        katharo = df[df["sample_name"].str.startswith("KATHARO")]
+        df = pd.concat([blanks, katharo])
         samples = list(df.to_records(index=False))
         projects = df.project_name.unique()
 
@@ -539,7 +541,7 @@ class Pipeline:
         for project in projects:
             samples_in_proj = [x for x, y in samples if y == project]
             some_path = join(self.output_path,
-                             f'{self.run_id}_{project}_blanks.tsv')
+                             f'{self.run_id}_{project}_wetlab.tsv')
             paths.append(some_path)
             with open(some_path, 'w') as f:
                 # write out header to disk
@@ -567,6 +569,13 @@ class Pipeline:
                     row['description'] = sample.replace('_', '.')
                     row['collection_timestamp'] = self.get_date_from_run_id()
 
+                    # Although KATHARO samples may contain valuable metadata
+                    # in their columns, none of them appear to match the
+                    # expected values for SIF columns. Hence, the new columns
+                    # for KATHARO samples will be populated with the same
+                    # defaults as BLANKs.
+                    # (possible exception would be well_description and
+                    #  experiment_design_description -> description)
                     row = [row[x] for x in Pipeline.sif_header]
                     f.write('\t'.join(row) + '\n')
 
