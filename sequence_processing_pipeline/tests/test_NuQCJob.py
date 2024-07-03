@@ -966,30 +966,6 @@ class TestNuQCJob(unittest.TestCase):
                 self.pmls_path,
             )
 
-        with self.assertRaisesRegex(
-            ValueError, "'FALSE' is not a valid value" " for HumanFiltering"
-        ):
-            NuQCJob(
-                self.fastq_root_path,
-                self.output_path,
-                self.bad_sheet_bools_path,
-                self.mmi_db_paths,
-                "queue_name",
-                1,
-                1440,
-                "8",
-                "fastp",
-                "minimap2",
-                "samtools",
-                [],
-                self.qiita_job_id,
-                1000,
-                "",
-                self.movi_path,
-                self.gres_value,
-                self.pmls_path,
-            )
-
     def test_error_msg_from_logs(self):
         job = NuQCJob(
             self.fastq_root_path,

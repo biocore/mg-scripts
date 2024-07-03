@@ -2202,7 +2202,8 @@ class TestAmpliconPipeline(unittest.TestCase):
     def test_get_project_info(self):
         exp_proj_info = [
             {'project_name': 'ABTX_20230208_ABTX_11052',
-             'qiita_id': '11052'}]
+             'qiita_id': '11052',
+             'contains_replicates': False}]
 
         exp_project_names = ['ABTX_20230208_ABTX_11052']
 
