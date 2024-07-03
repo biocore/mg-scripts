@@ -383,18 +383,6 @@ class NuQCJob(Job):
         # the ordering of the rows will be preserved in the order of the list.
         lst = bioinformatics.to_dict('records')
 
-        # convert true/false and yes/no strings to true boolean values.
-        for record in lst:
-            # the subset of columns that should be either True or False.
-            for key in ['BarcodesAreRC', 'HumanFiltering']:
-                val = record[key].strip()
-                if val == 'True':
-                    record[key] = True
-                elif val == 'False':
-                    record[key] = False
-                else:
-                    raise ValueError(f"'{val}' is not a valid value for {key}")
-
         # human-filtering jobs are scoped by project. Each job requires
         # particular knowledge of the project.
         return {'chemistry': chemistry,
