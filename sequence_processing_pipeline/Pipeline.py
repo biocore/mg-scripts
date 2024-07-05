@@ -705,13 +705,19 @@ class Pipeline:
         results = []
 
         if self.mapping_file is not None:
+            if 'contains_replicates' in self.mapping_file:
+                contains_replicates = True
+            else:
+                contains_replicates = False
+
             sample_project_map = {pn: _df.sample_name.values for pn, _df in
                                   self.mapping_file.groupby('project_name')}
 
             for project in sample_project_map:
                 p_name, q_id = self._parse_project_name(project, short_names)
                 results.append(
-                    {'project_name': p_name, 'qiita_id': q_id})
+                    {'project_name': p_name, 'qiita_id': q_id,
+                     'contains_replicates': contains_replicates})
         else:
             bioinformatics = self.sample_sheet.Bioinformatics
             for res in bioinformatics.to_dict('records'):
