@@ -235,6 +235,8 @@ class ConvertJob(Job):
             # assume a validated sample-sheet ensures has_reps has only one
             # value, either True or False.
             self.contains_replicates = bool(has_reps[0])
+        else:
+            self.contains_replicates = False
 
         results = {}
 
@@ -270,8 +272,8 @@ class ConvertJob(Job):
 
         for project in results:
             # find just the fastq files for this project.
+
             fastq_paths = self._find_files(join(self.output_path,
-                                                'ConvertJob',
                                                 project))
             fastq_paths = [f for f in fastq_paths if f.endswith('.fastq.gz')]
 
@@ -317,6 +319,10 @@ class ConvertJob(Job):
             raise ValueError(f"'{dest_project}' is not defined in the "
                              "sample-sheet")
 
+        if source_project == dest_project:
+            raise ValueError(f"source '{source_project}' and destination "
+                             f"'{dest_project}' projects are the same")
+
         # note that the user can supply a sample-name that didn't make it
         # through the conversion step and may have no files matched to it.
         # this is considered okay and a possible outcome of conversion. In
@@ -358,13 +364,12 @@ class ConvertJob(Job):
         if len(sample_list) == 0:
             # if the sample_list is empty, then sample-name wasn't present in
             # either the sample_name or orig_name columns.
-            raise ValueError(f"'{sample_name}' is not defined in the "
-                             "sample-sheet")
+            raise ValueError(f"'{sample_name}' is not defined in the project"
+                             f" '{source_project}'")
 
         for sample in sample_list:
             for src_fp in sample['matching_files']:
                 # split(fp)[1] is simply the original filename, which must
                 # be provided in the destination path.
-                dst_fp = join(self.output_path, 'ConvertJob',
-                              dest_project, split(src_fp)[1])
+                dst_fp = join(self.output_path, dest_project, split(src_fp)[1])
                 copyfile(src_fp, dst_fp)

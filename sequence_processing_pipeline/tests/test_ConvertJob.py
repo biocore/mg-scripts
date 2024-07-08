@@ -1,4 +1,4 @@
-from os.path import join, abspath
+from os.path import join, abspath, exists
 from os import makedirs
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.PipelineError import (PipelineError,
@@ -841,6 +841,7 @@ class TestConvertJob(unittest.TestCase):
         self.base_path = partial(join, package_root, 'tests', 'data')
         self.good_output_path = self.base_path('output_dir')
         self.sample_sheet_path = self.base_path('good-sample-sheet.csv')
+        self.sheet_w_repl_path = self.base_path('good_sheet_w_replicates.csv')
         self.good_input_path = self.base_path('input_dir')
 
         # self.good_input_path doesn't need to have anything in it for the
@@ -994,6 +995,199 @@ class TestConvertJob(unittest.TestCase):
         }
 
         self.assertDictEqual(obs, exp)
+
+    def test_copy_sequences_bad_parameters(self):
+        run_dir = self.base_path('211021_A00000_0000_SAMPLE')
+        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+
+        job = ConvertJob(run_dir, self.good_output_path,
+                         self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
+                         'tests/bin/bcl-convert', [], qiita_id)
+
+        # instead of calling run() and faking an entire ConvertJob run,
+        # manually call _get_sample_sheet_info(), which is typically called
+        # once a job has completed, to gather the metadata needed to properly
+        # run copy_sequences() method.
+
+        job._get_sample_sheet_info()
+
+        sample_name = 'CDPH-SAL.Salmonella.Typhi.MDL-154'
+        source_project = 'Feist_11661'
+        other_projects = ['NYU_BMS_Melanoma_13059', 'Gerwick_6123']
+        dest_project = other_projects[0]
+        not_source_project = other_projects[1]
+        not_a_sample_name = 'NOT_A_SAMPLE_NAME'
+        not_a_project = 'NOT_A_PROJECT'
+
+        with self.assertRaisesRegex(ValueError, "'NOT_A_SAMPLE_NAME' is not "
+                                                "defined in the project "
+                                                "'Feist_11661'"):
+            job.copy_sequences(not_a_sample_name,
+                               source_project,
+                               dest_project,
+                               copy_all_replicates=False)
+
+        with self.assertRaisesRegex(ValueError, "'CDPH-SAL.Salmonella.Typhi."
+                                                "MDL-154' is not defined in "
+                                                "the project 'Gerwick_6123'"):
+            job.copy_sequences(sample_name,
+                               not_source_project,
+                               dest_project,
+                               copy_all_replicates=False)
+
+        with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
+                                                "defined in the sample-sheet"):
+            job.copy_sequences(sample_name,
+                               not_a_project,
+                               dest_project,
+                               copy_all_replicates=False)
+
+        with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
+                                                "defined in the sample-sheet"):
+            job.copy_sequences(sample_name,
+                               source_project,
+                               not_a_project,
+                               copy_all_replicates=False)
+
+        with self.assertRaisesRegex(ValueError, "source 'Feist_11661' and "
+                                                "destination 'Feist_11661' "
+                                                "projects are the same"):
+            job.copy_sequences(sample_name,
+                               source_project,
+                               source_project,
+                               copy_all_replicates=False)
+
+    def test_copy_sequences_success(self):
+        run_dir = self.base_path('211021_A00000_0000_SAMPLE')
+        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+
+        job = ConvertJob(run_dir, self.good_output_path,
+                         self.sample_sheet_path, 'qiita', 1, 16, 1440, '10gb',
+                         'tests/bin/bcl-convert', [], qiita_id)
+
+        sample_name = 'CDPH-SAL.Salmonella.Typhi.MDL-154'
+        source_project = 'Feist_11661'
+        dest_project = 'NYU_BMS_Melanoma_13059'
+        projects = ['NYU_BMS_Melanoma_13059', 'Gerwick_6123', 'Feist_11661']
+
+        # since we can't perform a real run, let's manually create a fake
+        # fastq file and project directories in the 'output_dir' directory and
+        # manually call job._get_sample_sheet_info() to obtain all of the
+        # metadata needed to copy a sequence from one project into another.
+
+        for some_project in projects:
+            # fake the fastq file directories in ConvertJob, one for each
+            # project defined in the sample-sheet.
+            makedirs(join(self.good_output_path, 'ConvertJob', some_project))
+
+        # fake a fastq file in the 'Feist_11661' directory for the purposes of
+        # copying it into the 'NYU_BMS_Melanoma_13059' project.
+        with open(join(self.good_output_path, 'ConvertJob', source_project,
+                       'CDPH-SAL_Salmonella_Typhi_MDL-154_S1_L001_R1_001.'
+                       'fastq.gz'), 'w') as f:
+            f.write("Hello World!\n")
+
+        # manually call the functionality that reads the sample-sheet and
+        # attempts to associate samples with the fastq files generated by
+        # bcl-convert.
+        job._get_sample_sheet_info()
+
+        # copy all fastq files associated w/
+        # 'CDPH-SAL.Salmonella.Typhi.MDL-154' from 'Feist_11661' to
+        # 'NYU_BMS_Melanoma_13059'. 'Gerwick_6123' should remain empty; the
+        # code shouldn't copy anything into that project.
+        job.copy_sequences(sample_name, source_project, dest_project,
+                           copy_all_replicates=False)
+
+        sample_info = job.info[source_project]['samples'][sample_name]
+        # {'Sample_Name': 'CDPH-SAL.Salmonella.Typhi.MDL-154',
+        #  'Sample_ID': 'CDPH-SAL_Salmonella_Typhi_MDL-154',
+        #  'matching_files': []}
+
+        # get the path for the source fastq file we created above and swap out
+        # the project-level directory names to confirm and deny the existence
+        # of the fastq file in other locations.
+        source_file = sample_info['matching_files'][0]
+
+        # file should have been copied here.
+        dst_file = source_file.replace('Feist_11661', 'NYU_BMS_Melanoma_13059')
+        self.assertTrue(exists(dst_file))
+
+        # file should not have been copied here.
+        dst_file = source_file.replace('Feist_11661', 'Gerwick_6123')
+        self.assertFalse(exists(dst_file))
+
+        # Lastly, confirm copy_sequences() performs some error-handling
+        # correctly, since the setup for this situation has already been
+        # created here.
+
+        msg = ("'treat_as_orig_name' is set to 'True' but this sample-sheet "
+               "doesn't contain replicates")
+
+        with self.assertRaisesRegex(ValueError, msg):
+            job.copy_sequences(sample_name, source_project, dest_project,
+                               copy_all_replicates=True)
+
+    def test_copy_sequences_success_w_replicates(self):
+        # perform a similar test to the one above, but w/replicate samples.
+
+        run_dir = self.base_path('211021_A00000_0000_SAMPLE')
+        qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
+
+        job = ConvertJob(run_dir, self.good_output_path,
+                         self.sheet_w_repl_path, 'qiita', 1, 16, 1440, '10gb',
+                         'tests/bin/bcl-convert', [], qiita_id)
+
+        sample_name = 'RMA.KHP.rpoS.Mage.Q97D'
+        source_project = 'Feist_11661'
+        dest_project = 'NYU_BMS_Melanoma_13059'
+        projects = ['NYU_BMS_Melanoma_13059', 'Feist_11661']
+
+        for some_project in projects:
+            makedirs(
+                join(self.good_output_path, 'ConvertJob', some_project))
+
+        # fake a fastq file in the 'Feist_11661' directory for the purposes of
+        # copying it into the 'NYU_BMS_Melanoma_13059' project.
+
+        # instead of faking just a single fastq file, fake an R1, R2 and I1
+        # fastq file for all three replicates of 'RMA.KHP.rpoS.Mage.Q97D'.
+
+        fastqs = ['RMA_KHP_rpoS_Mage_Q97D_A5_S1_L001_R1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_A5_S1_L001_I1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_A5_S1_L001_R2_001.fastq.gz',
+
+                  'RMA_KHP_rpoS_Mage_Q97D_A6_S1_L001_R1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_A6_S1_L001_I1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_A6_S1_L001_R2_001.fastq.gz',
+
+                  'RMA_KHP_rpoS_Mage_Q97D_B6_S1_L001_R1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_B6_S1_L001_I1_001.fastq.gz',
+                  'RMA_KHP_rpoS_Mage_Q97D_B6_S1_L001_R2_001.fastq.gz']
+
+        for fastq in fastqs:
+            with open(join(self.good_output_path, 'ConvertJob', source_project,
+                           fastq), 'w') as f:
+                f.write("Hello World!\n")
+
+        job._get_sample_sheet_info()
+
+        job.copy_sequences(sample_name, source_project, dest_project,
+                           copy_all_replicates=True)
+
+        files_to_match = []
+
+        for smpl in job.info[source_project]['samples']:
+            smpl_info = job.info[source_project]['samples'][smpl]
+            if smpl_info['orig_name'] == 'RMA.KHP.rpoS.Mage.Q97D':
+                files_to_match += smpl_info['matching_files']
+
+        files_to_match = [fp.replace('Feist_11661',
+                                     'NYU_BMS_Melanoma_13059')
+                          for fp in files_to_match]
+
+        for dst_file in files_to_match:
+            self.assertTrue(exists(dst_file))
 
 
 SCRIPT_EXP = ''.join([
