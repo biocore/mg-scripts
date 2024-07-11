@@ -1558,6 +1558,17 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sheet_w_replicates, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        obs_proj_info = pipeline.get_project_info()
+
+        # assert value is boolean type True, even though the method no longer
+        # silently converts string values to bool.
+        self.assertTrue(obs_proj_info[0]['contains_replicates'])
+
     def test_configuration_profiles(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path, None,
