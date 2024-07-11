@@ -1019,31 +1019,34 @@ class TestConvertJob(unittest.TestCase):
         not_a_sample_name = 'NOT_A_SAMPLE_NAME'
         not_a_project = 'NOT_A_PROJECT'
 
-        with self.assertRaisesRegex(ValueError, "'NOT_A_SAMPLE_NAME' is not "
-                                                "defined in the project "
-                                                "'Feist_11661'"):
+        with self.assertRaisesRegex(ValueError, "'NOT_A_SAMPLE_NAME' did not "
+                                                "match any values in the "
+                                                "'sample_name' column for "
+                                                "project 'Feist_11661'"):
             job.copy_sequences(not_a_sample_name,
                                source_project,
                                dest_project,
                                copy_all_replicates=False)
 
         with self.assertRaisesRegex(ValueError, "'CDPH-SAL.Salmonella.Typhi."
-                                                "MDL-154' is not defined in "
-                                                "the project 'Gerwick_6123'"):
+                                                "MDL-154' did not match any "
+                                                "values in the 'sample_name' "
+                                                "column for project 'Gerwick_"
+                                                "6123'"):
             job.copy_sequences(sample_name,
                                not_source_project,
                                dest_project,
                                copy_all_replicates=False)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
-                                                "defined in the sample-sheet"):
+                                                "defined in sample-sheet"):
             job.copy_sequences(sample_name,
                                not_a_project,
                                dest_project,
                                copy_all_replicates=False)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
-                                                "defined in the sample-sheet"):
+                                                "defined in sample-sheet"):
             job.copy_sequences(sample_name,
                                source_project,
                                not_a_project,
@@ -1100,9 +1103,6 @@ class TestConvertJob(unittest.TestCase):
                            copy_all_replicates=False)
 
         sample_info = job.info[source_project]['samples'][sample_name]
-        # {'Sample_Name': 'CDPH-SAL.Salmonella.Typhi.MDL-154',
-        #  'Sample_ID': 'CDPH-SAL_Salmonella_Typhi_MDL-154',
-        #  'matching_files': []}
 
         # get the path for the source fastq file we created above and swap out
         # the project-level directory names to confirm and deny the existence
@@ -1121,7 +1121,7 @@ class TestConvertJob(unittest.TestCase):
         # correctly, since the setup for this situation has already been
         # created here.
 
-        msg = ("'treat_as_orig_name' is set to 'True' but this sample-sheet "
+        msg = ("'copy_all_replicates' is set to 'True' but this sample-sheet "
                "doesn't contain replicates")
 
         with self.assertRaisesRegex(ValueError, msg):

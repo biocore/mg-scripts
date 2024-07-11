@@ -234,7 +234,7 @@ class ConvertJob(Job):
             has_reps = sheet.Bioinformatics['contains_replicates'].tolist()
             # assume a validated sample-sheet ensures has_reps has only one
             # value, either True or False.
-            self.contains_replicates = bool(has_reps[0])
+            self.contains_replicates = has_reps[0]
         else:
             self.contains_replicates = False
 
@@ -295,10 +295,11 @@ class ConvertJob(Job):
                        copy_all_replicates=False):
         """
         Copies all fastq files related to a sample into another project.
-        :param source_project: The source project w/qiita_id.
-        :param dest_project: The destination project w/qiita_id.
-        :param sample_name: A sample-name.
-        :param orig_name: A sample-name.
+        :param source_project: The source project name including qiita_id.
+        :param dest_project: The destination project name including qiita_id.
+        :param sample_name: A value from the sample-name column if
+            copy_all_replicates is False or a value from the orig_name column
+            otherwise.
         :param copy_all_replicates: If True, search for sample_name in the
             orig_name column of the sample-sheet. Copy all replicates.
         :return: None
@@ -309,15 +310,10 @@ class ConvertJob(Job):
 
         project_names = list(self.info.keys())
 
-        # confirm source project is a valid one.
-        if source_project not in project_names:
-            raise ValueError(f"'{source_project}' is not defined in the "
-                             "sample-sheet")
-
-        # confirm destination project is a valid one.
-        if dest_project not in project_names:
-            raise ValueError(f"'{dest_project}' is not defined in the "
-                             "sample-sheet")
+        # confirm source and destination projects are both valid.
+        for proj in [source_project, dest_project]:
+            if proj not in project_names:
+                raise ValueError(f"'{proj}' is not defined in sample-sheet")
 
         if source_project == dest_project:
             raise ValueError(f"source '{source_project}' and destination "
@@ -341,33 +337,58 @@ class ConvertJob(Job):
         # be processed.
 
         if copy_all_replicates is True and self.contains_replicates is False:
-            raise ValueError("'treat_as_orig_name' is set to 'True' but this "
+            raise ValueError("'copy_all_replicates' is set to 'True' but this "
                              "sample-sheet doesn't contain replicates")
 
         samples = self.info[source_project]['samples']
-        sample_list = []
+
+        # Either we will need to copy all replicates, in which case we need to
+        # match our input to values in the orig_name column, or we want to copy
+        # a single sample, in which case the input needs to be matched to a
+        # value in the sample_name column. The results of our match will be
+        # stored in results and if we are not copying all replicates, there
+        # should only be one sample matched in results.
+        results = []
 
         if copy_all_replicates:
-            for key in samples:
-                sample = samples[key]
-                # assume orig_name is present if treat_as_orig_name is True.
+            for _, sample in samples.items():
+                # assume orig_name is present if copy_all_replicates is True.
                 if sample_name == sample['orig_name']:
-                    sample_list.append(sample)
+                    results.append(sample)
         else:
             # sample_name is a value from the sample_name column. it may or
             # may not have a well-id appended and this sample-sheet may or
             # may not contain replicates, but in either case a single sample
             # either exists or it doesn't.
             if sample_name in self.info[source_project]['samples']:
-                sample_list.append(samples[sample_name])
+                results.append(samples[sample_name])
 
-        if len(sample_list) == 0:
-            # if the sample_list is empty, then sample-name wasn't present in
-            # either the sample_name or orig_name columns.
-            raise ValueError(f"'{sample_name}' is not defined in the project"
-                             f" '{source_project}'")
+        if len(results) == 0:
+            if copy_all_replicates:
+                # the value of sample_name did not match any value in the
+                # orig_name column. It may match a value in the sample_name
+                # column.
 
-        for sample in sample_list:
+                # if we want to copy all replicates and we mistakenly provide
+                # an input from the sample_name column, we could first look
+                # for a match in the orig_name column and if it fails, look for
+                # an exact match in the sample_name column. If we get an exact
+                # match we can move forward using the input's associated
+                # orig_name. This is not currently implemented however.
+                msg = (f"'{sample_name}' did not match any values in the 'orig"
+                       f"_name' column for project '{source_project}'. Your "
+                       f"value '{sample_name}' have a well-id appended to it")
+            else:
+                # if we don't want to copy all replicates and we just want to
+                # copy a particular sample-name, then providing a value from
+                # the orig_name column would be ambiguous since it could be
+                # matched to multiple samples. Not much can be done here.
+                msg = (f"'{sample_name}' did not match any values in the 'samp"
+                       f"le_name' column for project '{source_project}'")
+
+            raise ValueError(msg)
+
+        for sample in results:
             for src_fp in sample['matching_files']:
                 # split(fp)[1] is simply the original filename, which must
                 # be provided in the destination path.
