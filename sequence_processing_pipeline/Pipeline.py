@@ -723,10 +723,14 @@ class Pipeline:
             for res in bioinformatics.to_dict('records'):
                 p_name, q_id = self._parse_project_name(res['Sample_Project'],
                                                         short_names)
+
+                # parsed SampleSheet() objects should now contain only
+                # boolean values in contains_replicates column.
+
                 contains_replicates = False
 
                 if 'contains_replicates' in res:
-                    if res['contains_replicates'] == 'True':
+                    if res['contains_replicates'] is True:
                         contains_replicates = True
 
                 results.append({'project_name': p_name,
