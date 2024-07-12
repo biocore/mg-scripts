@@ -291,17 +291,14 @@ class ConvertJob(Job):
 
         self.info = results
 
-    def copy_sequences(self, sample_name, source_project, dest_project,
-                       copy_all_replicates=False):
+    def copy_sequences(self, sample_name, source_project, dest_project):
         """
         Copies all fastq files related to a sample into another project.
-        :param source_project: The source project name including qiita_id.
-        :param dest_project: The destination project name including qiita_id.
         :param sample_name: A value from the sample-name column if
             copy_all_replicates is False or a value from the orig_name column
             otherwise.
-        :param copy_all_replicates: If True, search for sample_name in the
-            orig_name column of the sample-sheet. Copy all replicates.
+        :param source_project: The source project name including qiita_id.
+        :param dest_project: The destination project name including qiita_id.
         :return: None
         """
         if self.info is None:
@@ -325,20 +322,11 @@ class ConvertJob(Job):
         # this case zero files are copied and no information is passed back
         # to the user.
 
-        # projects that contain replicates must also be considered. if the
-        # value for sample_name contains a well-id, then only the files
-        # associated with that particular replicate should be copied. If the
-        # value instead references a sample_name in the 'orig_name' column,
-        # then all files associated with each replicate need to be moved.
-
-        # in this situation, the sample_name needs be compared against all
-        # orig_names in the project and the individual sample_names (w/well-
-        # ids) must be discovered. Then those individual sample_names can
-        # be processed.
-
-        if copy_all_replicates is True and self.contains_replicates is False:
-            raise ValueError("'copy_all_replicates' is set to 'True' but this "
-                             "sample-sheet doesn't contain replicates")
+        # projects that contain replicates must also be considered. In this
+        # situation, the sample_name needs to be compared against all values
+        # in the orig_name column and the individual sample_names (w/well-ids)
+        # must be discovered; those individual sample_names can then be
+        # processed.
 
         samples = self.info[source_project]['samples']
 
@@ -350,7 +338,7 @@ class ConvertJob(Job):
         # should only be one sample matched in results.
         results = []
 
-        if copy_all_replicates:
+        if self.contains_replicates is True:
             for _, sample in samples.items():
                 # assume orig_name is present if copy_all_replicates is True.
                 if sample_name == sample['orig_name']:
@@ -364,20 +352,14 @@ class ConvertJob(Job):
                 results.append(samples[sample_name])
 
         if len(results) == 0:
-            if copy_all_replicates:
+            if self.contains_replicates is True:
                 # the value of sample_name did not match any value in the
                 # orig_name column. It may match a value in the sample_name
                 # column.
-
-                # if we want to copy all replicates and we mistakenly provide
-                # an input from the sample_name column, we could first look
-                # for a match in the orig_name column and if it fails, look for
-                # an exact match in the sample_name column. If we get an exact
-                # match we can move forward using the input's associated
-                # orig_name. This is not currently implemented however.
                 msg = (f"'{sample_name}' did not match any values in the 'orig"
                        f"_name' column for project '{source_project}'. Your "
-                       f"value '{sample_name}' have a well-id appended to it")
+                       f"value '{sample_name}' may have a well-id appended to"
+                       " it")
             else:
                 # if we don't want to copy all replicates and we just want to
                 # copy a particular sample-name, then providing a value from

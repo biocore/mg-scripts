@@ -1025,8 +1025,7 @@ class TestConvertJob(unittest.TestCase):
                                                 "project 'Feist_11661'"):
             job.copy_sequences(not_a_sample_name,
                                source_project,
-                               dest_project,
-                               copy_all_replicates=False)
+                               dest_project)
 
         with self.assertRaisesRegex(ValueError, "'CDPH-SAL.Salmonella.Typhi."
                                                 "MDL-154' did not match any "
@@ -1035,30 +1034,26 @@ class TestConvertJob(unittest.TestCase):
                                                 "6123'"):
             job.copy_sequences(sample_name,
                                not_source_project,
-                               dest_project,
-                               copy_all_replicates=False)
+                               dest_project)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
                                                 "defined in sample-sheet"):
             job.copy_sequences(sample_name,
                                not_a_project,
-                               dest_project,
-                               copy_all_replicates=False)
+                               dest_project)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
                                                 "defined in sample-sheet"):
             job.copy_sequences(sample_name,
                                source_project,
-                               not_a_project,
-                               copy_all_replicates=False)
+                               not_a_project)
 
         with self.assertRaisesRegex(ValueError, "source 'Feist_11661' and "
                                                 "destination 'Feist_11661' "
                                                 "projects are the same"):
             job.copy_sequences(sample_name,
                                source_project,
-                               source_project,
-                               copy_all_replicates=False)
+                               source_project)
 
     def test_copy_sequences_success(self):
         run_dir = self.base_path('211021_A00000_0000_SAMPLE')
@@ -1099,8 +1094,7 @@ class TestConvertJob(unittest.TestCase):
         # 'CDPH-SAL.Salmonella.Typhi.MDL-154' from 'Feist_11661' to
         # 'NYU_BMS_Melanoma_13059'. 'Gerwick_6123' should remain empty; the
         # code shouldn't copy anything into that project.
-        job.copy_sequences(sample_name, source_project, dest_project,
-                           copy_all_replicates=False)
+        job.copy_sequences(sample_name, source_project, dest_project)
 
         sample_info = job.info[source_project]['samples'][sample_name]
 
@@ -1116,17 +1110,6 @@ class TestConvertJob(unittest.TestCase):
         # file should not have been copied here.
         dst_file = source_file.replace('Feist_11661', 'Gerwick_6123')
         self.assertFalse(exists(dst_file))
-
-        # Lastly, confirm copy_sequences() performs some error-handling
-        # correctly, since the setup for this situation has already been
-        # created here.
-
-        msg = ("'copy_all_replicates' is set to 'True' but this sample-sheet "
-               "doesn't contain replicates")
-
-        with self.assertRaisesRegex(ValueError, msg):
-            job.copy_sequences(sample_name, source_project, dest_project,
-                               copy_all_replicates=True)
 
     def test_copy_sequences_success_w_replicates(self):
         # perform a similar test to the one above, but w/replicate samples.
@@ -1172,8 +1155,7 @@ class TestConvertJob(unittest.TestCase):
 
         job._get_sample_sheet_info()
 
-        job.copy_sequences(sample_name, source_project, dest_project,
-                           copy_all_replicates=True)
+        job.copy_sequences(sample_name, source_project, dest_project)
 
         files_to_match = []
 
