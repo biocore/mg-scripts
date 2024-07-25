@@ -910,6 +910,7 @@ class TestConvertJob(unittest.TestCase):
         rmtree(self.good_output_path)
 
     def test_creation(self):
+        self.maxDiff = None
         run_dir = self.base_path('211021_A00000_0000_SAMPLE')
         inv_input_directory = self.base_path('inv_input_directory')
         qiita_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
@@ -934,13 +935,15 @@ class TestConvertJob(unittest.TestCase):
                        'ConvertJob.sh')) as f:
             obs = ''.join(f.readlines())
 
-        # ssp should be just the value of the self.path() partial function by
-        # itself. For readability, SCRIPT_EXP addresses the '/' separator.
-        # Hence, the trailing '/' is redundant and should be removed here.
-        self.assertEqual(obs,
-                         SCRIPT_EXP.format(ssp=self.base_path('').rstrip('/'),
-                                           gop=self.good_output_path,
-                                           run_dir=run_dir))
+        # substitute variables in expected output with the run-time values
+        # that we expect.
+        exp = SCRIPT_EXP.replace("{run_dir}", run_dir).\
+            replace("{gop}", self.good_output_path).\
+            replace("{ssp}/", self.base_path(''))
+
+        # remove trailing whitespace from the ends of each parameter, since
+        # it's not important.
+        self.assertEqual(obs.rstrip(), exp.rstrip())
 
     def test_error_msg_from_logs(self):
         run_dir = self.base_path('211021_A00000_0000_SAMPLE')
@@ -998,7 +1001,7 @@ class TestConvertJob(unittest.TestCase):
 
 SCRIPT_EXP = ''.join([
     '#!/bin/bash\n',
-    '#SBATCH --job-name abcdabcdabcdabcdabcdabcdabcdabcd_ConvertJob\n',
+    '#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_ConvertJob\n',
     '#SBATCH -p qiita\n',
     '#SBATCH -N 1\n',
     '#SBATCH -n 16\n',
@@ -1009,7 +1012,7 @@ SCRIPT_EXP = ''.join([
     'set -x\n',
     'date\n',
     'hostname\n',
-    'cd {run_dir}\n',
+    'cd {run_dir}\n\n',
     'tests/bin/bcl-convert --sample-sheet "{ssp}/good-sample-sheet.csv" '
     '--output-directory {gop}/ConvertJob '
     '--bcl-input-directory . '

@@ -1,4 +1,4 @@
-from jinja2 import BaseLoader, TemplateNotFound
+from jinja2 import BaseLoader, Environment, TemplateNotFound
 from metapool import load_sample_sheet
 from os import stat, makedirs, rename
 from os.path import join, basename, dirname, exists, abspath, getmtime
@@ -10,7 +10,6 @@ from shutil import move
 import logging
 from sequence_processing_pipeline.Commands import split_similar_size_bins
 from sequence_processing_pipeline.util import iter_paired_files
-from jinja2 import Environment
 import glob
 import re
 from sys import executable
