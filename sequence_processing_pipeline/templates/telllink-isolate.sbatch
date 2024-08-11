@@ -20,7 +20,6 @@ if [[ -z "${LABELTAG}" ]]; then
     exit 1
 fi
 
-#base=/panfs/dtmcdonald/${LABELTAG}
 base=/panfs/qiita/TELLREAD/${LABELTAG}
 if [[ ! -d ${base} ]]; then
     echo "${base} not found"

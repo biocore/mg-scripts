@@ -38,7 +38,6 @@ while getopts "hs:i:l:r:b:m:" option; do
    esac
 done
 
-# nifty
 # https://unix.stackexchange.com/a/621007
 : ${seqrunpath:?Missing -s}
 : ${lane:?Missing -i}
@@ -116,8 +115,7 @@ set -o pipefail
 declare -a s
 declare -a g
 # below extended regex might be broken because C5\d\d happens in column 0, not column 1
-# of the hacked sample-sheet. 
-#for sample in $(egrep -o ",C5[0-9][0-9]," ${samplesheet} | tr -d "," | sort)
+# of the hacked sample-sheet.
 for sample in $(egrep -o "^C5.*," ${samplesheet} | tr -d "," | sort)
 do
     echo "SAMPLE: ${sample}"
@@ -205,7 +203,6 @@ if [[ -f ${submitcopy} ]]; then
     exit 1
 fi
 
-# CHARLIE
 echo $@ > ${arguments}
 cp ${0} ${scriptcopy}
 cp ${submit_script} ${submitcopy}

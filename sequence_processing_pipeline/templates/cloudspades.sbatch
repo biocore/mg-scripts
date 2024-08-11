@@ -10,7 +10,6 @@
 #SBATCH --mail-type=FAIL
 #SBATCH -p qiita
 
-### --gres=gpu:1
 source activate qiime2-2023.5
 function logger () { 
     echo "$(date) :: ${@}"; 
@@ -49,15 +48,7 @@ if [[ ! -z ${FORCE} && ${FORCE} == "TRUE" ]]; then
     fi
 fi
 
-#acs=${base}/cloudspades/${sample}-ariadne
-#acscs=${acs}/assembled
 mkdir -p ${cs}
-#mkdir -p ${acs}
-#mkdir -p ${acscs}
-
-#pushd ~/spades-cloudspades-paper/assembler/
-#pushd /home/mcdonadt/cloudspades-0.1/spades-cloudspades-0.1/assembler/bin
-#pushd /home/qiita/CHARLIE/TELLREAD/spades-cloudspades-0.1/assembler/bin
 pushd /home/qiita_test/qiita-spots/spades-cloudspades-0.1/assembler/bin
 
 ./spades.py \
@@ -79,37 +70,3 @@ quast \
 if [[ -d ${cs}/K21 ]]; then
     rm -fr ${cs}/K21 ${cs}/K33 ${cs}/K55 ${cs}/corrected ${cs}/tmp
 fi
-
-#pushd $HOME/2023.08.29-ariadne/ariadne
-#mamba activate ariadne-gcc8.5.0
-#OLD_LDD_LIBRARY_PATH=${LDD_LIBRARY_PATH}
-#export LDD_LIBRARY_PATH=${HOME}/miniconda3/envs/ariadne-gcc8.5.0/include/:${LDD_LIBRARY_PATH}
-## parameters from Lauren Mak, 9.25.23
-#./spades.py \
-#    -o ${acs} \
-#    --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
-#    --gemcode1-2 ${base}/integrated/${sample}.R2.fastq.gz \
-#    --assembly-graph ${cs}/assembly_graph_with_scaffolds.gfa \
-#    --meta \
-#    --only-assembler \
-#    --search-distance 5000 --size-cutoff 6 -k 55 \
-#    -t ${SLURM_JOB_CPUS_PER_NODE} > ${acs}/stdoutstderr.log 2>&1
-#export LDD_LIBRARY_PATH=${OLD_LDD_LIBRARY_PATH}
-#popd
-#
-#pushd ~/spades-cloudspades-paper/assembler/
-#module load gcc_9.3.0 
-#./spades.py \
-#    -o ${acscs} \
-#    --gemcode1-1 ${acs}/K55/5000.R1.fastq \
-#    --gemcode1-2 ${acs}/K55/5000.R2.fastq \
-#    --meta \
-#    -t ${SLURM_JOB_CPUS_PER_NODE} > ${acscs}/stdoutstderr.log 2>&1
-#module unload gcc_9.3.0
-#popd
-#
-#mamba activate quast                                                           
-#quast \
-#    -o ${acscs}/quast-scaffolds \
-#    -t ${SLURM_JOB_CPUS_PER_NODE} \
-#    ${acscs}/scaffolds.fasta > ${acscs}/quast-stdoutstderr.log 2>&1

@@ -109,7 +109,6 @@ fi
 cat ${i1} | gzip > ${i1out} 
 
 mamba activate tellread-integrate
-#python ${BASE}/integrate-indices-np.py integrate \
 python ${BASE}/integrate-indices-np.py integrate \
     --no-sort \
     --r1-in ${r1} \
