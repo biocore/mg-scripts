@@ -33,6 +33,7 @@ fi
 samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
+# leave these hardcoded for now
 k=79
 lc=35
 cores=${SLURM_CPUS_PER_TASK}
@@ -46,7 +47,7 @@ fi
 
 mkdir -p ${tl}
 
-{{TELLLINK_SING_PATH}} \
+{{sing_path}} \
     -r1 ${base}/integrated/${sample}.R1.fastq.gz \
     -r2 ${base}/integrated/${sample}.R2.fastq.gz \
     -i1 ${base}/integrated/${sample}.I1.fastq.gz \

@@ -46,7 +46,7 @@ fi
 
 mkdir -p ${tl}
 
-{{TELLLINK_SING_PATH}} \
+{{sing_path}} \
     -r1 ${base}/integrated/${sample}.R1.fastq.gz \
     -r2 ${base}/integrated/${sample}.R2.fastq.gz \
     -i1 ${base}/integrated/${sample}.I1.fastq.gz \

@@ -52,7 +52,7 @@ if [[ -z "${OUTPUT}" ]]; then
     exit 1
 fi
 
-export TMPDIR={{CHARLIE_TMPDIR}}
+export TMPDIR={{tmp_dir}}
 mkdir -p ${TMPDIR}
 export TMPDIR=$(mktemp -d)
 seqrun_path=${SEQRUNPATH}
@@ -87,7 +87,7 @@ fi
 mkdir -p ${OUTPUT}
     
 module load {{modules_to_load}} # singularity_3.6.4
-{{CHARLIE_TELLREAD_SING_SCRIPT_PATH}} \
+{{sing_script_path}} \
     -i ${seqrun_path} \
     -o ${OUTPUT} \
     -s $(echo ${SAMPLES} | tr -d '"') \

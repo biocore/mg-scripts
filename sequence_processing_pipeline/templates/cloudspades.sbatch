@@ -37,8 +37,11 @@ if [[ ! -d ${base} ]]; then
     exit 1
 fi
 
+# mamba is a new environment we'll have to address. perhaps it's possible to change this when using qp-klp.
+# for now we will leave it hardcoded.
 mamba activate activate qiime2-2023.5
-module load gcc_9.3.0 
+
+module load {{modules_to_load}} # gcc_9.3.0
 
 samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))            
 
@@ -56,6 +59,7 @@ fi
 mkdir -p ${cs}
 pushd /home/qiita_test/qiita-spots/spades-cloudspades-0.1/assembler/bin
 
+# for now don't use {{spades.py}}
 ./spades.py \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \

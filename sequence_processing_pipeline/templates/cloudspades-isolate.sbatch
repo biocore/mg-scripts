@@ -60,7 +60,7 @@ fi
 
 mkdir -p ${cs}
 
-pushd {{CHARLIE_SPADES_PATH}} \
+pushd {{spades_path}} \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
     --gemcode1-2 ${base}/integrated/${sample}.R2.fastq.gz \

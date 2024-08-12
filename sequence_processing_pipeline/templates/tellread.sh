@@ -1,10 +1,10 @@
 #!/bin/bash
-samplesheet={{CHARLIE_TELLREAD_MAP}}      # previously -i option
-seqrunpath={{CHARLIE_SEQRUNPATH}}         # previously -s option
-lane={{CHARLIE_LANE}}                     # previously -l option
-reference_map={{CHARLIE_REFERENCE_MAP}}   # previously -r option
-reference_base={{CHARLIE_REFERENCE_BASE}} # previously -b option
-mode={{CHARLIE_MODE}} $                   # previously -m option
+samplesheet={{tellread_map}}      # previously -i option
+seqrunpath={{seqrun_path}}        # previously -s option
+lane={{lane}}                     # previously -l option
+reference_map={{reference_map}}   # previously -r option
+reference_base={{reference_base}} # previously -b option
+mode={{mode}} $                   # previously -m option
 
 # preserve error-checking of parameters to preserve as much of the original
 # script as possible, even though this could be done in python.

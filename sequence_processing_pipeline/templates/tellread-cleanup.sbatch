@@ -20,4 +20,4 @@ if [[ -z "${OUTPUT}" ]]; then
 fi
 
 # remove unused large outputs
-rm -fr ${OUTPUT}/biosample_format ${OUTPUT}/1_demult ${OUTPUT}/Full
+rm -rf ${OUTPUT}/biosample_format ${OUTPUT}/1_demult ${OUTPUT}/Full

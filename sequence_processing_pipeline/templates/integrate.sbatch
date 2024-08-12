@@ -21,6 +21,7 @@ function logger () {
     echo "$(date) :: ${@}" 1>&2; 
 }
 
+
 # https://docs.hpc.shef.ac.uk/en/latest/referenceinfo/scheduler/SLURM/SLURM-environment-variables.html
 cores=${SLURM_CPUS_PER_TASK}
 
