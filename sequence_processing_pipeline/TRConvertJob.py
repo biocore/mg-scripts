@@ -1,20 +1,11 @@
-from jinja2 import BaseLoader, TemplateNotFound
-from metapool import load_sample_sheet
-from os import stat, makedirs, rename
-from os.path import join, basename, dirname, exists, abspath, getmtime
+from jinja2 import BaseLoader, TemplateNotFound, Environment
+from os.path import join, exists, getmtime
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import (PipelineError,
                                                         JobFailedError)
-from sequence_processing_pipeline.Pipeline import Pipeline
-from shutil import move
 import logging
-from sequence_processing_pipeline.Commands import split_similar_size_bins
-from sequence_processing_pipeline.util import iter_paired_files
-from jinja2 import Environment
-import glob
-import re
-from sys import executable
 import pathlib
+import re
 
 
 # taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
@@ -33,27 +24,6 @@ class KISSLoader(BaseLoader):
         with open(path) as f:
             source = f.read()
         return source, path, lambda: mtime == getmtime(path)
-
-
-
-
-from os.path import join, exists
-from sequence_processing_pipeline.Job import Job
-from sequence_processing_pipeline.PipelineError import (PipelineError,
-                                                        JobFailedError)
-import logging
-import re
-
-
-
-
-
-
-
-
-
-
-
 
 
 class TRConvertJob(Job):
@@ -92,7 +62,6 @@ class TRConvertJob(Job):
         self.pmem = pmem
         self.bcl_tool = bcl_tool_path
         self.qiita_job_id = qiita_job_id
-        self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
         self.suffix = 'fastq.gz'
 
         # for projects that use sequence_processing_pipeline as a dependency,
@@ -115,169 +84,12 @@ class TRConvertJob(Job):
         # As the sample-sheet is validated by the Pipeline object before
         # being passed to TRConvertJob, additional validation isn't needed.
 
-        self._generate_job_script()
-
-    def _generate_script_one(self):
-        template = self.jinja_env.get_template("tellread.sh")
-
-        tellread_map = "/home/qiita_test/qiita-spots/tellread_mapping.csv"
-        seqrun_path = "/sequencing/igm_runs/240216_LH00444_0058_A22357VLT4"
-        lane = 'L008'
-        reference_map = ""
-        reference_base = ""
-        mode = "metagenomic"
-
-        return template.render(tellread_map=tellread_map,
-                               seqrun_path=seqrun_path,
-                               lane=lane,
-                               reference_map=reference_map,
-                               reference_base=reference_base,
-                               mode=mode)
-
-    def _generate_script_two(self):
-        template = self.jinja_env.get_template("tellread-cleanup.sbatch")
-
-        job_name = "cleanup"
-        wall_time_limit = "24:00:00"
-        mem_in_gb = "8"
-        node_count = "1"
-        cores_per_task = "1"
-        queue_name = "qiita"
-
-        return template.render(job_name=job_name,
-                               wall_time_limit=wall_time_limit,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               queue_name=queue_name)
-
-    def _generate_script_three(self):
-        template = self.jinja_env.get_template("tellread.sbatch")
-        job_name = "tellread"
-        wall_time_limit = "96:00:00"
-        mem_in_gb = "16"
-        node_count = "1"
-        cores_per_task = "4"
-        queue_name = "qiita"
-        tellread_sbatch_tmp_dir = "/panfs/${USER}/tmp"
-        tr_sing_script_path = "$HOME/qiita-spots/tellread-release-novaseqX/run_tellread_sing.sh"
-        modules_to_load = ["singularity_3.6.4"]
-
-        return template.render(job_name=job_name,
-                               wall_time_limit=wall_time_limit,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               queue_name=queue_name,
-                               tmp_dir=tellread_sbatch_tmp_dir,
-                               sing_script_path=tr_sing_script_path,
-                               modules_to_load=' '.join(modules_to_load))
-
-    def _generate_script_four(self):
-        template = self.jinja_env.get_template("telllink-isolate.sbatch")
-
-        job_name = "tellink-isolate"
-        wall_time_limit = "96:00:00"
-        node_count = "1"
-        cores_per_task = "16"
-        mem_in_gb = "160"
-        queue_name = "qiita"
-        modules_to_load = ["singularity_3.6.4"]
-        sing_path = "/projects/long_read_collab/code/tellseq/release_v1.11/tellink-release/run_tellink_sing.sh"
-
-        return template.render(job_name=job_name,
-                               wall_time_limit=wall_time_limit,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               queue_name=queue_name,
-                               modules_to_load=' '.join(modules_to_load),
-                               sing_path=sing_path)
-
-    def _generate_script_five(self):
-        template = self.jinja_env.get_template("telllink.sbatch")
-
-        job_name = "tellink"
-        mem_in_gb = "160"
-        node_count = "1"
-        cores_per_task = "16"
-        wall_time_limit = "96:00:00"
-        queue_name = "qiita"
-        modules_to_load = ["singularity_3.6.4"]
-        sing_path = "/projects/long_read_collab/code/tellseq/release_v1.11/tellink-release/run_tellink_sing.sh"
-
-        return template.render(job_name=job_name,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               wall_time_limit=wall_time_limit,
-                               queue_name=queue_name,
-                               modules_to_load=' '.join(modules_to_load),
-                               sing_path=sing_path)
-
-    def _generate_script_six(self):
-        template = self.jinja_env.get_template("integrate.sbatch")
-
-        job_name = "integrate"
-        mem_in_gb = "8"
-        node_count = "1"
-        cores_per_task = "1"
-        wall_time_limit = "24:00:00"
-        queue_name = "qiita"
-
-        return template.render(job_name=job_name,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               wall_time_limit=wall_time_limit,
-                               queue_name=queue_name)
-
-    def _generate_script_seven(self):
-        template = self.jinja_env.get_template("cloudspades-isolate.sbatch")
-
-        job_name = "cs-assemble"
-        mem_in_gb = "64"
-        node_count = "1"
-        cores_per_task = "12"
-        wall_time_limit = "24:00:00"
-        queue_name = "qiita"
-        modules_to_load = ["gcc_9.3.0"]
-        spades_path = "~/spades-cloudspades-paper/assembler/spades.py"
-
-        return template.render(job_name=job_name,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               wall_time_limit=wall_time_limit,
-                               queue_name=queue_name,
-                               modules_to_load=' '.join(modules_to_load),
-                               spades_path=spades_path)
-
-    def _generate_script_eight(self):
-        template = self.jinja_env.get_template("cloudspades.sbatch")
-
-        job_name = "cs-assemble"
-        wall_time_limit = "24:00:00"
-        mem_in_gb = "128"
-        node_count = "1"
-        cores_per_task = "12"
-        queue_name = "qiita"
-        modules_to_load = ["gcc_9.3.0"]
-        spades_path = "TBD" # for now pass but don't use this spades_path var.
-
-        return template.render(job_name=job_name,
-                               mem_in_gb=mem_in_gb,
-                               node_count=node_count,
-                               cores_per_task=cores_per_task,
-                               wall_time_limit=wall_time_limit,
-                               queue_name=queue_name,
-                               modules_to_load=' '.join(modules_to_load),
-                               spades_path=spades_path)
+        self._generate_job_scripts()
 
     def _generate_job_scripts(self):
         scripts = [
             {
-                "template": self.jinja_env.get_template("cloudspades.sbatch"),
+                "template": "cloudspades.sbatch",
                 "params": {
                     "job_name": "cs-assemble",
                     "wall_time_limit": "24:00:00",
@@ -288,94 +100,109 @@ class TRConvertJob(Job):
                     "modules_to_load": ' '.join(["gcc_9.3.0"]),
                     "spades_path": "TBD"
                 }
-
             },
-            {},
-            {}
-
+            {
+                "template": "cloudspades-isolate.sbatch",
+                "params": {
+                    "job_name": "cs-assemble",
+                    "wall_time_limit": "24:00:00",
+                    "mem_in_gb": "64",
+                    "node_count": "1",
+                    "cores_per_task": "12",
+                    "queue_name": "qiita",
+                    "modules_to_load": ' '.join(["gcc_9.3.0"]),
+                    "spades_path": "~/spades-cloudspades-paper/assembler/"
+                                   "spades.py"
+                }
+            },
+            {
+                "template": "integrate.sbatch",
+                "params": {
+                    "job_name": "integrate",
+                    "wall_time_limit": "24:00:00",
+                    "mem_in_gb": "8",
+                    "node_count": "1",
+                    "cores_per_task": "1",
+                    "queue_name": "qiita"
+                }
+            },
+            {
+                "template": "telllink.sbatch",
+                "params": {
+                    "job_name": "telllink",
+                    "wall_time_limit": "96:00:00",
+                    "mem_in_gb": "160",
+                    "node_count": "1",
+                    "cores_per_task": "16",
+                    "queue_name": "qiita",
+                    "modules_to_load": ' '.join(["singularity_3.6.4"]),
+                    "sing_path": "/projects/long_read_collab/code/tellseq/"
+                                 "release_v1.11/tellink-release/"
+                                 "run_tellink_sing.sh"
+                }
+            },
+            {
+                "template": "telllink-isolate.sbatch",
+                "params": {
+                    "job_name": "tellink-isolate",
+                    "wall_time_limit": "96:00:00",
+                    "node_count": "1",
+                    "cores_per_task": "16",
+                    "mem_in_gb": "160",
+                    "queue_name": "qiita",
+                    "modules_to_load": ' '.join(["singularity_3.6.4"]),
+                    "sing_path": "/projects/long_read_collab/code/tellseq/"
+                                 "release_v1.11/tellink-release/"
+                                 "run_tellink_sing.sh"
+                }
+            },
+            {
+                "template": "tellread.sbatch",
+                "params": {
+                    "job_name": "tellread",
+                    "wall_time_limit": "96:00:00",
+                    "mem_in_gb": "16",
+                    "node_count": "1",
+                    "cores_per_task": "4",
+                    "queue_name": "qiita",
+                    "tellread_sbatch_tmp_dir": "/panfs/${USER}/tmp",
+                    "tr_sing_script_path": "$HOME/qiita-spots/tellread-release"
+                                           "-novaseqX/run_tellread_sing.sh",
+                    "modules_to_load": ' '.join(["singularity_3.6.4"])
+                }
+             },
+            {
+                "template": "tellread-cleanup.sbatch",
+                "params": {
+                    "job_name": "cleanup",
+                    "wall_time_limit": "24:00:00",
+                    "mem_in_gb": "8",
+                    "node_count": "1",
+                    "cores_per_task": "1",
+                    "queue_name": "qiita"
+                }
+             },
+            {
+                "template": "",
+                "params": {
+                    "tellread_map": "/home/qiita_test/qiita-spots/"
+                                    "tellread_mapping.csv",
+                    "seqrun_path": "/sequencing/igm_runs/"
+                                   "240216_LH00444_0058_A22357VLT4",
+                    "lane": 'L008',
+                    "reference_map": "",
+                    "reference_base": "",
+                    "mode": "metagenomic"
+                }
+             }
         ]
 
         for script in scripts:
             template = self.jinja_env.get_template(script["template"])
             params = script["params"]
-            result = template.render(**params)
-
-
-
-
-
-
-    def _generate_job_script(self):
-        """
-        Generate a Torque job script for processing supplied root_directory.
-        :return: The path to the newly-created job-script.
-        """
-        lines = []
-
-        lines.append("#!/bin/bash")
-        lines.append(f"#SBATCH --job-name {self.qiita_job_id}_{self.job_name}")
-        lines.append(f"#SBATCH -p {self.queue_name}")
-        lines.append(f'#SBATCH -N {self.node_count}')
-        lines.append(f'#SBATCH -n {self.nprocs}')
-        lines.append("#SBATCH --time %d" % self.wall_time_limit)
-
-        # send an email to the list of users defined below when a job starts,
-        # terminates, or aborts. This is used to confirm that the package's
-        # own reporting mechanism is reporting correctly.
-        lines.append("#SBATCH --mail-type=ALL")
-
-        # list of users to be contacted independently of this package's
-        # notification system, when a job starts, terminates, or gets aborted.
-        lines.append("#SBATCH --mail-user qiita.help@gmail.com")
-
-        lines.append(f"#SBATCH --mem-per-cpu {self.pmem}")
-
-        lines.append("set -x")
-        lines.append('date')
-        lines.append('hostname')
-        lines.append(f'cd {self.root_dir}')
-
-        if self.modules_to_load:
-            lines.append("module load " + ' '.join(self.modules_to_load))
-
-        # Assume that the bcl-convert tool is named 'bcl-convert' and choose
-        # accordingly.
-        if 'bcl-convert' in self.bcl_tool:
-            lines.append(('%s '
-                          '--sample-sheet "%s" '
-                          '--output-directory %s '
-                          '--bcl-input-directory . '
-                          '--bcl-num-decompression-threads 16 '
-                          '--bcl-num-conversion-threads 16 '
-                          '--bcl-num-compression-threads 16 '
-                          '--bcl-num-parallel-tiles 16 '
-                          '--bcl-sampleproject-subdirectories true '
-                          '--force') % (self.bcl_tool,
-                                        self.sample_sheet_path,
-                                        self.output_path))
-
-            # equivalent cp for bcl-conversion (see below) needed.
-        else:
-            lines.append(('%s '
-                          '--sample-sheet "%s" '
-                          '--minimum-trimmed-read-length 1 '
-                          '--mask-short-adapter-reads 1 '
-                          '-R . '
-                          '-o %s '
-                          '--loading-threads 16 '
-                          '--processing-threads 16 '
-                          '--writing-threads 16 '
-                          '--create-fastq-for-index-reads '
-                          '--ignore-missing-positions ') %
-                         (self.bcl_tool,
-                          self.sample_sheet_path,
-                          self.output_path))
-
-        with open(self.job_script_path, 'w') as f:
-            for line in lines:
-                # remove long spaces in some lines.
-                line = re.sub(r'\s+', ' ', line)
-                f.write(f"{line}\n")
+            job_script_path = join(self.output_path, script["template"])
+            with open(job_script_path, 'w') as f:
+                f.write(template.render(**params))
 
     def run(self, callback=None):
         """
