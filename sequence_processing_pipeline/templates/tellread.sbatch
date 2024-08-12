@@ -1,16 +1,19 @@
 #!/bin/bash -l
+#SBATCH -J {{job_name}}             # tellread
+#SBATCH -p {{queue_name}}           # qiita
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 4
+#SBATCH --mem {{mem_in_gb}}G        # 16G
+#SBATCH --time {{wall_time_limit}}  # 96:00:00
 
-#SBATCH -N 1
-#SBATCH -c 4
-#SBATCH --mem 16G
+# for now these can be left hard-coded.
 #SBATCH --partition=short
-#SBATCH -t 96:00:00
-#SBATCH -J tellread
 #SBATCH --output %x-%A.out
 #SBATCH --error %x-%A.err
-#SBATCH --mail-user=qiita.help@gmail.com
-#SBATCH --mail-type=BEGIN,FAIL
-#SBATCH -p qiita
+
+# for now comment these out as qiita is responsible for notifying users.
+###SBATCH --mail-user=qiita.help@gmail.com
+###SBATCH --mail-type=BEGIN,FAIL
 
 function logger () { 
     echo "$(date) :: ${@}"; 
@@ -49,7 +52,7 @@ if [[ -z "${OUTPUT}" ]]; then
     exit 1
 fi
 
-export TMPDIR=/panfs/${USER}/tmp
+export TMPDIR={{CHARLIE_TMPDIR}}
 mkdir -p ${TMPDIR}
 export TMPDIR=$(mktemp -d)
 seqrun_path=${SEQRUNPATH}
@@ -83,8 +86,8 @@ fi
 
 mkdir -p ${OUTPUT}
     
-module load singularity_3.6.4
-$HOME/qiita-spots/tellread-release-novaseqX/run_tellread_sing.sh \
+module load {{modules_to_load}} # singularity_3.6.4
+{{CHARLIE_TELLREAD_SING_SCRIPT_PATH}} \
     -i ${seqrun_path} \
     -o ${OUTPUT} \
     -s $(echo ${SAMPLES} | tr -d '"') \

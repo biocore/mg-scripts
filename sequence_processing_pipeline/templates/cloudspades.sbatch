@@ -1,15 +1,20 @@
 #!/bin/bash -l
-#SBATCH -J cs-assemble
-#SBATCH --time 24:00:00
-#SBATCH --mem 128gb
-#SBATCH -N 1
-#SBATCH -c 12
+#SBATCH -J {{job_name}}             # cs-assemble
+#SBATCH --time {{wall_time_limit}}  # 24:00:00
+#SBATCH --mem {{mem_in_gb}}G        # 128G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 12
+#SBATCH -p {{queue_name}}           # qiita
+
+# for now these can be left hard-coded.
 #SBATCH --output %x-%A_%a.out
 #SBATCH --error %x-%A_%a.err
-#SBATCH --mail-user=qiita.help@gmail.com
-#SBATCH --mail-type=FAIL
-#SBATCH -p qiita
 
+# for now comment these out as qiita is responsible for notifying users.
+###SBATCH --mail-user=qiita.help@gmail.com
+###SBATCH --mail-type=FAIL
+
+# like mamba, source activate is an issue we'll have to address. for now we'll leave it hardcoded.
 source activate qiime2-2023.5
 function logger () { 
     echo "$(date) :: ${@}"; 

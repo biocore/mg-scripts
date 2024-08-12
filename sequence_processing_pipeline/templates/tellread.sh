@@ -1,42 +1,13 @@
 #!/bin/bash
+samplesheet={{CHARLIE_TELLREAD_MAP}}      # previously -i option
+seqrunpath={{CHARLIE_SEQRUNPATH}}         # previously -s option
+lane={{CHARLIE_LANE}}                     # previously -l option
+reference_map={{CHARLIE_REFERENCE_MAP}}   # previously -r option
+reference_base={{CHARLIE_REFERENCE_BASE}} # previously -b option
+mode={{CHARLIE_MODE}} $                   # previously -m option
 
-script_name=${0##*/}
-
-function help () {
-    echo "Submit for TELL-read"
-    echo ""
-    echo "Usage: ${script_name} -s <seqrunpath> -l <lane> [-r reference_map] [-b reference_base]"
-    echo ""
-    echo -e "\t-s\tPath to the sequencing run."  
-    echo -e "\t-i\tThe sample sheet."  
-    echo -e "\t-l\tThe lane to process."  
-    echo -e "\t-r\tA file specifying reference genomes to use [OPTIONAL]"  
-    echo -e "\t-b\tReference genome base directory [OPTIONAL]"  
-    echo -e "\t-m\tMode, isolate or metagenomic [OPTIONAL]"  
-    echo "" 
-}
-
-# references right now are only used for techdev
-
-# derived from https://www.redhat.com/sysadmin/arguments-options-bash-scripts
-while getopts "hs:i:l:r:b:m:" option; do
-   case ${option} in
-    h) 
-        help
-        exit;;
-    s) seqrunpath=${OPTARG};;
-    l) lane=${OPTARG};;
-    r) reference_map=${OPTARG};;
-    b) reference_base=${OPTARG};;
-    m) mode=${OPTARG};;
-    \?)
-         echo "Error: Invalid option"
-         exit;;
-    *)
-         echo "Error: Invalid option"
-         exit;;
-   esac
-done
+# preserve error-checking of parameters to preserve as much of the original
+# script as possible, even though this could be done in python.
 
 # https://unix.stackexchange.com/a/621007
 : ${seqrunpath:?Missing -s}
@@ -61,8 +32,6 @@ else
     tag=reference-free
 fi
 
-samplesheet="/home/qiita_test/qiita-spots/tellread_mapping.csv"
-
 # trim trailing slash
 # https://stackoverflow.com/a/32845647/19741
 safepath=$(echo ${seqrunpath} | sed 's:/*$::')  
@@ -75,22 +44,22 @@ if [[ ! -d ${seqrunpath}/Data/Intensities/BaseCalls/${lane} ]]; then
     exit 1
 fi
 
+# for now this can stay here to keep greater compatibility with the original script.
+# however these fields should eventually be parameters that can be configured in the config file.
+
 if [[ ${seqrunpath} == *"_iSeq_Runs"* ]]; then
-    echo "FOO"
     sbatch_cores=2
     sbatch_mem=8G
     norm=TRUE
     wall=24:00:00
     mode=NA
 elif [[ ${seqrunpath} == *"_MiSeq_Runs"* ]]; then
-    echo "BAR"
     sbatch_cores=2
     sbatch_mem=8G
     norm=TRUE
     wall=24:00:00
     mode=NA
 else
-    echo "BAZ"
     sbatch_cores=16
     sbatch_mem=160G
     norm=FALSE
@@ -118,7 +87,7 @@ declare -a g
 # of the hacked sample-sheet.
 for sample in $(egrep -o "^C5.*," ${samplesheet} | tr -d "," | sort)
 do
-    echo "SAMPLE: ${sample}"
+    echo "sample found: ${sample}"
     # get references if they exist
     if [[ -f ${reference_map} ]]; then
         if $(grep -Fq ${sample} ${reference_map}); then
@@ -139,10 +108,6 @@ do
     fi
 done
 n_samples=${#s[@]}
-
-echo "Submitting:"
-echo "S: ${s[@]}"
-echo "G: ${g[@]}"
 
 # https://stackoverflow.com/a/17841619/19741
 function join_by { local IFS="$1"; shift; echo "$*"; }
@@ -214,8 +179,6 @@ chmod gou-w ${scriptcopy} ${submitcopy} ${asmcopy} ${intcopy} ${arguments} ${cle
 
 set -x
 
-echo "C"
-
 trjob=$(sbatch \
           --parsable \
           -J ${labeltag}-${datetag} \
@@ -224,8 +187,6 @@ trjob=$(sbatch \
           --time ${wall} \
           --export BASE=${base},N_SAMPLES=${n_samples},SEQRUNPATH=${seqrunpath},LANE=${lane},REFMAP=${reference_map},REFBASE=${reference_base},OUTPUT=${output},SAMPLES=\"${s}\",REFS=\"${g}\" \
           ${submit_script})
-
-echo "D"
 
 if [[ ${norm} == "TRUE" ]]; then
     cp ${norm_script} ${normcopy}
@@ -238,7 +199,6 @@ if [[ ${norm} == "TRUE" ]]; then
                         ${norm_script})
 fi
 
-echo "E"
 integrate_job=$(sbatch \
                     --parsable \
                     -J ${labeltag}-${datetag}-integrate \

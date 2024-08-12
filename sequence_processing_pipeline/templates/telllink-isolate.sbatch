@@ -1,19 +1,23 @@
 #!/bin/bash -l
-#SBATCH --mem 160G
-#SBATCH -N 1
-#SBATCH -c 16
-#SBATCH -t 96:00:00
-#SBATCH -J tellink-isolate
+#SBATCH -J {{job_name}}             # tellink-isolate
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 16
+#SBATCH --mem {{mem_in_gb}}G        # 160G
+#SBATCH --time {{wall_time_limit}}  # 96:00:00
+#SBATCH -p {{queue_name}}           # qiita
+
+# for now these can be left hard-coded.
 #SBATCH --output %x-%A_%a.out
 #SBATCH --error %x-%A_%a.err
-#SBATCH --mail-user=qiita.help@gmail.com
-#SBATCH --mail-type=FAIL
-#SBATCH -p qiita
+
+# for now comment these out as qiita is responsible for notifying users.
+###SBATCH --mail-user=qiita.help@gmail.com
+###SBATCH --mail-type=FAIL
 
 set -x 
 set -e
 
-module load singularity_3.6.4
+module load {{modules_to_load}} # singularity_3.6.4
 
 if [[ -z "${LABELTAG}" ]]; then
     echo "LABELTAG is not specified"
@@ -42,8 +46,7 @@ fi
 
 mkdir -p ${tl}
 
-HOME_PATH=/projects/long_read_collab/code/tellseq/release_v1.11/
-${HOME_PATH}/tellink-release/run_tellink_sing.sh \
+{{TELLLINK_SING_PATH}} \
     -r1 ${base}/integrated/${sample}.R1.fastq.gz \
     -r2 ${base}/integrated/${sample}.R2.fastq.gz \
     -i1 ${base}/integrated/${sample}.I1.fastq.gz \

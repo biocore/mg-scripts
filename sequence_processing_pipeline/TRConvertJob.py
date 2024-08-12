@@ -6,6 +6,74 @@ import logging
 import re
 
 
+tellread.sh
+# {{CHARLIE_TELLREAD_MAP}} = samplesheet to telread.sh (-i option) must equal "/home/qiita_test/qiita-spots/tellread_mapping.csv"
+
+tellread.sbatch
+#SBATCH -J {{job_name}}             # tellread
+#SBATCH -p {{queue_name}}           # qiita
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 4
+#SBATCH --mem {{mem_in_gb}}G        # 16G
+#SBATCH --time {{wall_time_limit}}  # 96:00:00
+{{CHARLIE_TMPDIR}} = /panfs/${USER}/tmp - replace with something in the work directory
+{{CHARLIE_TELLREAD_SING_SCRIPT_PATH}} = $HOME/qiita-spots/tellread-release-novaseqX/run_tellread_sing.sh
+{{modules_to_load}}  # singularity_3.6.4
+
+tellink-isolate.sbatch
+#SBATCH -J {{job_name}}             # tellink-isolate
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 16
+#SBATCH --mem {{mem_in_gb}}G        # 160G
+#SBATCH --time {{wall_time_limit}}  # 96:00:00
+#SBATCH -p {{queue_name}}           # qiita
+
+{{TELLLINK_SING_PATH}}=/projects/long_read_collab/code/tellseq/release_v1.11/tellink-release/run_tellink_sing.sh
+{{modules_to_load}}  # singularity_3.6.4
+
+telllink.sbatch
+#SBATCH -J {{job_name}}             # tellink
+#SBATCH --mem {{mem_in_gb}}G        # 160G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 16
+#SBATCH --time {{wall_time_limit}}  # 96:00:00
+#SBATCH -p {{queue_name}}           # qiita
+{{modules_to_load}}  # singularity_3.6.4
+{{TELLLINK_SING_PATH}}=/projects/long_read_collab/code/tellseq/release_v1.11/tellink-release/run_tellink_sing.sh
+
+integrate.sbatch (should this be renamed?)
+#SBATCH -J {{job_name}}             # integrate
+#SBATCH --time {{wall_time_limit}}  # 24:00:00
+#SBATCH --mem {{mem_in_gb}}G        # 8G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 1
+#SBATCH -p {{queue_name}}           # qiita
+
+cloudspades-isolate.sbatch:
+#SBATCH -J {{job_name}}             # cs-assemble
+#SBATCH --time {{wall_time_limit}}  # 24:00:00
+#SBATCH --mem {{mem_in_gb}}G        # 64G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 12
+#SBATCH -p {{queue_name}}           # qiita
+
+module load {{modules_to_load}} # gcc_9.3.0
+
+{{CHARLIE_SPADES_PATH}} = ~/spades-cloudspades-paper/assembler/spades.py
+
+
+tellread-cleanup.sbatch
+#SBATCH -J {{job_name}}             # cleanup
+#SBATCH --time {{wall_time_limit}}  # 24:00:00
+#SBATCH --mem {{mem_in_gb}}G        # 8G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 1
+#SBATCH -p {{queue_name}}           # qiita
+
+
+
+
+
 class TRConvertJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, nprocs, wall_time_limit, pmem, bcl_tool_path,

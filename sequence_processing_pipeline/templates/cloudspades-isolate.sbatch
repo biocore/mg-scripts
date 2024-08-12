@@ -1,15 +1,20 @@
 #!/bin/bash -l
-#SBATCH -J cs-assemble
-#SBATCH --time 24:00:00
-#SBATCH --mem 64gb
-#SBATCH -N 1
-#SBATCH -c 12
+#SBATCH -J {{job_name}}             # cs-assemble
+#SBATCH --time {{wall_time_limit}}  # 24:00:00
+#SBATCH --mem {{mem_in_gb}}G        # 64G
+#SBATCH -N {{node_count}}           # 1
+#SBATCH -c {{cores_per_task}}       # 12
+#SBATCH -p {{queue_name}}           # qiita
+
+# for now these can be left hard-coded.
 #SBATCH --output %x-%A_%a.out
 #SBATCH --error %x-%A_%a.err
-#SBATCH --mail-user=qiita.help@gmail.com
-#SBATCH --mail-type=FAIL
-#SBATCH -p qiita
 
+# for now comment these out as qiita is responsible for notifying users.
+###SBATCH --mail-user=qiita.help@gmail.com
+###SBATCH --mail-type=FAIL
+
+# like mamba, source activate is an issue we'll have to address. for now we'll leave it hardcoded.
 source activate qiime2-2023.5
 function logger () { 
     echo "$(date) :: ${@}"; 
@@ -19,6 +24,8 @@ function logger () {
 set -x 
 set -e
 
+# this gets set in the environment from another script. For now let's
+# run with that.
 echo $TMPDIR
 
 if [[ -z "${LABELTAG}" ]]; then
@@ -32,8 +39,11 @@ if [[ ! -d ${base} ]]; then
     exit 1
 fi
 
+# mamba is a new environment we'll have to address. perhaps it's possible to change this when using qp-klp.
+# for now we will leave it hardcoded.
 mamba activate activate qiime2-2023.5
-module load gcc_9.3.0 
+
+module load {{modules_to_load}} # gcc_9.3.0
 
 samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))            
 
@@ -50,8 +60,7 @@ fi
 
 mkdir -p ${cs}
 
-pushd ~/spades-cloudspades-paper/assembler/
-./spades.py \
+pushd {{CHARLIE_SPADES_PATH}} \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
     --gemcode1-2 ${base}/integrated/${sample}.R2.fastq.gz \
@@ -59,7 +68,10 @@ pushd ~/spades-cloudspades-paper/assembler/
 module unload gcc_9.3.0
 popd
 
-mamba activate quast                                                           
+# mamba is a new environment we'll have to address. perhaps it's possible to change this when using qp-klp.
+# for now we will leave it hardcoded.
+mamba activate quast
+
 quast \
     -o ${cs}/quast-scaffolds \
     -t ${SLURM_JOB_CPUS_PER_NODE} \
