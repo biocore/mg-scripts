@@ -1,10 +1,10 @@
 #!/bin/bash
-samplesheet="{{tellread_map}}"      # previously -i option
-seqrunpath="{{seqrun_path}}"        # previously -s option
-lane="{{lane}}"                     # previously -l option
-reference_map="{{reference_map}}"   # previously -r option
-reference_base="{{reference_base}}" # previously -b option
-mode="{{mode}}" $                   # previously -m option
+samplesheet="/home/qiita_test/qiita-spots/tellread_mapping.csv"      # previously -i option
+seqrunpath="/sequencing/igm_runs/240216_LH00444_0058_A22357VLT4"        # previously -s option
+lane="L008"                     # previously -l option
+reference_map=""   # previously -r option
+reference_base="" # previously -b option
+mode="metagenomic" $                   # previously -m option
 
 # preserve error-checking of parameters to preserve as much of the original
 # script as possible, even though this could be done in python.

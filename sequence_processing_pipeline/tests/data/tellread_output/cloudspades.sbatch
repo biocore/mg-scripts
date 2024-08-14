@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#SBATCH -J {{job_name}}             # cs-assemble
-#SBATCH --time {{wall_time_limit}}  # 24:00:00
-#SBATCH --mem {{mem_in_gb}}G        # 64G
-#SBATCH -N {{node_count}}           # 1
-#SBATCH -c {{cores_per_task}}       # 12
-#SBATCH -p {{queue_name}}           # qiita
+#SBATCH -J cs-assemble             # cs-assemble
+#SBATCH --time 24:00:00  # 24:00:00
+#SBATCH --mem 128G        # 128G
+#SBATCH -N 1           # 1
+#SBATCH -c 12       # 12
+#SBATCH -p qiita           # qiita
 
 # for now these can be left hard-coded.
 #SBATCH --output %x-%A_%a.out
@@ -24,8 +24,6 @@ function logger () {
 set -x 
 set -e
 
-# this gets set in the environment from another script. For now let's
-# run with that.
 echo $TMPDIR
 
 if [[ -z "${LABELTAG}" ]]; then
@@ -43,14 +41,14 @@ fi
 # for now we will leave it hardcoded.
 mamba activate activate qiime2-2023.5
 
-module load {{modules_to_load}} # gcc_9.3.0
+module load gcc_9.3.0 # gcc_9.3.0
 
 samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))            
 
 # assumes 1-based array index, eg --array 1-N
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
-cs=${base}/cloudspades-isolate/${sample}
+cs=${base}/cloudspades/${sample}
 
 if [[ ! -z ${FORCE} && ${FORCE} == "TRUE" ]]; then
     if [[ -d ${cs} ]]; then
@@ -59,20 +57,19 @@ if [[ ! -z ${FORCE} && ${FORCE} == "TRUE" ]]; then
 fi
 
 mkdir -p ${cs}
+pushd /home/qiita_test/qiita-spots/spades-cloudspades-0.1/assembler/bin
 
-pushd {{spades_path}}
+# for now don't use spades.py jinja2 variable
 ./spades.py \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
     --gemcode1-2 ${base}/integrated/${sample}.R2.fastq.gz \
+    --meta \
     -t ${SLURM_JOB_CPUS_PER_NODE} > ${cs}/stdoutstderr.log 2>&1
 module unload gcc_9.3.0
 popd
 
-# mamba is a new environment we'll have to address. perhaps it's possible to change this when using qp-klp.
-# for now we will leave it hardcoded.
-mamba activate quast
-
+mamba activate quast                                                           
 quast \
     -o ${cs}/quast-scaffolds \
     -t ${SLURM_JOB_CPUS_PER_NODE} \

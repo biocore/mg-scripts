@@ -59,7 +59,7 @@ fi
 mkdir -p ${cs}
 pushd /home/qiita_test/qiita-spots/spades-cloudspades-0.1/assembler/bin
 
-# for now don't use {{spades.py}}
+# for now don't use spades.py jinja2 variable
 ./spades.py \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \

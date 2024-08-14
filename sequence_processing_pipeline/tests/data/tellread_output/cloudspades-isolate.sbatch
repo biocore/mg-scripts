@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#SBATCH -J {{job_name}}             # cs-assemble
-#SBATCH --time {{wall_time_limit}}  # 24:00:00
-#SBATCH --mem {{mem_in_gb}}G        # 64G
-#SBATCH -N {{node_count}}           # 1
-#SBATCH -c {{cores_per_task}}       # 12
-#SBATCH -p {{queue_name}}           # qiita
+#SBATCH -J cs-assemble             # cs-assemble
+#SBATCH --time 24:00:00  # 24:00:00
+#SBATCH --mem 64G        # 64G
+#SBATCH -N 1           # 1
+#SBATCH -c 12       # 12
+#SBATCH -p qiita           # qiita
 
 # for now these can be left hard-coded.
 #SBATCH --output %x-%A_%a.out
@@ -43,7 +43,7 @@ fi
 # for now we will leave it hardcoded.
 mamba activate activate qiime2-2023.5
 
-module load {{modules_to_load}} # gcc_9.3.0
+module load gcc_9.3.0 # gcc_9.3.0
 
 samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))            
 
@@ -60,7 +60,7 @@ fi
 
 mkdir -p ${cs}
 
-pushd {{spades_path}}
+pushd ~/spades-cloudspades-paper/assembler/
 ./spades.py \
     -o ${cs} \
     --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
