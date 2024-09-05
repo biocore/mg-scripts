@@ -9,9 +9,22 @@ from time import sleep
 import logging
 from inspect import stack
 import re
+from time import time
 
 
 class Job:
+    slurm_status_terminated = ['BOOT_FAIL', 'CANCELLED', 'DEADLINE', 'FAILED',
+                               'NODE_FAIL', 'OUT_OF_MEMORY', 'PREEMPTED',
+                               'REVOKED', 'TIMEOUT']
+
+    slurm_status_successful = ['COMPLETED']
+
+    slurm_status_running = ['COMPLETING', 'CONFIGURING', 'PENDING', 'REQUEUED',
+                            'REQUEUE_FED', 'REQUEUE_HOLD', 'RESIZING',
+                            'RESV_DEL_HOLD', 'RUNNING', 'SIGNALING',
+                            'SPECIAL_EXIT', 'STAGE_OUT', 'STOPPED',
+                            'SUSPENDED']
+
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
         """
@@ -191,53 +204,13 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def submit_job(self, script_path, job_parameters=None,
-                   script_parameters=None, wait=True,
-                   exec_from=None, callback=None):
-        """
-        Submit a Torque job script and optionally wait for it to finish.
-        :param script_path: The path to a Torque job (bash) script.
-        :param job_parameters: Optional parameters for scheduler submission.
-        :param script_parameters: Optional parameters for your job script.
-        :param wait: Set to False to submit job and not wait.
-        :param exec_from: Set working directory to execute command from.
-        :param callback: Set callback function that receives status updates.
-        :return: Dictionary containing the job's id, name, status, and
-        elapsed time. Raises PipelineError if job could not be submitted or
-        if job was unsuccessful.
-        """
-        if job_parameters:
-            cmd = 'sbatch %s %s' % (job_parameters, script_path)
-        else:
-            cmd = 'sbatch %s' % (script_path)
-
-        if script_parameters:
-            cmd += ' %s' % script_parameters
-
-        if exec_from:
-            cmd = f'cd {exec_from};' + cmd
-
-        logging.debug("job scheduler call: %s" % cmd)
-
-        if self.force_job_fail:
-            raise JobFailedError("This job died.")
-
-        # if system_call does not raise a PipelineError(), then the scheduler
-        # successfully submitted the job. In this case, it should return
-        # the id of the job in stdout.
-        results = self._system_call(cmd)
-        stdout = results['stdout']
-
-        job_id = stdout.strip().split()[-1]
-
+    def _wait_on_job(self, job_id, callback=None):
         job_info = {'job_id': None, 'job_name': None, 'job_state': None,
                     'elapsed_time': None}
-        # Just to give some time for everything to be set up properly
-        sleep(10)
 
         exit_count = 0
 
-        while wait:
+        while True:
             result = self._system_call(f"sacct -P -n --job {job_id} --format "
                                        "JobID,JobName,State,Elapsed,ExitCode")
 
@@ -287,34 +260,134 @@ class Job:
 
             sleep(10)
 
-        if job_info['job_id'] is not None:
-            # job was once in the queue
-            if callback is not None:
-                callback(jid=job_id, status=job_info['job_state'])
+        return job_info, states, estatuses
 
-            if set(states) == {'COMPLETED'}:
-                if 'exit_status' in job_info:
-                    if set(estatuses) == {'0:0'}:
-                        # job completed successfully
-                        return job_info
-                    else:
-                        exit_status = job_info['exit_status']
-                        raise JobFailedError(f"job {job_id} exited with exit_"
-                                             f"status {exit_status}")
-                else:
-                    # with no other info, assume job completed successfully
-                    return job_info
-            else:
-                # job exited unsuccessfully
-                raise JobFailedError(f"job {job_id} exited with status "
-                                     f"{job_info['job_state']}")
+    def submit_job(self, script_path, job_parameters=None,
+                   script_parameters=None, exec_from=None, callback=None):
+        """
+        Submit a Torque job script and optionally wait for it to finish.
+        :param script_path: The path to a Torque job (bash) script.
+        :param job_parameters: Optional parameters for scheduler submission.
+        :param script_parameters: Optional parameters for your job script.
+        :param exec_from: Set working directory to execute command from.
+        :param callback: Set callback function that receives status updates.
+        :return: Dictionary containing the job's id, name, status, and
+        elapsed time. Raises PipelineError if job could not be submitted or
+        if job was unsuccessful.
+        """
+        if job_parameters:
+            cmd = 'sbatch %s %s' % (job_parameters, script_path)
         else:
+            cmd = 'sbatch %s' % (script_path)
+
+        if script_parameters:
+            cmd += ' %s' % script_parameters
+
+        if exec_from:
+            cmd = f'cd {exec_from};' + cmd
+
+        logging.debug("job scheduler call: %s" % cmd)
+
+        if self.force_job_fail:
+            raise JobFailedError("This job died.")
+
+        # if system_call does not raise a PipelineError(), then the scheduler
+        # successfully submitted the job. In this case, it should return
+        # the id of the job in stdout.
+        results = self._system_call(cmd)
+        stdout = results['stdout']
+
+        job_id = stdout.strip().split()[-1]
+
+        # Just to give some time for everything to be set up properly
+        sleep(10)
+
+        job_info, states, estatuses = self._wait_on_job(job_id,
+                                                        callback=callback)
+
+        if job_info['job_id'] is None:
             # job was never in the queue - return an error.
             if callback is not None:
                 callback(jid=job_id, status='ERROR')
 
             raise JobFailedError(f"job {job_id} never appeared in the "
                                  "queue.")
+
+        # job was once in the queue
+        if callback is not None:
+            callback(jid=job_id, status=job_info['job_state'])
+
+        if set(states) == {'COMPLETED'}:
+            if 'exit_status' in job_info:
+                if set(estatuses) == {'0:0'}:
+                    # job completed successfully
+                    return job_info
+                else:
+                    exit_status = job_info['exit_status']
+                    raise JobFailedError(f"job {job_id} exited with exit_"
+                                         f"status {exit_status}")
+            else:
+                # with no other info, assume job completed successfully
+                return job_info
+        else:
+            # job exited unsuccessfully
+            raise JobFailedError(f"job {job_id} exited with status "
+                                 f"{job_info['job_state']}")
+
+    def _wait_on_job_ids(self, job_ids, timeout_in_seconds=None):
+        """
+        Wait on a list of known Slurm job-ids.
+        :param job_ids: A list of Slurm job-ids
+        :param timeout_in_seconds: Abort and raise an Error after n seconds.
+        :return: A list of strings, representing the state of each job.
+        """
+
+        # this method is useful for wrapping scripts that spawn child jobs and
+        # the user wishes to wait until they are all completed before
+        # continuing.
+        if not isinstance(job_ids, list):
+            raise ValueError("job_ids must be a list of valid slurm job ids")
+
+        if set([isinstance(x, int) for x in job_ids]) != {True}:
+            raise ValueError("job_ids must contain integers")
+
+        if timeout_in_seconds:
+            if not isinstance(timeout_in_seconds, int):
+                raise ValueError("timeout_in_seconds must be an integer")
+
+            if timeout_in_seconds < 1:
+                raise ValueError("timeout_in_seconds must be greater than 0")
+
+        start_time = time()
+        while True:
+            if timeout_in_seconds:
+                if time() - start_time > timeout_in_seconds:
+                    raise PipelineError("timeout reached while waiting for "
+                                        "jobs")
+
+            job_states = []
+            for job_id in job_ids:
+                # NB: sacct can support querying on multiple job-ids at once.
+                # However, this would require extensive rewriting and testing
+                # of the existing code. Deferring for now.
+                _, states, _ = self._wait_on_job(job_id)
+                job_states.append(set(states))
+
+            # assuming that a Slurm job will never contain states from both
+            # terminated and successful, this will generate a list containing
+            # the current state for each job.
+            result = [set(x) & set(Job.slurm_status_terminated +
+                                   Job.slurm_status_successful) for x in job_states]
+
+            if set([bool(x) for x in result]) == {True}:
+                # all jobs are no longer in a running state.
+                break
+
+            sleep(10)
+
+        # return the current state of each job. Assume that each set contains
+        # only one value.
+        return [''.join(x) for x in result]
 
     def _group_commands(self, cmds):
         # break list of commands into chunks of max_array_length (Typically

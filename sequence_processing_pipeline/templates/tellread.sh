@@ -4,7 +4,7 @@ seqrunpath="{{seqrun_path}}"        # previously -s option
 lane="{{lane}}"                     # previously -l option
 reference_map="{{reference_map}}"   # previously -r option
 reference_base="{{reference_base}}" # previously -b option
-mode="{{mode}}" $                   # previously -m option
+mode="{{mode}}"                     # previously -m option
 
 # preserve error-checking of parameters to preserve as much of the original
 # script as possible, even though this could be done in python.
@@ -37,7 +37,7 @@ fi
 safepath=$(echo ${seqrunpath} | sed 's:/*$::')
 label=$(basename ${safepath})
 labeltag=${label}-${tag}
-output=/panfs/${USER}/${labeltag}
+output={{output_path}}
 
 if [[ ! -d ${seqrunpath}/Data/Intensities/BaseCalls/${lane} ]]; then
     echo "Cannot access the lane"
@@ -85,7 +85,12 @@ declare -a s
 declare -a g
 # below extended regex might be broken because C5\d\d happens in column 0, not column 1
 # of the hacked sample-sheet.
-for sample in $(egrep -o "^C5.*," ${samplesheet} | tr -d "," | sort)
+# for sample in $(egrep -o "^C5.*," ${samplesheet} | tr -d "," | sort)
+
+# new sample-sheet is of form:
+# Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Barcode_ID,Sample_Project,Well_description,Lane
+# 10283.LS.4.4.2015,10283.LS.4.4.2015,Plate_1,A1,C501,LS_Timeseries_TellSeq_10283,10283.LS.4.4.2015,1
+for sample in $(egrep -o ",C5..," ${samplesheet} | tr -d "," | sort)
 do
     echo "sample found: ${sample}"
     # get references if they exist
@@ -168,7 +173,9 @@ if [[ -f ${submitcopy} ]]; then
     exit 1
 fi
 
-echo $@ > ${arguments}
+#TODO: Other possible arguments like -r?
+echo "-l {{lane}} -s {{seqrun_path}} -i {{tellread_map}} -m {{mode}}" >${arguments} 
+
 cp ${0} ${scriptcopy}
 cp ${submit_script} ${submitcopy}
 cp ${asm_cloudspades_script} ${asmcscopy}
@@ -188,6 +195,9 @@ trjob=$(sbatch \
           --export BASE=${base},N_SAMPLES=${n_samples},SEQRUNPATH=${seqrunpath},LANE=${lane},REFMAP=${reference_map},REFBASE=${reference_base},OUTPUT=${output},SAMPLES=\"${s}\",REFS=\"${g}\" \
           ${submit_script})
 
+echo "TRJOB_RETURN_CODE: $?" > {{output_path}}/pids
+echo "TRJOB_PID: $trjob" >> {{output_path}}/pids
+
 if [[ ${norm} == "TRUE" ]]; then
     cp ${norm_script} ${normcopy}
     chmod gou-w ${normcopy}
@@ -197,6 +207,8 @@ if [[ ${norm} == "TRUE" ]]; then
                         -J ${labeltag}-${datetag}-norm-counts \
                         --export BASE=${base},TELLREAD_OUTPUT=${output},OUTPUT=$(pwd),SAMPLESHEET=${samplesheet} \
                         ${norm_script})
+    echo "NORM_COUNTS_JOB_RETURN_CODE: $?" >> {{output_path}}/pids
+    echo "NORM_COUNTS_JOB_PID: $norm_counts_job" >> {{output_path}}/pids
 fi
 
 integrate_job=$(sbatch \
@@ -207,6 +219,9 @@ integrate_job=$(sbatch \
                     --export BASE=${base},LABELTAG=${labeltag},OUTPUT=${output} \
                     ${integrate_script})
 
+echo "INTEGRATE_JOB_RETURN_CODE: $?" >> {{output_path}}/pids
+echo "INTEGRATE_JOB_PID: $integrate_job" >> {{output_path}}/pids
+
 if [[ ${assemble} == "TRUE" ]]; then
     csj=$(sbatch \
             --parsable \
@@ -215,6 +230,10 @@ if [[ ${assemble} == "TRUE" ]]; then
             --array 1-${n_samples} \
             --export LABELTAG=${labeltag},OUTPUT=${output} \
             ${asm_cloudspades_script})
+
+    echo "CSJ_JOB_RETURN_CODE: $?" >> {{output_path}}/pids
+    echo "CSJ_JOB_PID: $csj" >> {{output_path}}/pids
+
     tlj=$(sbatch \
             --parsable \
             --dependency=aftercorr:${integrate_job} \
@@ -222,6 +241,10 @@ if [[ ${assemble} == "TRUE" ]]; then
             --array 1-${n_samples} \
             --export LABELTAG=${labeltag},OUTPUT=${output} \
             ${asm_tellink_script})
+
+    echo "TLJ_JOB_RETURN_CODE: $?" >> {{output_path}}/pids
+    echo "TLJ_JOB_PID: $tlj" >> {{output_path}}/pids
+
     cleanupdep=${csj}:${tlj}
 else
     cleanupdep=${integrate_job}
@@ -234,3 +257,6 @@ cleanup=$(sbatch \
             --dependency=afterok:${cleanupdep} \
             --export OUTPUT=${output} \
             ${clean_script})
+
+echo "CLEANUP_JOB_RETURN_CODE: $?" >> {{output_path}}/pids
+echo "CLEANUP_JOB_PID: $cleanup" >> {{output_path}}/pids

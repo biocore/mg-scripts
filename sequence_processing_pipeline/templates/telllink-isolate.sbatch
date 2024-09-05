@@ -6,31 +6,26 @@
 #SBATCH --time {{wall_time_limit}}  # 96:00:00
 #SBATCH -p {{queue_name}}           # qiita
 
-# for now these can be left hard-coded.
-#SBATCH --output %x-%A_%a.out
-#SBATCH --error %x-%A_%a.err
-
-# for now comment these out as qiita is responsible for notifying users.
-###SBATCH --mail-user=qiita.help@gmail.com
-###SBATCH --mail-type=FAIL
+#SBATCH --output telllink-isolate_%x-%A_%a.out
+#SBATCH --error telllink-isolate_%x-%A_%a.err
 
 set -x 
 set -e
 
-module load {{modules_to_load}} # singularity_3.6.4
+module load {{modules_to_load}}
 
 if [[ -z "${LABELTAG}" ]]; then
     echo "LABELTAG is not specified"
     exit 1
 fi
 
-base=/panfs/qiita/TELLREAD/${LABELTAG}
+base={{output_path}}
 if [[ ! -d ${base} ]]; then
     echo "${base} not found"
     exit 1
 fi
 
-samples=($(cat ${base}/sample_index_list_${LABELTAG}.txt | cut -f 2))
+samples=($(cat ${base}/sample_index_list_output.txt | cut -f 2))
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
 k=79

@@ -1,19 +1,13 @@
 #!/bin/bash -l
-#SBATCH -J {{job_name}}             # tellread
-#SBATCH -p {{queue_name}}           # qiita
-#SBATCH -N {{node_count}}           # 1
-#SBATCH -c {{cores_per_task}}       # 4
-#SBATCH --mem {{mem_in_gb}}G        # 16G
-#SBATCH --time {{wall_time_limit}}  # 96:00:00
+#SBATCH -J {{job_name}}
+#SBATCH -p {{queue_name}}
+#SBATCH -N {{node_count}}
+#SBATCH -c {{cores_per_task}}
+#SBATCH --mem {{mem_in_gb}}G
+#SBATCH --time {{wall_time_limit}}
 
-# for now these can be left hard-coded.
-#SBATCH --partition=short
-#SBATCH --output %x-%A.out
-#SBATCH --error %x-%A.err
-
-# for now comment these out as qiita is responsible for notifying users.
-###SBATCH --mail-user=qiita.help@gmail.com
-###SBATCH --mail-type=BEGIN,FAIL
+#SBATCH --output tellread_%x-%A.out
+#SBATCH --error tellread_%x-%A.err
 
 function logger () { 
     echo "$(date) :: ${@}"; 
@@ -86,7 +80,7 @@ fi
 
 mkdir -p ${OUTPUT}
     
-module load {{modules_to_load}} # singularity_3.6.4
+module load {{modules_to_load}}
 {{sing_script_path}} \
     -i ${seqrun_path} \
     -o ${OUTPUT} \
@@ -96,7 +90,6 @@ module load {{modules_to_load}} # singularity_3.6.4
     ${extra} \
     -l ${lane}
 
-    
 if [[ -d ${OUTPUT}/Full ]]; then
     echo "Run appears successful"
 elif [[ -d ${OUTPUT}/1_demult/Full ]]; then

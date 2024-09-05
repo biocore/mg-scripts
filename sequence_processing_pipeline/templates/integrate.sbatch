@@ -6,21 +6,13 @@
 #SBATCH -c {{cores_per_task}}       # 1
 #SBATCH -p {{queue_name}}           # qiita
 
-# for now these can be left hard-coded.
-#SBATCH --output %x-%A_%a.out
-#SBATCH --error %x-%A_%a.err
+#SBATCH --output integrate_%x-%A_%a.out
+#SBATCH --error integrate_%x-%A_%a.err
 
-# for now comment these out as qiita is responsible for notifying users.
-###SBATCH --mail-user=qiita.help@gmail.com
-###SBATCH --mail-type=FAIL
-
-# like mamba, source activate is an issue we'll have to address. for now we'll leave it hardcoded.
-source activate rust
 function logger () { 
     echo "$(date) :: ${@}"; 
     echo "$(date) :: ${@}" 1>&2; 
 }
-
 
 # https://docs.hpc.shef.ac.uk/en/latest/referenceinfo/scheduler/SLURM/SLURM-environment-variables.html
 cores=${SLURM_CPUS_PER_TASK}
@@ -55,7 +47,7 @@ set -x
 set -e
 set -o pipefail
 
-samples=($(cat ${tellread}/sample_index_list_${LABELTAG}.txt | cut -f 2))            
+samples=($(cat ${tellread}/sample_index_list_output.txt | cut -f 2))
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
 export TMPDIR=$(mktemp -d)
@@ -114,8 +106,8 @@ fi
 # not mask a nonzero exit status (e.g., the python process raising)
 cat ${i1} | gzip > ${i1out} 
 
-mamba activate tellread-integrate
-python ${BASE}/integrate-indices-np.py integrate \
+conda activate qp-knight-lab-processing-2022.03
+python {{iinp_script_path}} integrate \
     --no-sort \
     --r1-in ${r1} \
     --r2-in ${r2} \

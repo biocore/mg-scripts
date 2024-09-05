@@ -6,13 +6,8 @@
 #SBATCH -c {{cores_per_task}}       # 1
 #SBATCH -p {{queue_name}}           # qiita
 
-# for now comment these out as qiita is responsible for notifying users.
-###SBATCH --mail-user=qiita.help@gmail.com
-###SBATCH --mail-type=BEGIN,FAIL
-
-# for now these can be left hard-coded.
-#SBATCH --output %x-%A.out
-#SBATCH --error %x-%A.err
+#SBATCH --output tellread-cleanup_%x-%A.out
+#SBATCH --error tellread-cleanup_%x-%A.err
 
 if [[ -z "${OUTPUT}" ]]; then
     echo "OUTPUT is not specified"
