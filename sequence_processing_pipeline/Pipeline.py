@@ -241,7 +241,8 @@ class Pipeline:
         Returns a list of words that should not appear as column names in any
         project referenced in the Pipeline's sample-sheet/pre-prep file.
         :param words: A list of words that may include reserved words.
-        :return: A list of words that are already reserved.
+        :return: A list of words that are already reserved in upper, lower,
+                 and mixed cases.
         '''
 
         # Only strings used as column names in pre-prep files are currently
@@ -257,12 +258,15 @@ class Pipeline:
             reserved = PREP_MF_COLUMNS
         else:
             # results will be dependent on SheetType and SheetVersion of
-            # the sample-sheet.
+            # the sample-sheet. Since all columns in a prep-info file are
+            # lower()ed before writing out to file, the word must be
+            # reserved in all case forms. e.g.: 'Sample_Well' and 'Sample_well'
+            # are both forms of 'sample_well'.
             reserved = [x.lower() for x in
                         self.sample_sheet.CARRIED_PREP_COLUMNS] + \
                         self.sample_sheet.GENERATED_PREP_COLUMNS
 
-        return list(set(words) & set(reserved))
+        return list(set([x.lower() for x in words]) & set(reserved))
 
     def _configure_profile(self):
         # extract the instrument type from self.run_dir and the assay type
