@@ -229,11 +229,26 @@ class Job:
         def query_slurm(job_ids):
             # internal function query_slurm encapsulates the handling of
             # squeue.
-            result = self._system_call(f"squeue -t all -j {','.join(job_ids)}"
-                                       " -o '%F,%A,%T'")
+            count = 0
+            while True:
+                result = self._system_call("squeue -t all -j "
+                                           f"{','.join(job_ids)} "
+                                           "-o '%F,%A,%T'")
 
-            if result['return_code'] != 0:
-                raise ExecFailedError(result['stderr'])
+                if result['return_code'] == 0:
+                    # there was no issue w/squeue, break this loop and
+                    # continue.
+                    break
+                else:
+                    # there was a likely intermittent issue w/squeue. Pause
+                    # and wait before trying a few more times. If the problem
+                    # persists then report the error and exit.
+                    count += 1
+
+                    if count > 3:
+                        raise ExecFailedError(result['stderr'])
+
+                    sleep(60)
 
             lines = result['stdout'].split('\n')
             lines.pop(0)    # remove header
@@ -315,14 +330,28 @@ class Job:
         # Just to give some time for everything to be set up properly
         sleep(10)
 
-        # wait == True is a convenience for users who want to submit a single
-        # Slurm job and wait for it to complete. wait == False allows the
-        # user to submit multiple Slurm jobs, collect their ids, and
-        # use wait_on_job_ids() to wait on them all at once.
-        if wait is True:
-            return self.wait_on_job_ids([job_id], callback=callback)
-        else:
+        if wait is False:
+            # return job_id since that is the only information for this new
+            # job that we have available. User should expect that this is
+            # not a dict if they explicitly set wait=False.
             return job_id
+
+        # the user is expecting a dict with 'job_id' and 'job_state'
+        # attributes. This method will return a dict w/job_ids as keys and
+        # their job status as values. This must be munged before returning
+        # to the user.
+        results = self.wait_on_job_ids([job_id], callback=callback)
+
+        job_result = {'job_id': job_id, 'job_state': results[job_id]}
+
+        if callback is not None:
+            callback(jid=job_id, status=job_result['job_state'])
+
+        if job_result['job_state'] == 'COMPLETED':
+            return job_result
+        else:
+            raise JobFailedError(f"job {job_id} exited with status "
+                                 f"{job_result['job_state']}")
 
     def _group_commands(self, cmds):
         # break list of commands into chunks of max_array_length (Typically
