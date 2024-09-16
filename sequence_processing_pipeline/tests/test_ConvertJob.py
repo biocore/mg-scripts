@@ -1,4 +1,4 @@
-from os.path import join, abspath, exists
+from os.path import join, abspath, exists, dirname
 from os import makedirs
 from sequence_processing_pipeline.ConvertJob import ConvertJob
 from sequence_processing_pipeline.PipelineError import (PipelineError,
@@ -836,7 +836,7 @@ class TestConvertJob(unittest.TestCase):
 
         # the entire list of sample-ids found w/in good-sample-sheet.csv
         self.sample_ids = self.feist_ids + self.gerwick_ids + self.nyu_ids
-        package_root = abspath('./sequence_processing_pipeline')
+        package_root = abspath(join(dirname(__file__), '..'))
         # this base path is used extensively throughout the tests.
         self.base_path = partial(join, package_root, 'tests', 'data')
         self.good_output_path = self.base_path('output_dir')
@@ -1019,31 +1019,28 @@ class TestConvertJob(unittest.TestCase):
         not_a_sample_name = 'NOT_A_SAMPLE_NAME'
         not_a_project = 'NOT_A_PROJECT'
 
-        with self.assertRaisesRegex(ValueError, "'NOT_A_SAMPLE_NAME' did not "
-                                                "match any values in the "
-                                                "'sample_name' column for "
-                                                "project 'Feist_11661'"):
+        err_msg = ("'NOT_A_SAMPLE_NAME' did not match any 'sample_name' values"
+                   " in project 'Feist_11661'.")
+        with self.assertRaisesRegex(ValueError, err_msg):
             job.copy_sequences(not_a_sample_name,
                                source_project,
                                dest_project)
 
-        with self.assertRaisesRegex(ValueError, "'CDPH-SAL.Salmonella.Typhi."
-                                                "MDL-154' did not match any "
-                                                "values in the 'sample_name' "
-                                                "column for project 'Gerwick_"
-                                                "6123'"):
+        err_msg = ("'CDPH-SAL.Salmonella.Typhi.MDL-154' did not match any "
+                   "'sample_name' values in project 'Gerwick_6123'.")
+        with self.assertRaisesRegex(ValueError, err_msg):
             job.copy_sequences(sample_name,
                                not_source_project,
                                dest_project)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
-                                                "defined in sample-sheet"):
+                                                "defined in sample sheet"):
             job.copy_sequences(sample_name,
                                not_a_project,
                                dest_project)
 
         with self.assertRaisesRegex(ValueError, "'NOT_A_PROJECT' is not "
-                                                "defined in sample-sheet"):
+                                                "defined in sample sheet"):
             job.copy_sequences(sample_name,
                                source_project,
                                not_a_project)
