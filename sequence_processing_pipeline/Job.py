@@ -25,6 +25,15 @@ class Job:
                             'SPECIAL_EXIT', 'STAGE_OUT', 'STOPPED',
                             'SUSPENDED']
 
+    slurm_status_not_running = (slurm_status_terminated +
+                                slurm_status_successful)
+
+    slurm_status_all_states = (slurm_status_terminated +
+                               slurm_status_successful +
+                               slurm_status_running)
+
+    polling_interval_in_seconds = 60
+
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
         """
@@ -204,76 +213,96 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def _wait_on_job(self, job_id, callback=None):
-        job_info = {'job_id': None, 'job_name': None, 'job_state': None,
-                    'elapsed_time': None}
+    def wait_on_job_ids(self, job_ids, callback=None):
+        '''
+        Wait for the given job-ids to finish running before returning.
+        :param job_ids: A list of Slurm job-ids
+        :param callback: Set callback function that receives status updates.
+        :return: A dictionary of job-ids and their current statuses.
+        '''
 
-        exit_count = 0
+        # wait_on_job_ids was broken out of submit_job() and updated to monitor
+        # multiple job ids. This will allow multiple jobs to be submitted to
+        # Slurm in parallel and a single wait_on_job_ids() can wait on all of
+        # them before returning, optionally submitting callbacks for each
+        # job-id.
+
+        def query_slurm(job_ids):
+            # internal function query_slurm encapsulates the handling of
+            # squeue.
+            count = 0
+            while True:
+                result = self._system_call("squeue -t all -j "
+                                           f"{','.join(job_ids)} "
+                                           "-o '%F,%A,%T'")
+
+                if result['return_code'] == 0:
+                    # there was no issue w/squeue, break this loop and
+                    # continue.
+                    break
+                else:
+                    # there was a likely intermittent issue w/squeue. Pause
+                    # and wait before trying a few more times. If the problem
+                    # persists then report the error and exit.
+                    count += 1
+
+                    if count > 3:
+                        raise ExecFailedError(result['stderr'])
+
+                    sleep(60)
+
+            lines = result['stdout'].split('\n')
+            lines.pop(0)    # remove header
+            lines = [x.split(',') for x in lines if x != '']
+
+            jobs = {}
+            child_jobs = {}
+            for job_id, unique_id, state in lines:
+                jobs[unique_id] = state
+
+                if unique_id != job_id:
+                    child_jobs[unique_id] = job_id  # job is a child job
+
+            return jobs, child_jobs
 
         while True:
-            result = self._system_call(f"sacct -P -n --job {job_id} --format "
-                                       "JobID,JobName,State,Elapsed,ExitCode")
+            jobs, child_jobs = query_slurm(job_ids)
 
-            if result['return_code'] != 0:
-                # sacct did not successfully submit the job.
-                raise ExecFailedError(result['stderr'])
+            for jid in job_ids:
+                logging.debug("JOB %s: %s" % (jid, jobs[jid]))
+                if callback is not None:
+                    callback(jid=jid, status=jobs[jid])
 
-            # [-1] remove the extra \n
-            jobs_data = result['stdout'].split('\n')[:-1]
-            states = dict()
-            estatuses = dict()
-            for i, jd in enumerate(jobs_data):
-                jid, jname, jstate, etime, estatus = jd.split('|')
-                if jid.endswith('.extern') or jid.endswith('.batch'):
-                    continue
+                children = [x for x in child_jobs if child_jobs[x] == jid]
+                if len(children) == 0:
+                    logging.debug("\tNO CHILDREN")
+                for cid in children:
+                    logging.debug("\tCHILD JOB %s: %s" % (cid, jobs[cid]))
+            status = [jobs[x] in Job.slurm_status_not_running for x in job_ids]
 
-                if i == 0:
-                    job_info['job_id'] = jid
-                    job_info['job_name'] = jname
-                    job_info['elapsed_time'] = etime
-                    job_info['exit_status'] = estatus
-
-                if jstate not in states:
-                    states[jstate] = 0
-                states[jstate] += 1
-
-                if estatus not in estatuses:
-                    estatuses[estatus] = 0
-                estatuses[estatus] += 1
-
-            job_info['job_state'] = f'{states}'
-            job_info['exit_status'] = f'{estatuses}'
-
-            if callback is not None:
-                callback(jid=job_id, status=f'{states}')
-
-            logging.debug("Job info: %s" % job_info)
-
-            # if job is completed after having run or exited after having
-            # run, then stop waiting.
-            if not set(states) - {'COMPLETED', 'FAILED', 'CANCELLED'}:
-                # break
-                exit_count += 1
-
-            if exit_count > 4:
+            if set(status) == {True}:
+                # all jobs either completed successfully or terminated.
                 break
 
-            sleep(10)
+            sleep(Job.polling_interval_in_seconds)
 
-        return job_info, states, estatuses
+        return jobs
 
     def submit_job(self, script_path, job_parameters=None,
-                   script_parameters=None, exec_from=None, callback=None):
+                   script_parameters=None, wait=True,
+                   exec_from=None, callback=None):
         """
-        Submit a Torque job script and optionally wait for it to finish.
-        :param script_path: The path to a Torque job (bash) script.
+        Submit a Slurm job script and optionally wait for it to finish.
+        :param script_path: The path to a Slurm job (bash) script.
         :param job_parameters: Optional parameters for scheduler submission.
         :param script_parameters: Optional parameters for your job script.
+        :param wait: Set to False to submit job and not wait.
         :param exec_from: Set working directory to execute command from.
         :param callback: Set callback function that receives status updates.
-        :return: Dictionary containing the job's id, name, status, and
-        elapsed time. Raises PipelineError if job could not be submitted or
-        if job was unsuccessful.
+        :return: If wait is True, a dictionary containing the job's id and
+                 status. If wait is False, the Slurm job-id of the submitted
+                 job. Raises PipelineError if job could not be submitted or if
+                 job was unsuccessful.
         """
         if job_parameters:
             cmd = 'sbatch %s %s' % (job_parameters, script_path)
@@ -302,96 +331,32 @@ class Job:
         # Just to give some time for everything to be set up properly
         sleep(10)
 
-        job_info, states, estatuses = self._wait_on_job(job_id,
-                                                        callback=callback)
+        if wait is False:
+            # return job_id since that is the only information for this new
+            # job that we have available. User should expect that this is
+            # not a dict if they explicitly set wait=False.
+            return job_id
 
-        if job_info['job_id'] is None:
-            # job was never in the queue - return an error.
-            if callback is not None:
-                callback(jid=job_id, status='ERROR')
+        # the user is expecting a dict with 'job_id' and 'job_state'
+        # attributes. This method will return a dict w/job_ids as keys and
+        # their job status as values. This must be munged before returning
+        # to the user.
+        results = self.wait_on_job_ids([job_id], callback=callback)
 
-            raise JobFailedError(f"job {job_id} never appeared in the "
-                                 "queue.")
+        job_result = {'job_id': job_id, 'job_state': results[job_id]}
 
-        # job was once in the queue
         if callback is not None:
-            callback(jid=job_id, status=job_info['job_state'])
+            callback(jid=job_id, status=job_result['job_state'])
 
-        if set(states) == {'COMPLETED'}:
-            if 'exit_status' in job_info:
-                if set(estatuses) == {'0:0'}:
-                    # job completed successfully
-                    return job_info
-                else:
-                    exit_status = job_info['exit_status']
-                    raise JobFailedError(f"job {job_id} exited with exit_"
-                                         f"status {exit_status}")
-            else:
-                # with no other info, assume job completed successfully
-                return job_info
+        if job_result['job_state'] == 'COMPLETED':
+            return job_result
         else:
-            # job exited unsuccessfully
             raise JobFailedError(f"job {job_id} exited with status "
-                                 f"{job_info['job_state']}")
-
-    def _wait_on_job_ids(self, job_ids, timeout_in_seconds=None):
-        """
-        Wait on a list of known Slurm job-ids.
-        :param job_ids: A list of Slurm job-ids
-        :param timeout_in_seconds: Abort and raise an Error after n seconds.
-        :return: A list of strings, representing the state of each job.
-        """
-
-        # this method is useful for wrapping scripts that spawn child jobs and
-        # the user wishes to wait until they are all completed before
-        # continuing.
-        if not isinstance(job_ids, list):
-            raise ValueError("job_ids must be a list of valid slurm job ids")
-
-        if set([isinstance(x, int) for x in job_ids]) != {True}:
-            raise ValueError("job_ids must contain integers")
-
-        if timeout_in_seconds:
-            if not isinstance(timeout_in_seconds, int):
-                raise ValueError("timeout_in_seconds must be an integer")
-
-            if timeout_in_seconds < 1:
-                raise ValueError("timeout_in_seconds must be greater than 0")
-
-        start_time = time()
-        while True:
-            if timeout_in_seconds:
-                if time() - start_time > timeout_in_seconds:
-                    raise PipelineError("timeout reached while waiting for "
-                                        "jobs")
-
-            job_states = []
-            for job_id in job_ids:
-                # NB: sacct can support querying on multiple job-ids at once.
-                # However, this would require extensive rewriting and testing
-                # of the existing code. Deferring for now.
-                _, states, _ = self._wait_on_job(job_id)
-                job_states.append(set(states))
-
-            # assuming that a Slurm job will never contain states from both
-            # terminated and successful, this will generate a list containing
-            # the current state for each job.
-            result = [set(x) & set(Job.slurm_status_terminated +
-                                   Job.slurm_status_successful) for x in job_states]
-
-            if set([bool(x) for x in result]) == {True}:
-                # all jobs are no longer in a running state.
-                break
-
-            sleep(10)
-
-        # return the current state of each job. Assume that each set contains
-        # only one value.
-        return [''.join(x) for x in result]
+                                 f"{job_result['job_state']}")
 
     def _group_commands(self, cmds):
         # break list of commands into chunks of max_array_length (Typically
-        # 1000 for Torque job arrays). To ensure job arrays are never more
+        # 1000 for Slurm job arrays). To ensure job arrays are never more
         # than 1000 jobs long, we'll chain additional commands together, and
         # evenly distribute them amongst the first 1000.
         cmds.sort()
