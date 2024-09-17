@@ -1121,7 +1121,7 @@ class TestFastQCJob(unittest.TestCase):
 
         # an internal method to force submit_job() to raise a JobFailedError
         # instead of submitting the job w/sbatch and waiting for a failed
-        # job w/sacct.
+        # job w/squeue.
         self.assertTrue(job._toggle_force_job_fail())
 
         try:

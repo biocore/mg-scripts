@@ -9,7 +9,6 @@ from time import sleep
 import logging
 from inspect import stack
 import re
-from time import time
 
 
 class Job:
