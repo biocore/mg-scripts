@@ -6,10 +6,10 @@
 # the ordering stems is determined external to the data being sorted. To
 # determine order, all barcodes must be read in to gather the complete
 # barcode <-> record association; if only partial data is read then
-# associations to barcodes may be missed, and we cannot perform an insertion sort
-# efficiently as we're writing to disk. Once we know an order for the records,
-# we (currently) read in the entirety of the subsequent data (R1 then R2),
-# reorder, and write. Performing this in blocks to minimize memory may be
+# associations to barcodes may be missed, and we cannot perform an insertion
+# sort efficiently as we're writing to disk. Once we know an order for the
+# records, we (currently) read in the entirety of the subsequent data (R1 then
+# R2), reorder, and write. Performing this in blocks to minimize memory may be
 # possible, but we have to assume access is random as a grouping barcode
 # may be with any record along the file.
 #
@@ -291,7 +291,9 @@ def integrate(r1_in, r2_in, i1_in, r1_out, r2_out, threads, no_sort):
         # some downstream programs hate this, so let's add if needed.
         if r1_sniff.endswith(b'/1'):
             if not r2_sniff.endswith(b'/2'):
-                raise ValueError(f'unexpected endings: {r1_sniff.decode("utf-8")} {r2_sniff.decode("utf-8")}')
+                raise ValueError('unexpected endings: '
+                                 f'{r1_sniff.decode("utf-8")} '
+                                 f'{r2_sniff.decode("utf-8")}')
             orient_r1 = ''
             orient_r2 = ''
         else:

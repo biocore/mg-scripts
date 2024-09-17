@@ -7,7 +7,7 @@ import pandas as pd
 ex = re.compile(r'_I1_(C5\d\d).fastq.gz.corrected.err_barcode_removed.fastq')
 
 # remove total line from wc
-data = [l.strip().split(' ') for l in open(sys.argv[1])][:-1]
+data = [x.strip().split(' ') for x in open(sys.argv[1])][:-1]
 plotdata = [(ex.search(i).groups()[0], int(v) / 4) for v, i in data]
 sheetdata = dict(plotdata)
 

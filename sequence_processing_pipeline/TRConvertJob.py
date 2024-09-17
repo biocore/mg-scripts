@@ -113,18 +113,24 @@ class TRConvertJob(Job):
         self.cloudspades_mem_in_gb = "128"
         self.cloudspades_modules = ["gcc_9.3.0"]
         self.cloudspades_node_count = "1"
-        self.cloudspades_path = "/home/qiita_test/qiita-spots/spades-cloudspades-0.1"
+        self.cloudspades_path = ("/home/qiita_test/qiita-spots/spades-"
+                                 "cloudspades-0.1")
         self.cloudspades_wall_time_limit = "24:00:00"
         self.counts_cores_per_task = "1"
-        self.counts_create_picklist_path = "/home/qiita_test/qiita-spots/create_picklist.py"
+        self.counts_create_picklist_path = ("/home/qiita_test/qiita-spots/"
+                                            "create_picklist.py")
         self.counts_mem_in_gb = "8"
         self.counts_node_count = "1"
-        self.counts_other_file = '20230906_FS10001773_68_BTR67708-1611.read_counts.tsv'
-        self.counts_plot_counts_path = "/home/qiita_test/qiita-spots/plot_counts.py"
-        self.counts_sample_sheet = "/home/qiita_test/qiita-spots/20230906_FS10001773_68_BTR67708-1611.csv"
+        self.counts_other_file = ('20230906_FS10001773_68_BTR67708-1611.'
+                                  'read_counts.tsv')
+        self.counts_plot_counts_path = ("/home/qiita_test/qiita-spots/'"
+                                        "'plot_counts.py")
+        self.counts_sample_sheet = ("/home/qiita_test/qiita-spots/"
+                                    "20230906_FS10001773_68_BTR67708-1611.csv")
         self.counts_wall_time_limit = "24:00:00"
         self.cs_isolate_mem_in_gb = "64"
-        self.integrate_indicies_script_path = "/home/qiita_test/qiita-spots/integrate-indices-np.py"
+        self.integrate_indicies_script_path = ("/home/qiita_test/qiita-spots/"
+                                               "integrate-indices-np.py")
         self.integrate_mem_in_gb = "8"
         self.integrate_node_count = "1"
         self.integrate_wall_time_limit = "24:00:00"
@@ -134,21 +140,26 @@ class TRConvertJob(Job):
         self.tellink_mem_in_gb = "160"
         self.tellink_modules = ["singularity_3.6.4"]
         self.tellink_node_count = "1"
-        self.tellink_sing_path = "/projects/long_read_collab/code/tellseq/release_v1.11/tellink-release/run_tellink_sing.sh"
+        self.tellink_sing_path = ("/projects/long_read_collab/code/tellseq/"
+                                  "release_v1.11/tellink-release/"
+                                  "run_tellink_sing.sh")
         self.tellink_wall_time_limit = "96:00:00"
         self.tellread_cores_per_task = "4"
         self.tellread_mem_in_gb = "16"
         self.tellread_modules = ["singularity_3.6.4"]
         self.tellread_node_count = "1"
-        self.tellread_sing_script_path = "$HOME/qiita-spots/tellread-release-novaseqX/run_tellread_sing.sh"
+        self.tellread_sing_script_path = ("$HOME/qiita-spots/tellread-release"
+                                          "-novaseqX/run_tellread_sing.sh")
         self.tellread_wall_time_limit = "96:00:00"
         self.tl_cores_per_task = "16"
         self.tl_isolate_node_count = "1"
         self.tl_isolate_wall_time_limit = "96:00:00"
         self.tl_mem_in_gb = "160"
-        self.main_map = "/home/qiita_test/qiita-spots/20230906_FS10001773_68_BTR67708-1611.csv"
+        self.main_map = ("/home/qiita_test/qiita-spots/20230906_FS10001773_"
+                         "68_BTR67708-1611.csv")
         self.main_mode = "metagenomic"
-        self.main_seqrun_path = "/sequencing/seqmount/KL_iSeq_Runs/20230906_FS10001773_68_BTR67708-1611"
+        self.main_seqrun_path = ("/sequencing/seqmount/KL_iSeq_Runs/20230906"
+                                 "_FS10001773_68_BTR67708-1611")
 
         # TODO: Address reference_map and reference_base
         self.main_reference_base = ""
@@ -208,7 +219,8 @@ class TRConvertJob(Job):
                     "plot_counts_path": self.counts_plot_counts_path,
                     "output_path": self.tellread_output_path,
                     "create_picklist_path": self.counts_create_picklist_path,
-                    "read_counts_path": join(self.tellread_output_path, self.counts_other_file),
+                    "read_counts_path": join(self.tellread_output_path,
+                                             self.counts_other_file),
                     "queue_name": self.queue_name
                 }
             },
