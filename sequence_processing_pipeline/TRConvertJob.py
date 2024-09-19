@@ -96,8 +96,6 @@ class TRConvertJob(Job):
         # As the sample-sheet is validated by the Pipeline object before
         # being passed to TRConvertJob, additional validation isn't needed.
 
-        self._generate_job_scripts()
-
         # TODO: generate a sample-mapping to map C#s to fake sample-names and
         #  fake projects. Process sample-sheet later.
         self.mapping = self._generate_sample_mapping()
@@ -386,9 +384,10 @@ class TRConvertJob(Job):
                 x[2] in results]
 
         # ensure the jids are casted to integers before passing them.
-        statuses = self._wait_on_job_ids([int(x[0]) for x in jids])
+        statuses = self.wait_on_job_ids([int(x[0]) for x in jids])
 
-        for (jid, description), status in zip(jids, statuses):
+        for jid, description in jids:
+            status = statuses[jid]
             if status not in Job.slurm_status_successful:
                 raise PipelineError(f"process '{description}' ({jid}) "
                                     f"failed ({status})")
