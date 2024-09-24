@@ -1,29 +1,10 @@
-from jinja2 import BaseLoader, TemplateNotFound, Environment
-from os.path import split, join, exists, getmtime
-from sequence_processing_pipeline.Job import Job
+from jinja2 import Environment
+from os.path import split, join, exists
+from sequence_processing_pipeline.Job import Job, KISSLoader
 from sequence_processing_pipeline.PipelineError import PipelineError
-import pathlib
 from os import rename, walk, chmod, listdir, makedirs
 from shutil import move, rmtree
 from re import match
-
-
-# taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
-class KISSLoader(BaseLoader):
-    def __init__(self, path):
-        # pin the path for loader to the location sequence_processing_pipeline
-        # (the location of this file), along w/the relative path to the
-        # templates directory.
-        self.path = join(pathlib.Path(__file__).parent.resolve(), path)
-
-    def get_source(self, environment, template):
-        path = join(self.path, template)
-        if not exists(path):
-            raise TemplateNotFound(template)
-        mtime = getmtime(path)
-        with open(path) as f:
-            source = f.read()
-        return source, path, lambda: mtime == getmtime(path)
 
 
 class TRConvertJob(Job):
