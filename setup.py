@@ -48,4 +48,7 @@ setup(name='sequence-processing-pipeline',
         ],
       entry_points={
           'console_scripts': ['demux=sequence_processing_pipeline.scripts.cli'
-                              ':demux', ], })
+                              ':demux',
+                              'annotate_filtered_fastq=sequence_processing_'
+                              'pipeline.scripts.annotate_filtered_fastq:main'],
+      })

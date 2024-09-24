@@ -44,7 +44,8 @@ class NuQCJob(Job):
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id,
                  max_array_length, known_adapters_path, movi_path, gres_value,
-                 pmls_path, bucket_size=8, length_limit=100, cores_per_task=4):
+                 pmls_path, bucket_size=8, length_limit=100, cores_per_task=4,
+                 annotate_fastq_files=False):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -69,6 +70,8 @@ class NuQCJob(Job):
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
         :param cores_per_task: Number of CPU cores per node to request.
+        :param annotate_fastq_files: If True, copy optional descriptions in
+                                     original fastq files to filtered files.
         """
         super().__init__(fastq_root_dir,
                          output_path,
@@ -96,6 +99,7 @@ class NuQCJob(Job):
         self.movi_path = movi_path
         self.gres_value = gres_value
         self.pmls_path = pmls_path
+        self.annotate_fastq_files = annotate_fastq_files
 
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,
@@ -427,9 +431,22 @@ class NuQCJob(Job):
         cmds.append(f"[ -e {tmp_file1} ] && rm {tmp_file1}")
         cmds.append(f"[ -e {tmp_file2} ] && rm {tmp_file2}")
 
+        if self.annotate_fastq_files is True:
+            annotated_final_output = join(working_dir,
+                                          "seqs.interleaved.filter_alignment"
+                                          ".annotated.fastq")
+
+            cmds.append(f"annotate_filtered_fastq {initial_input} "
+                        f"{final_output} {annotated_final_output}")
+
+            # if filtered sequence results were re-annotated using metadata
+            # from the original file, make sure the output from this operation
+            # becomes the true final output file.
+            cmds.append(f"mv {annotated_final_output} {final_output}")
+
         return "\n".join(cmds)
 
-    def _generate_job_script(self, max_bucket_size):
+    def _generate_job_script(self, max_bucket_size, annotate_fastq=False):
         # bypass generating job script for a force-fail job, since it is
         # not needed.
         if self.force_job_fail:

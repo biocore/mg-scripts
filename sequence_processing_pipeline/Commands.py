@@ -2,6 +2,7 @@ import glob
 import gzip
 import os
 from sequence_processing_pipeline.util import iter_paired_files
+from time import time
 
 
 def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
@@ -130,3 +131,65 @@ def demux(id_map, fp, out_d, task, maxtask):
     for d in openfps.values():
         for f in d.values():
             f.close()
+
+
+def annotate_filtered_fastq(original_path, stripped_path, output_path):
+    """
+    Annotates a FASTQ file w/missing descriptions using original file.
+    :param original_path: A path to the original, unfiltered file.
+    :param stripped_path: A path to the filtered file.
+    :param output_path: A path for the output file.
+    :return: A dictionary containing timing information.
+    """
+    mapping = {}
+    tm = {'start_time': float('%.3f' % time())}
+
+    # Per FASTQ specification: https://en.wikipedia.org/wiki/FASTQ_format
+    # lines beginning with '@' contain the sequence's identifier and an
+    # optional description or 'metadata'.
+
+    # minimap2 is a tool used to perform host filtering on fastq files.
+    # The preferred output for this program is SAM format:
+    # https://en.wikipedia.org/wiki/SAM_(file_format)
+
+    # SAM format cannot preserve the optional metadata field and hence the
+    # metadata will disappear after using minimap2 to filter a file and
+    # samtools to convert the file from SAM back to FASTQ format.
+
+    # It is straightforward to process even large fastq files line by line
+    # sequence identifier lines are unique and easily identified as they are
+    # the only lines in a FASTQ file beginning with '@'. It is thus straight-
+    # forward to process even large files to build a mapping between
+    # sequence identifiers and optional metadata fields.
+    with open(original_path, 'r') as f:
+        for line in f:
+            if line.startswith('@'):
+                line = line.strip().split()
+                if len(line) != 2:
+                    raise ValueError(f"'{original_path}' does not appear to "
+                                     "contain sequence identifiers with "
+                                     "optional metadata")
+                # where sequence identifier = line[0] and
+                # the optional description = line[1].
+                mapping[line[0]] = line[1]
+
+    tm['time_to_load'] = float('%.3f' % (time() - tm['start_time']))
+
+    # As the target file is read line by line, it is straightforward to
+    # annotate each sequence identifier line w/the optional description from
+    # the original file in place.
+    with open(stripped_path, 'r') as f:
+        with open(output_path, 'w') as of:
+            for line in f:
+                line = line.strip()
+                if line.startswith('@'):
+                    if line in mapping:
+                        print(line + ' ' + mapping[line], file=of)
+                    else:
+                        raise ValueError(f"'{line}' is not in mapping!")
+                else:
+                    print(line, file=of)
+
+    tm['total_time'] = float('%.3f' % (time() - tm['start_time']))
+
+    return tm
