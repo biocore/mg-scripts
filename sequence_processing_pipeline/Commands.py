@@ -2,7 +2,6 @@ import glob
 import gzip
 import os
 from sequence_processing_pipeline.util import iter_paired_files
-from time import time
 
 
 def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
@@ -139,10 +138,9 @@ def annotate_filtered_fastq(original_path, stripped_path, output_path):
     :param original_path: A path to the original, unfiltered file.
     :param stripped_path: A path to the filtered file.
     :param output_path: A path for the output file.
-    :return: A dictionary containing timing information.
+    :return: None
     """
     mapping = {}
-    tm = {'start_time': float('%.3f' % time())}
 
     # Per FASTQ specification: https://en.wikipedia.org/wiki/FASTQ_format
     # lines beginning with '@' contain the sequence's identifier and an
@@ -173,8 +171,6 @@ def annotate_filtered_fastq(original_path, stripped_path, output_path):
                 # the optional description = line[1].
                 mapping[line[0]] = line[1]
 
-    tm['time_to_load'] = float('%.3f' % (time() - tm['start_time']))
-
     # As the target file is read line by line, it is straightforward to
     # annotate each sequence identifier line w/the optional description from
     # the original file in place.
@@ -189,7 +185,3 @@ def annotate_filtered_fastq(original_path, stripped_path, output_path):
                         raise ValueError(f"'{line}' is not in mapping!")
                 else:
                     print(line, file=of)
-
-    tm['total_time'] = float('%.3f' % (time() - tm['start_time']))
-
-    return tm

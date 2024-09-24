@@ -102,18 +102,8 @@ class CommandTests(unittest.TestCase):
             self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
 
     def test_annotate_filtered_fastq(self):
-        obs_timing = annotate_filtered_fastq(self.original_fastq,
-                                             self.stripped_fastq,
-                                             self.output_fastq)
-
-        # individual testing numbers may be desirable to have for long runs.
-        # for testing purposes, the sample fastq files are only ten
-        # sequences long and hence the times will be near-zero. Test only for
-        # the presence of known attributes in the dictionary and that they are
-        # floats.
-        for attribute in ['start_time', 'time_to_load', 'total_time']:
-            self.assertIn(attribute, obs_timing)
-            self.assertIs(type(obs_timing[attribute]), float)
+        annotate_filtered_fastq(self.original_fastq, self.stripped_fastq,
+                                self.output_fastq)
 
         with open(self.original_fastq, 'r') as exp_fp:
             with open(self.output_fastq, 'r') as obs_fp:
