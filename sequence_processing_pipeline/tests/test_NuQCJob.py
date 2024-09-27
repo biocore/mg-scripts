@@ -2093,11 +2093,11 @@ class TestNuQCJob(unittest.TestCase):
         obs = job._generate_mmi_filter_cmds("/my_work_dir")
 
         exp = [
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
             "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > "
             "/my_work_dir/foo",
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_dir/foo -a | "
-            "samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            " | samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
             "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
             "alignment.fastq",
             "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",
@@ -2129,26 +2129,21 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
-            annotate_fastq_files=True
+            additional_fastq_tags=['BX']
         )
 
         obs = job._generate_mmi_filter_cmds("/my_work_dir")
 
         exp = [
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
-            "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > "
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 -T BX > "
             "/my_work_dir/foo",
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_dir/foo -a | "
-            "samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            " | samtools fastq -@ 2 -f 12 -F 256 -T BX > /my_work_dir/bar",
             "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
             "alignment.fastq",
             "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",
-            "[ -e /my_work_dir/bar ] && rm /my_work_dir/bar",
-            "annotate_filtered_fastq /my_work_dir/seqs.interleaved.fastq "
-            "/my_work_dir/seqs.interleaved.filter_alignment.fastq "
-            "/my_work_dir/seqs.interleaved.filter_alignment.annotated.fastq",
-            "mv /my_work_dir/seqs.interleaved.filter_alignment.annotated.fastq"
-            " /my_work_dir/seqs.interleaved.filter_alignment.fastq"
+            "[ -e /my_work_dir/bar ] && rm /my_work_dir/bar"
         ]
 
         exp = "\n".join(exp)

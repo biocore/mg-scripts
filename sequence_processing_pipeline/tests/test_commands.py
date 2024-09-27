@@ -4,29 +4,12 @@ from tempfile import TemporaryDirectory
 import gzip
 import os
 from sequence_processing_pipeline.Commands import (split_similar_size_bins,
-                                                   demux,
-                                                   annotate_filtered_fastq)
+                                                   demux)
 import io
-from os.path import abspath, join, exists
-from functools import partial
-from os import remove
+from os.path import join
 
 
 class CommandTests(unittest.TestCase):
-    def setUp(self):
-        root = partial(join,
-                       abspath('./sequence_processing_pipeline'),
-                       'tests',
-                       'data')
-
-        self.stripped_fastq = root('seqs.interleaved.filter_alignment.fastq')
-        self.original_fastq = root('seqs.interleaved.fastq')
-        self.output_fastq = root('output.fastq')
-
-    def tearDown(self):
-        if exists(self.output_fastq):
-            remove(self.output_fastq)
-
     @patch('os.stat')
     @patch('glob.glob')
     def test_split_similar_size_bins(self, glob, stat):
@@ -100,23 +83,6 @@ class CommandTests(unittest.TestCase):
 
             self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
             self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
-
-    def test_annotate_filtered_fastq(self):
-        annotate_filtered_fastq(self.original_fastq, self.stripped_fastq,
-                                self.output_fastq)
-
-        with open(self.original_fastq, 'r') as exp_fp:
-            with open(self.output_fastq, 'r') as obs_fp:
-                # Within the sample fastq files, the first ten sequences of
-                # the original matched file passed successfully through
-                # host filtering and are present in the filtered result. Hence,
-                # the filtered version is the same as the original, minus the
-                # optional descriptions. Hence, if the optional descriptions
-                # are restored, the output fastq will be identical to the
-                # original.
-                exp = exp_fp.readlines()
-                obs = obs_fp.readlines()
-                self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':
