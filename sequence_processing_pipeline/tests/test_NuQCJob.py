@@ -894,6 +894,7 @@ class TestNuQCJob(unittest.TestCase):
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
+                [],
                 bucket_size=8,
                 length_limit=100,
                 cores_per_task=4,
@@ -925,6 +926,7 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
@@ -961,6 +963,7 @@ class TestNuQCJob(unittest.TestCase):
                 self.qiita_job_id,
                 1000,
                 "",
+                [],
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
@@ -983,6 +986,7 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
@@ -1032,9 +1036,11 @@ class TestNuQCJob(unittest.TestCase):
                 self.qiita_job_id,
                 1000,
                 "",
+                [],
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
+                []
             )
 
     def test_audit(self):
@@ -1054,9 +1060,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         obs = job.audit(self.sample_ids)
@@ -1835,9 +1843,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         my_path = (
@@ -1874,9 +1884,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # test _confirm_job_completed() fails when a .completed file isn't
@@ -1904,6 +1916,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # 2k as a parameter will promote the default value.
@@ -1932,6 +1945,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # a sample of known valid fastq file-names plus a few edge-cases.
@@ -2088,6 +2102,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         obs = job._generate_mmi_filter_cmds("/my_work_dir")
@@ -2129,7 +2144,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
-            additional_fastq_tags=['BX']
+            ['BX']
         )
 
         obs = job._generate_mmi_filter_cmds("/my_work_dir")

@@ -44,8 +44,8 @@ class NuQCJob(Job):
                  wall_time_limit, jmem, fastp_path, minimap2_path,
                  samtools_path, modules_to_load, qiita_job_id,
                  max_array_length, known_adapters_path, movi_path, gres_value,
-                 pmls_path, bucket_size=8, length_limit=100, cores_per_task=4,
-                 additional_fastq_tags=None):
+                 pmls_path, additional_fastq_tags, bucket_size=8,
+                 length_limit=100, cores_per_task=4):
         """
         Submit a slurm job where the contents of fastq_root_dir are processed
         using fastp, minimap2, and samtools. Human-genome sequences will be
@@ -70,8 +70,8 @@ class NuQCJob(Job):
         :param bucket_size: the size in GB of each bucket to process
         :param length_limit: reads shorter than this will be discarded.
         :param cores_per_task: Number of CPU cores per node to request.
-        :param additional_fastq_tags: An optional list of fastq tags to
-        preserve during filtering.
+        :param additional_fastq_tags: A list of fastq tags to preserve during
+        filtering.
         """
         super().__init__(fastq_root_dir,
                          output_path,
@@ -100,11 +100,6 @@ class NuQCJob(Job):
         self.gres_value = gres_value
         self.pmls_path = pmls_path
         self.additional_fastq_tags = additional_fastq_tags
-
-        if self.additional_fastq_tags is not None:
-            if not isinstance(self.additional_fastq_tags, list):
-                raise ValueError("'additional_fastq_tags' must be of type "
-                                 "list or None")
 
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,
@@ -410,13 +405,13 @@ class NuQCJob(Job):
 
         cores_to_allocate = int(self.cores_per_task / 2)
 
-        tags = ""
-        if self.additional_fastq_tags is not None:
-            if len(self.additional_fastq_tags) > 0:
-                # add tags for known metadata types that fastq files may have
-                # been annotated with. Samtools will safely ignore tags that
-                # are not present.
-                tags = " -T %s" % ','.join(self.additional_fastq_tags)
+        if len(self.additional_fastq_tags) > 0:
+            # add tags for known metadata types that fastq files may have
+            # been annotated with. Samtools will safely ignore tags that
+            # are not present.
+            tags = " -T %s" % ','.join(self.additional_fastq_tags)
+        else:
+            tags = ""
 
         for count, mmi_db_path in enumerate(self.mmi_file_paths):
             if count == 0:
