@@ -226,6 +226,9 @@ class Job:
         # them before returning, optionally submitting callbacks for each
         # job-id.
 
+        # ensure all ids are strings to ensure proper working w/join().
+        job_ids = [str(x) for x in job_ids]
+
         def query_slurm(job_ids):
             # internal function query_slurm encapsulates the handling of
             # squeue.
