@@ -133,25 +133,19 @@ class Pipeline:
 
     assay_types = [AMPLICON_ATYPE, METAGENOMIC_ATYPE, METATRANSCRIPTOMIC_ATYPE]
 
-    def __init__(self, configuration_file_path, run_id, sample_sheet_path,
-                 mapping_file_path, output_path, qiita_job_id, pipeline_type):
+    def __init__(self, configuration_file_path, run_id, input_file_path,
+                 output_path, qiita_job_id, pipeline_type):
         """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
         :param run_id: Used w/search_paths to locate input run_directory.
-        :param sample_sheet_path: Path to sample-sheet.
-        :param mapping_file_path: Path to mapping file.
+        :param input_file_path: Path to sample-sheet or pre-prep file.
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param pipeline_type: Pipeline type ('Amplicon', 'Metagenomic', etc.)
         """
-        if sample_sheet_path is not None and mapping_file_path is not None:
-            raise PipelineError("sample_sheet_path or mapping_file_path "
-                                "must be defined, but not both.")
-
-        if sample_sheet_path is None and mapping_file_path is None:
-            raise PipelineError("sample_sheet_path or mapping_file_path "
-                                "must be defined, but not both.")
+        if input_file_path is None:
+            raise PipelineError("user_input_file_path cannot be None")
 
         if pipeline_type not in Pipeline.pipeline_types:
             raise PipelineError(f"'{type}' is not a valid pipeline type.")
@@ -196,21 +190,33 @@ class Pipeline:
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
 
-        if sample_sheet_path:
-            self.search_paths = self.configuration['search_paths']
-            self.sample_sheet = self._validate_sample_sheet(sample_sheet_path)
-            self.mapping_file = None
-        else:
-            self.search_paths = self.configuration['amplicon_search_paths']
-            self.mapping_file = self._validate_mapping_file(mapping_file_path)
-            # unlike _validate_sample_sheet() which returns a SampleSheet
-            # object that stores the path to the file it was created from,
-            # _validate_mapping_file() just returns a DataFrame. Store the
-            # path to the original mapping file itself as well.
-            self.mapping_file_path = mapping_file_path
-            self.sample_sheet = None
+        # this method will catch a run directory as well as its products
+        # directory, which also has the same name. Hence, return the
+        # shortest matching path as that will at least return the right
+        # path between the two.
+        results = []
 
-        self.run_dir = self._search_for_run_dir()
+        if pipeline_type == Pipeline.AMPLICON_PTYPE:
+            self.search_paths = self.configuration['amplicon_search_paths']
+        else:
+            self.search_paths = self.configuration['search_paths']
+
+        for search_path in self.search_paths:
+            logging.debug(f'Searching {search_path} for {self.run_id}')
+            for entry in listdir(search_path):
+                some_path = join(search_path, entry)
+                # ensure some_path never ends in '/'
+                some_path = some_path.rstrip('/')
+                if isdir(some_path) and some_path.endswith(self.run_id):
+                    logging.debug(f'Found {some_path}')
+                    results.append(some_path)
+
+        if results:
+            results.sort(key=lambda s: len(s))
+            self.run_dir = results[0]
+        else:
+            raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
+                                "found")
 
         # required files for successful operation
         # both RTAComplete.txt and RunInfo.xml should reside in the root of
@@ -228,13 +234,43 @@ class Pipeline:
         except PermissionError:
             raise PipelineError('RunInfo.xml is present, but not readable')
 
-        if self.mapping_file is not None:
+        self.input_file_path = input_file_path
+
+        if pipeline_type == Pipeline.AMPLICON_PTYPE:
+            # assume input_file_path references a pre-prep (mapping) file.
+
+            self.mapping_file = self._validate_mapping_file(input_file_path)
+            # unlike _validate_sample_sheet() which returns a SampleSheet
+            # object that stores the path to the file it was created from,
+            # _validate_mapping_file() just returns a DataFrame. Store the
+            # path to the original mapping file itself as well.
+
             # create dummy sample-sheet
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
+        else:
+            # assume user_input_file_path references a sample-sheet.
+            self.sample_sheet = self._validate_sample_sheet(input_file_path)
+            self.mapping_file = None
 
         self._configure_profile()
+
+    def get_software_configuration(self, software):
+        if software is None or software == "":
+            raise ValueError(f"'{software}' is not a valid value")
+
+        key_order = ['profile', 'configuration', software]
+
+        config = self.config_profile
+
+        for key in key_order:
+            if key in config:
+                config = config[key]
+            else:
+                raise PipelineError(f"'{key}' is not defined in configuration")
+
+        return config
 
     def identify_reserved_words(self, words):
         '''
@@ -254,7 +290,7 @@ class Pipeline:
         # specifically how the proper set of prep-info file columns are
         # generated. For now the functionality will be defined here as this
         # area of metapool is currently in flux.
-        if self.mapping_file is not None:
+        if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             reserved = PREP_MF_COLUMNS
         else:
             # results will be dependent on SheetType and SheetVersion of
@@ -350,30 +386,6 @@ class Pipeline:
                              ") was not found. Please notify an administrator")
 
         self.config_profile = selected_profile
-
-    def _search_for_run_dir(self):
-        # this method will catch a run directory as well as its products
-        # directory, which also has the same name. Hence, return the
-        # shortest matching path as that will at least return the right
-        # path between the two.
-        results = []
-
-        for search_path in self.search_paths:
-            logging.debug(f'Searching {search_path} for {self.run_id}')
-            for entry in listdir(search_path):
-                some_path = join(search_path, entry)
-                # ensure some_path never ends in '/'
-                some_path = some_path.rstrip('/')
-                if isdir(some_path) and some_path.endswith(self.run_id):
-                    logging.debug(f'Found {some_path}')
-                    results.append(some_path)
-
-        if results:
-            results.sort(key=lambda s: len(s))
-            return results[0]
-
-        raise PipelineError(f"A run-dir for '{self.run_id}' could not be "
-                            "found")
 
     def _directory_check(self, directory_path, create=False):
         if exists(directory_path):
@@ -551,7 +563,7 @@ class Pipeline:
         :param addl_info: A df of (sample-name, project-name) pairs.
         :return: A list of paths to sample-information-files.
         """
-        if self.mapping_file is not None:
+        if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             # Generate a list of BLANKs for each project.
             df = self.mapping_file[['sample_name', 'project_name']]
         else:
@@ -623,7 +635,7 @@ class Pipeline:
 
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
-        if self.mapping_file is not None:
+        if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             results = list(self.mapping_file.sample_name)
         else:
             results = [x.Sample_ID for x in self.sample_sheet.samples]
@@ -638,7 +650,7 @@ class Pipeline:
         '''
         # test for self.mapping_file, since self.sample_sheet will be
         # defined in both cases.
-        if self.mapping_file is not None:
+        if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             return self._get_sample_names_from_mapping_file(project_name)
         else:
             return self._get_sample_names_from_sample_sheet(project_name)
@@ -737,7 +749,7 @@ class Pipeline:
         # defined in both cases.
         results = []
 
-        if self.mapping_file is not None:
+        if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             if 'contains_replicates' in self.mapping_file:
                 contains_replicates = True
             else:

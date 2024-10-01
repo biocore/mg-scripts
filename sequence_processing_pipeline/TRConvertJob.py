@@ -5,7 +5,35 @@ from sequence_processing_pipeline.PipelineError import PipelineError
 from os import rename, walk, chmod, listdir, makedirs
 from shutil import move, rmtree
 from re import match
+from metapool import load_sample_sheet
 
+"""
+Note in tellread.sbatch, {{lane}} needs to be:
+
+if [[ ${LANE} == "L001" ]]; then
+    lane=s_1
+elif [[ ${LANE} == "L002" ]]; then
+    lane=s_2
+elif [[ ${LANE} == "L003" ]]; then
+    lane=s_3
+elif [[ ${LANE} == "L004" ]]; then
+    lane=s_4
+elif [[ ${LANE} == "L005" ]]; then
+    lane=s_5
+elif [[ ${LANE} == "L006" ]]; then
+    lane=s_6
+elif [[ ${LANE} == "L007" ]]; then
+    lane=s_7
+elif [[ ${LANE} == "L008" ]]; then
+    lane=s_8
+else
+    echo "Unrecognized lane: ${LANE}"
+    exit 1
+fi
+
+make sure compute_sequence_counts_for_normalization2.sbatch gets {{tellread_output}} as defined in $TELLREAD_OUTPUT in tellread.sh
+
+"""
 
 class TRConvertJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
@@ -145,6 +173,36 @@ class TRConvertJob(Job):
         self.main_reference_map = ""
 
         self._generate_job_scripts()
+
+    def _process_sample_sheet(self):
+        sheet = load_sample_sheet(self.sample_sheet_path)
+
+        if not sheet.validate_and_scrub_sample_sheet():
+            s = "Sample sheet %s is not valid." % self.sample_sheet_path
+            raise PipelineError(s)
+
+        header = sheet.Header
+        chemistry = header['chemistry']
+
+        if header['Assay'] not in Pipeline.assay_types:
+            s = "Assay value '%s' is not recognized." % header['Assay']
+            raise PipelineError(s)
+
+        sample_ids = []
+        for sample in sheet.samples:
+            sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
+
+        bioinformatics = sheet.Bioinformatics
+
+        # reorganize the data into a list of dictionaries, one for each row.
+        # the ordering of the rows will be preserved in the order of the list.
+        lst = bioinformatics.to_dict('records')
+
+        # human-filtering jobs are scoped by project. Each job requires
+        # particular knowledge of the project.
+        return {'chemistry': chemistry,
+                'projects': lst,
+                'sample_ids': sample_ids}
 
     def _generate_job_scripts(self):
         scripts = [
@@ -416,6 +474,49 @@ class TRConvertJob(Job):
 
         # delete the original output directory.
         rmtree(join(self.output_path, 'output'))
+
+    def run2(self, callback=None):
+        norm = True
+        assemble = True
+
+
+
+        tr_job = self.submit_job('tr.script')
+        if tr_job['job_state'] != 'COMPLETED':
+            raise ValueError("TR JOB (%s) FAILED" % tr_job['job_id'])
+
+        if norm is True:
+            '''
+                cp ${norm_script} ${normcopy}
+                chmod gou-w ${normcopy}
+            '''
+            nc_job = self.submit_job('norm_script')
+            if nc_job['job_state'] != 'COMPLETED':
+                raise ValueError("BC JOB (%s) FAILED" % nc_job['job_id'])
+
+        int_job = self.submit_job('integrate.script')
+        if int_job['job_state'] != 'COMPLETED':
+            raise ValueError("INT JOB (%s) FAILED" % int_job['job_id'])
+
+        if assemble is True:
+            # NB assemble jobs rely on successful integrate job
+            csj_job = self.submit_job('csj_script')
+            if csj_job['job_state'] != 'COMPLETED':
+                raise ValueError("CSJ JOB (%s) FAILED" % csj_job['job_id'])
+
+            tlj_job = self.submit_job('tlj_script')
+            if tlj_job['job_state'] != 'COMPLETED':
+                raise ValueError("TLJ JOB (%s) FAILED" % tlj_job['job_id'])
+
+        cleanup_job = self.submit_job('cleanup.script')
+        if cleanup_job['job_state'] != 'COMPLETED':
+            raise ValueError("CLEANUP JOB (%s) FAILED" % cleanup_job['job_id'])
+
+
+
+
+
+
 
     def parse_logs(self):
         raise PipelineError("parsing logs not implemented.")
