@@ -260,8 +260,6 @@ class Job:
             jobs = {}
             child_jobs = {}
             for job_id, unique_id, state in lines:
-                # ensure unique_id is of type string for downstream use.
-                unique_id = str(unique_id)
                 jobs[unique_id] = state
 
                 if unique_id != job_id:
