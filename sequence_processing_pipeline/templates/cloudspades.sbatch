@@ -10,35 +10,18 @@
 #SBATCH --error cloudspades_%x-%A_%a.err
 
 source activate qiime2-2023.5
-function logger () { 
-    echo "$(date) :: ${@}"; 
-    echo "$(date) :: ${@}" 1>&2; 
-}
 
 set -x 
 set -e
 
-echo $TMPDIR
-
-if [[ -z "${LABELTAG}" ]]; then
-    echo "LABELTAG is not specified"
-    exit 1
-fi
-
-base=${OUTPUT}
-if [[ ! -d ${base} ]]; then
-    echo "${base} not found"
-    exit 1
-fi
-
 module load {{modules_to_load}}
 
-samples=($(cat ${base}/sample_index_list_output.txt | cut -f 2))            
+samples=($(cat {{output_path}}/sample_index_list_output.txt | cut -f 2))            
 
 # assumes 1-based array index, eg --array 1-N
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
-cs=${base}/cloudspades/${sample}
+cs={{output_path}}/cloudspades/${sample}
 
 if [[ ! -z ${FORCE} && ${FORCE} == "TRUE" ]]; then
     if [[ -d ${cs} ]]; then
@@ -51,8 +34,8 @@ pushd {{cloudspades_path}}/assembler/bin
 
 ./spades.py \
     -o ${cs} \
-    --gemcode1-1 ${base}/integrated/${sample}.R1.fastq.gz \
-    --gemcode1-2 ${base}/integrated/${sample}.R2.fastq.gz \
+    --gemcode1-1 {{output_path}}/integrated/${sample}.R1.fastq.gz \
+    --gemcode1-2 {{output_path}}/integrated/${sample}.R2.fastq.gz \
     --meta \
     -t ${SLURM_JOB_CPUS_PER_NODE} > ${cs}/stdoutstderr.log 2>&1
 module unload gcc_9.3.0

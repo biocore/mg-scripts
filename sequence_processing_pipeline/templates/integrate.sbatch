@@ -9,37 +9,15 @@
 #SBATCH --output integrate_%x-%A_%a.out
 #SBATCH --error integrate_%x-%A_%a.err
 
-function logger () { 
-    echo "$(date) :: ${@}"; 
-    echo "$(date) :: ${@}" 1>&2; 
-}
-
-# https://docs.hpc.shef.ac.uk/en/latest/referenceinfo/scheduler/SLURM/SLURM-environment-variables.html
-cores=${SLURM_CPUS_PER_TASK}
-
+# NB SLURM_ARRAY_TASK_ID is exported by Slurm
 if [[ -z ${SLURM_ARRAY_TASK_ID} ]]; then
     echo "Not operating in an array"
     exit 1
 fi
 
+# NB SLURM_ARRAY_TASK_MIN is exported by Slurm
 if [[ ${SLURM_ARRAY_TASK_MIN} -eq 0 ]]; then
     echo "Line extraction assumes 1-based index"
-    exit 1
-fi
-
-if [[ -z "${LABELTAG}" ]]; then
-    echo "LABELTAG is not specified"
-    exit 1
-fi
-
-if [[ -z ${BASE} ]]; then
-    echo "BASE not specified"
-    exit 1
-fi
-
-tellread=${OUTPUT}
-if [[ ! -d ${tellread} ]]; then
-    echo "${tellread} not found"
     exit 1
 fi
 
@@ -47,9 +25,10 @@ set -x
 set -e
 set -o pipefail
 
-samples=($(cat ${tellread}/sample_index_list_output.txt | cut -f 2))
+samples=($(cat {{output_dir}}/sample_index_list_output.txt | cut -f 2))
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
+# NB TMPDIR IS CREATED IN CURRENT DIRECTORY. CURRENT DIRECTORY MUST BE CORRECT.
 export TMPDIR=$(mktemp -d)
 function cleanup {                                                              
   echo "Removing $TMPDIR"                                                          
@@ -59,8 +38,8 @@ function cleanup {
 trap cleanup EXIT
 
 files=${TMPDIR}/integration.files
-/bin/ls -1 ${tellread}/Full/*corrected.err_barcode_removed.fastq > ${files}
-mkdir -p ${tellread}/integrated
+/bin/ls -1 {{output_dir}}/Full/*corrected.err_barcode_removed.fastq > ${files}
+mkdir -p {{output_dir}}/integrated
 
 if [[ $(grep -c "_R1_${sample}" ${files}) -ne 1 ]]; then
     echo "Multiple matches for ${sample} R1"
@@ -80,9 +59,9 @@ fi
 r1=$(grep -m 1 "_R1_${sample}" ${files})
 r2=$(grep -m 1 "_R2_${sample}" ${files})
 i1=$(grep -m 1 "_I1_${sample}" ${files})
-r1out=${tellread}/integrated/${sample}.R1.fastq.gz
-r2out=${tellread}/integrated/${sample}.R2.fastq.gz
-i1out=${tellread}/integrated/${sample}.I1.fastq.gz
+r1out={{output_dir}}/integrated/${sample}.R1.fastq.gz
+r2out={{output_dir}}/integrated/${sample}.R2.fastq.gz
+i1out={{output_dir}}/integrated/${sample}.I1.fastq.gz
 
 if [[ ! -s ${r1} ]]; then
     echo "${r1} is empty, cannot integrate"
@@ -114,4 +93,4 @@ python {{iinp_script_path}} integrate \
     --i1-in ${i1} \
     --r1-out ${r1out} \
     --r2-out ${r2out} \
-    --threads ${cores} 
+    --threads ${SLURM_CPUS_PER_TASK}

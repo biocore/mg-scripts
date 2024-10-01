@@ -9,10 +9,5 @@
 #SBATCH --output tellread-cleanup_%x-%A.out
 #SBATCH --error tellread-cleanup_%x-%A.err
 
-if [[ -z "${OUTPUT}" ]]; then
-    echo "OUTPUT is not specified"
-    exit 1
-fi
-
 # remove unused large outputs
-rm -rf ${OUTPUT}/biosample_format ${OUTPUT}/1_demult ${OUTPUT}/Full
+rm -rf {{OUTPUT}}/biosample_format {{OUTPUT}}/1_demult {{OUTPUT}}/Full
