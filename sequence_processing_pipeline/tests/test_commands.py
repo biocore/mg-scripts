@@ -3,10 +3,10 @@ from unittest.mock import patch
 from tempfile import TemporaryDirectory
 import gzip
 import os
-from os.path import join
 from sequence_processing_pipeline.Commands import (split_similar_size_bins,
                                                    demux)
 import io
+from os.path import join
 
 
 class CommandTests(unittest.TestCase):

@@ -894,6 +894,7 @@ class TestNuQCJob(unittest.TestCase):
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
+                [],
                 bucket_size=8,
                 length_limit=100,
                 cores_per_task=4,
@@ -925,6 +926,7 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
@@ -961,6 +963,7 @@ class TestNuQCJob(unittest.TestCase):
                 self.qiita_job_id,
                 1000,
                 "",
+                [],
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
@@ -983,6 +986,7 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
@@ -1032,9 +1036,11 @@ class TestNuQCJob(unittest.TestCase):
                 self.qiita_job_id,
                 1000,
                 "",
+                [],
                 self.movi_path,
                 self.gres_value,
                 self.pmls_path,
+                []
             )
 
     def test_audit(self):
@@ -1054,9 +1060,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         obs = job.audit(self.sample_ids)
@@ -1835,9 +1843,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         my_path = (
@@ -1874,9 +1884,11 @@ class TestNuQCJob(unittest.TestCase):
             self.qiita_job_id,
             1000,
             "",
+            [],
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # test _confirm_job_completed() fails when a .completed file isn't
@@ -1904,6 +1916,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # 2k as a parameter will promote the default value.
@@ -1932,6 +1945,7 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         # a sample of known valid fastq file-names plus a few edge-cases.
@@ -2088,16 +2102,17 @@ class TestNuQCJob(unittest.TestCase):
             self.movi_path,
             self.gres_value,
             self.pmls_path,
+            []
         )
 
         obs = job._generate_mmi_filter_cmds("/my_work_dir")
 
         exp = [
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
             "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > "
             "/my_work_dir/foo",
-            "minimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_dir/foo -a | "
-            "samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            " | samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
             "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
             "alignment.fastq",
             "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",
@@ -2106,9 +2121,47 @@ class TestNuQCJob(unittest.TestCase):
 
         exp = "\n".join(exp)
 
-        print(obs)
-        print("###")
-        print(exp)
+        self.assertEqual(obs, exp)
+
+    def test_generate_mmi_filter_cmds_w_annotate_fastq(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(
+            self.fastq_root_path,
+            self.output_path,
+            self.good_sample_sheet_path,
+            double_db_paths,
+            "queue_name",
+            1,
+            1440,
+            "8",
+            "fastp",
+            "minimap2",
+            "samtools",
+            [],
+            self.qiita_job_id,
+            1000,
+            "",
+            self.movi_path,
+            self.gres_value,
+            self.pmls_path,
+            ['BX']
+        )
+
+        obs = job._generate_mmi_filter_cmds("/my_work_dir")
+
+        exp = [
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 -T BX > "
+            "/my_work_dir/foo",
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            " | samtools fastq -@ 2 -f 12 -F 256 -T BX > /my_work_dir/bar",
+            "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
+            "alignment.fastq",
+            "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",
+            "[ -e /my_work_dir/bar ] && rm /my_work_dir/bar"
+        ]
+
+        exp = "\n".join(exp)
 
         self.assertEqual(obs, exp)
 

@@ -28,6 +28,7 @@ class TestPipeline(unittest.TestCase):
         makedirs(self.output_file_path, exist_ok=True)
         self.maxDiff = None
         self.good_sample_sheet_path = self.path('good-sample-sheet.csv')
+        self.good_legacy_sheet_path = self.path('mgv90_test_sheet.csv')
         self.mp_sheet_path = self.path('multi-project-sheet.csv')
         self.bad_sample_sheet_path = self.path('duplicate_sample-sample-sheet'
                                                '.csv')
@@ -1558,6 +1559,17 @@ class TestPipeline(unittest.TestCase):
 
         self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sheet_w_replicates, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        obs_proj_info = pipeline.get_project_info()
+
+        # assert value is boolean type True, even though the method no longer
+        # silently converts string values to bool.
+        self.assertTrue(obs_proj_info[0]['contains_replicates'])
+
     def test_configuration_profiles(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path, None,
@@ -1618,6 +1630,38 @@ class TestPipeline(unittest.TestCase):
                 else:
                     obs = pipeline._parse_project_name(test, t_set == 'True')
                     self.assertEqual(obs, exp)
+
+    def test_identify_reserved_words(self):
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        # assert that arbitrary strings are not reserved.
+        obs = pipeline.identify_reserved_words(['NOT_A_RESERVED_WORD',
+                                                'ANOTHER_WORD'])
+        self.assertEqual(obs, [])
+
+        # assert that 'well_id_384' is a reserved word.
+        obs = pipeline.identify_reserved_words(['well_id_384',
+                                                'NOT_A_RESERVED_WORD'])
+
+        self.assertEqual(obs, ['well_id_384'])
+
+        # create new pipeline using a/legacy (v90) metagenomic sample-sheet.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_legacy_sheet_path, None,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        # assert that for legacy sample-sheets, well_id_384 is NOT a reserved
+        # word and the appropriate reserved word is 'Sample_well'.
+        obs = pipeline.identify_reserved_words(['well_id_384',
+                                                'NOT_A_RESERVED_WORD',
+                                                'Sample_well',
+                                                'Sample_Well'])
+
+        self.assertEqual(obs, ['sample_well'])
 
 
 class TestAmpliconPipeline(unittest.TestCase):
@@ -2327,6 +2371,29 @@ class TestAmpliconPipeline(unittest.TestCase):
         # process_run_info_file() are handled by generate_dummy_sample_sheet().
         # These are indirectly tested as generate_dummy_sample_sheet() is
         # called by Pipeline's constructor.
+
+    def test_identify_reserved_words(self):
+        pipeline = Pipeline(self.good_config_file,
+                            self.good_run_id,
+                            None,
+                            self.good_mapping_file_path,
+                            self.output_file_path,
+                            self.qiita_id,
+                            Pipeline.AMPLICON_PTYPE)
+
+        # assert that arbitrary strings are not reserved.
+        obs = pipeline.identify_reserved_words(['NOT_A_RESERVED_WORD',
+                                                'ANOTHER_WORD'])
+        self.assertEqual(obs, [])
+
+        # assert that Sample_Well is okay for current pre-prep files but
+        # well_id_384 is reserved. Show that all forms of tm300_8_tool are
+        # also reserved.
+        obs = pipeline.identify_reserved_words(['Sample_Well',
+                                                'TM300_8_Tool',
+                                                'tm300_8_tool',
+                                                'well_id_384'])
+        self.assertEqual(set(obs), {'tm300_8_tool', 'well_id_384'})
 
 
 class TestInstrumentUtils(unittest.TestCase):

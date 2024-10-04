@@ -17,6 +17,7 @@ import pandas as pd
 from collections import defaultdict
 from datetime import datetime
 from xml.etree import ElementTree as ET
+from metapool.prep import PREP_MF_COLUMNS
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -273,6 +274,38 @@ class Pipeline:
             self.sample_sheet = output_fp
 
         self._configure_profile()
+
+    def identify_reserved_words(self, words):
+        '''
+        Returns a list of words that should not appear as column names in any
+        project referenced in the Pipeline's sample-sheet/pre-prep file.
+        :param words: A list of words that may include reserved words.
+        :return: A list of words that are already reserved in upper, lower,
+                 and mixed cases.
+        '''
+
+        # Only strings used as column names in pre-prep files are currently
+        # considered 'reserved' as loading a pre-prep file containing these
+        # column names will fail if one or more of the strings already appears
+        # as a column name in a study's sample metadata table.
+
+        # This implementation assumes some understanding of metapool's impl,
+        # specifically how the proper set of prep-info file columns are
+        # generated. For now the functionality will be defined here as this
+        # area of metapool is currently in flux.
+        if self.mapping_file is not None:
+            reserved = PREP_MF_COLUMNS
+        else:
+            # results will be dependent on SheetType and SheetVersion of
+            # the sample-sheet. Since all columns in a prep-info file are
+            # lower()ed before writing out to file, the word must be
+            # reserved in all case forms. e.g.: 'Sample_Well' and 'Sample_well'
+            # are both forms of 'sample_well'.
+            reserved = [x.lower() for x in
+                        self.sample_sheet.CARRIED_PREP_COLUMNS] + \
+                        self.sample_sheet.GENERATED_PREP_COLUMNS
+
+        return list(set([x.lower() for x in words]) & set(reserved))
 
     def _configure_profile(self):
         # extract the instrument type from self.run_dir and the assay type
