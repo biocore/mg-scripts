@@ -16,15 +16,14 @@ mkdir -p ${TMPDIR}
 export TMPDIR=$(mktemp -d)
 
 mkdir -p {{output}}
-    
+
 module load {{modules_to_load}}
 {{sing_script_path}} \
     -i {{rundir_path}} \
     -o {{output}} \
     -s $(echo {{samples}} | tr -d '"') \
     -g $(echo {{refs}} | tr -d '"') \
-    -j ${SLURM_JOB_CPUS_PER_NODE} \
-    {{extra}} \
+    -j ${SLURM_JOB_CPUS_PER_NODE} {{extra}} \
     -l {{lane}}
 
 if [[ -d {{output}}/Full ]]; then
