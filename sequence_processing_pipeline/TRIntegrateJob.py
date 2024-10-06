@@ -15,7 +15,7 @@ class TRIntegrateJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
                  qiita_job_id, max_array_length, indicies_script_path, label,
-                 reference_base, reference_map, cores_per_task=4):
+                 reference_base, reference_map, cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -33,7 +33,7 @@ class TRIntegrateJob(Job):
         :param label: None
         :param reference_base: None
         :param reference_map: None
-        :param cores_per_task: (Optional) # of CPU cores per node to request.
+        :param cores_per_task: # of CPU cores per node to request.
         """
         super().__init__(run_dir,
                          output_path,
@@ -62,7 +62,7 @@ class TRIntegrateJob(Job):
         self.jinja_env = Environment(loader=KISSLoader('templates'))
         self.label = label
 
-        if self.reference_base != None or self.reference_map != None:
+        if self.reference_base is not None or self.reference_map is not None:
             tag = 'reference-based'
         else:
             tag = 'reference-free'
@@ -122,8 +122,8 @@ class TRIntegrateJob(Job):
                 'sample_ids': sample_ids}
 
     def _generate_job_script(self):
-        job_script_path = join(self.output_path, 'integrate.sbatch')
-        template = self.jinja_env.get_template("integrate2.sbatch")
+        job_script_path = join(self.output_path, 'integrate_test.sbatch')
+        template = self.jinja_env.get_template("integrate.sbatch")
 
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             f.write(template.render({

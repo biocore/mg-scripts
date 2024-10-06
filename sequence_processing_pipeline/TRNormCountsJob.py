@@ -62,7 +62,7 @@ class TRNormCountsJob(Job):
         self.jinja_env = Environment(loader=KISSLoader('templates'))
         self.label = label
 
-        if self.reference_base != None or self.reference_map != None:
+        if self.reference_base is not None or self.reference_map is not None:
             tag = 'reference-based'
         else:
             tag = 'reference-free'
@@ -122,8 +122,10 @@ class TRNormCountsJob(Job):
                 'sample_ids': sample_ids}
 
     def _generate_job_script(self):
-        job_script_path = join(self.output_path, 'compute_sequence_counts_for_normalization.sbatch')
-        template = self.jinja_env.get_template("compute_sequence_counts_for_normalization2.sbatch")
+        job_script_path = join(self.output_path, "compute_sequence_counts_for"
+                                                 "_normalization.sbatch")
+        template = self.jinja_env.get_template("compute_sequence_counts_for_"
+                                               "normalization2.sbatch")
 
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             f.write(template.render({

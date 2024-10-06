@@ -1,4 +1,4 @@
-from os.path import join, abspath
+from os.path import join
 from sequence_processing_pipeline.TellReadJob import TellReadJob
 from functools import partial
 import unittest
