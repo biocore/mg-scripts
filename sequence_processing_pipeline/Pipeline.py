@@ -266,7 +266,7 @@ class Pipeline:
                                      " number")
 
                 # create/overwrite the value for Lane.
-                for sample in self.sample_sheet.Samples:
+                for sample in self.sample_sheet.samples:
                     sample.Lane = lane_number
 
                 # overwrite the original file.
