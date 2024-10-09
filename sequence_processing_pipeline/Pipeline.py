@@ -134,7 +134,7 @@ class Pipeline:
     assay_types = [AMPLICON_ATYPE, METAGENOMIC_ATYPE, METATRANSCRIPTOMIC_ATYPE]
 
     def __init__(self, configuration_file_path, run_id, input_file_path,
-                 output_path, qiita_job_id, pipeline_type):
+                 output_path, qiita_job_id, pipeline_type, lane_number=None):
         """
         Initialize Pipeline object w/configuration information.
         :param configuration_file_path: Path to configuration.json file.
@@ -143,6 +143,7 @@ class Pipeline:
         :param output_path: Path where all pipeline-generated files live.
         :param qiita_job_id: Qiita Job ID creating this Pipeline.
         :param pipeline_type: Pipeline type ('Amplicon', 'Metagenomic', etc.)
+        :param lane_number: (Optional) overwrite lane_number in input_file.
         """
         if input_file_path is None:
             raise PipelineError("user_input_file_path cannot be None")
@@ -249,10 +250,28 @@ class Pipeline:
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
             self.sample_sheet = output_fp
+
+            # Optional lane_number parameter is ignored for Amplicon
+            # runs, as the only valid value is 1.
         else:
             # assume user_input_file_path references a sample-sheet.
             self.sample_sheet = self._validate_sample_sheet(input_file_path)
             self.mapping_file = None
+
+            if lane_number is not None:
+                # confirm that the lane_number is a reasonable value.
+                lane_number = int(lane_number)
+                if lane_number < 1 or lane_number > 8:
+                    raise ValueError(f"'{lane_number}' is not a valid name"
+                                     " number")
+
+                # create/overwrite the value for Lane.
+                for sample in self.sample_sheet.Samples:
+                    sample.Lane = lane_number
+
+                # overwrite the original file.
+                with open(input_file_path, 'w') as f:
+                    self.sample_sheet.write(f)
 
         self._configure_profile()
 
