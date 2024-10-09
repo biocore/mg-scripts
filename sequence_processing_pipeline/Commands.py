@@ -22,7 +22,8 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # is now the following:
     # add one more level to account for project_names nested under ConvertJob
     # dir.
-    fastq_paths = glob.glob(data_location_path + '*/*/*.fastq.gz')
+    # this will ignore the _I1_ reads that appear in the integrated result.
+    fastq_paths = glob.glob(data_location_path + '/*/*_R?_001.fastq.gz')
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
@@ -114,6 +115,8 @@ def demux(id_map, fp, out_d, task, maxtask):
     qual = iter(fp)
 
     for i, s, d, q in zip(id_, seq, dumb, qual):
+        # NB: This appears to not be causing the removal of the metadata
+        # either.
         fname_encoded, id_ = i.split(delimiter, 1)
 
         if fname_encoded not in openfps:

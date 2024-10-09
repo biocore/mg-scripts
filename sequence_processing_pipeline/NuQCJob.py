@@ -1,8 +1,7 @@
-from jinja2 import BaseLoader, TemplateNotFound
 from metapool import load_sample_sheet
 from os import stat, makedirs, rename
-from os.path import join, basename, dirname, exists, abspath, getmtime
-from sequence_processing_pipeline.Job import Job
+from os.path import join, basename, dirname, exists, abspath
+from sequence_processing_pipeline.Job import Job, KISSLoader
 from sequence_processing_pipeline.PipelineError import (PipelineError,
                                                         JobFailedError)
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -14,25 +13,6 @@ from jinja2 import Environment
 import glob
 import re
 from sys import executable
-import pathlib
-
-
-# taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
-class KISSLoader(BaseLoader):
-    def __init__(self, path):
-        # pin the path for loader to the location sequence_processing_pipeline
-        # (the location of this file), along w/the relative path to the
-        # templates directory.
-        self.path = join(pathlib.Path(__file__).parent.resolve(), path)
-
-    def get_source(self, environment, template):
-        path = join(self.path, template)
-        if not exists(path):
-            raise TemplateNotFound(template)
-        mtime = getmtime(path)
-        with open(path) as f:
-            source = f.read()
-        return source, path, lambda: mtime == getmtime(path)
 
 
 logging.basicConfig(level=logging.DEBUG)
