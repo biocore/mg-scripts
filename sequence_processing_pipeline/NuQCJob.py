@@ -108,7 +108,9 @@ class NuQCJob(Job):
         self.minimum_bytes = 3100
         self.fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}'
                                       r'\.fastq\.gz$')
-        self.interleave_fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.interleave\.fastq\.gz$')
+        self.interleave_fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d'
+                                                 r'_\d{3}\.interleave\.fastq'
+                                                 r'\.gz$')
         self.html_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.html$')
         self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json$')
 
@@ -209,7 +211,8 @@ class NuQCJob(Job):
             # this directory shouldn't already exist.
             makedirs(join(output_path, project_name), exist_ok=False)
 
-            sample_ids = [x[0] for x in self.sample_ids if x[1] == project_name]
+            sample_ids = [x[0] for x in self.sample_ids
+                          if x[1] == project_name]
 
             for trimmed_file in list(glob.glob(pattern)):
                 file_name = split(trimmed_file)[1]

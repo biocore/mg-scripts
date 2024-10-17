@@ -9,7 +9,7 @@ from sequence_processing_pipeline.PipelineError import (
 )
 from os import makedirs, remove
 from metapool import load_sample_sheet
-import glob
+from os import walk
 
 
 class TestNuQCJob(unittest.TestCase):
@@ -2166,10 +2166,56 @@ class TestNuQCJob(unittest.TestCase):
         self.assertEqual(obs, exp)
 
     def test_move_trimmed(self):
-        # Note: this test does not make use of the output_dir that other
-        # tests use.
+        # create a NuQCJob() object, but do not call run().
+        # instead we will manually create some files to test with.
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(
+            self.fastq_root_path,
+            self.output_path,
+            self.good_sample_sheet_path,
+            double_db_paths,
+            "queue_name",
+            1,
+            1440,
+            "8",
+            "fastp",
+            "minimap2",
+            "samtools",
+            [],
+            self.qiita_job_id,
+            1000,
+            "",
+            self.movi_path,
+            self.gres_value,
+            self.pmls_path,
+            ['BX']
+        )
 
-        for dummy_fp in SAMPLE_DIR:
+        sample_dir = [
+            "NuQCJob/only-adapter-filtered/EP890158A02_S58_L001_R1_001."
+            "interleave.fastq.gz",
+            "NuQCJob/only-adapter-filtered/EP890158A02_S58_L001_R2_001."
+            "interleave.fastq.gz",
+            "NuQCJob/only-adapter-filtered/EP023801B04_S27_L001_R1_001."
+            "interleave.fastq.gz",
+            "NuQCJob/only-adapter-filtered/EP023801B04_S27_L001_R2_001."
+            "interleave.fastq.gz",
+            "NuQCJob/NPH_15288/fastp_reports_dir/html/EP890158A02_S58_L001_"
+            "R1_001.html",
+            "NuQCJob/NPH_15288/fastp_reports_dir/json/EP023801B04_S27_L001_"
+            "R1_001.json",
+            "NuQCJob/process_all_fastq_files.sh",
+            "NuQCJob/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d.1897981."
+            "completed",
+            "NuQCJob/logs/slurm-1897981_1.out",
+            "NuQCJob/tmp/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d-1",
+            'NuQCJob/only-adapter-filtered/CDPH-SAL_'
+            'Salmonella_Typhi_MDL-150__S36_L001_R1_001.interleave.fastq.gz',
+            'NuQCJob/only-adapter-filtered/CDPH-SAL_'
+            'Salmonella_Typhi_MDL-150__S36_L001_R2_001.interleave.fastq.gz',
+        ]
+
+        for dummy_fp in sample_dir:
             dummy_fp = self.path(dummy_fp)
             dummy_path = dirname(dummy_fp)
             makedirs(dummy_path, exist_ok=True)
@@ -2178,38 +2224,33 @@ class TestNuQCJob(unittest.TestCase):
 
         trimmed_only_path = self.path("NuQCJob", "only-adapter-filtered")
 
-        NuQCJob._move_trimmed_files("NPH_15288", trimmed_only_path)
+        # test _move_trimmed_files() by verifying that only the interleave
+        # fastq files from the NYU project are moved.
+        job._move_trimmed_files("NYU_BMS_Melanoma_13059", trimmed_only_path)
 
-        new_path = join(trimmed_only_path, "NPH_15288")
-        pattern = f"{new_path}/*.fastq.gz"
+        new_path = join(trimmed_only_path, "NYU_BMS_Melanoma_13059")
 
-        exp = [
-            (
-                "only-adapter-filtered/NPH_15288/359180345_S58_L001_R1_001."
-                "fastq.gz"
-            ),
-            (
-                "only-adapter-filtered/NPH_15288/359180337_S27_L001_R1_001."
-                "fastq.gz"
-            ),
-            (
-                "only-adapter-filtered/NPH_15288/359180338_S51_L001_R2_001."
-                "fastq.gz"
-            ),
-            (
-                "only-adapter-filtered/NPH_15288/359180338_S51_L001_R1_001."
-                "fastq.gz"
-            ),
-            (
-                "only-adapter-filtered/NPH_15288/359180337_S27_L001_R2_001."
-                "fastq.gz"
-            ),
-        ]
+        exp = {
+            'NuQCJob/only-adapter-filtered/NYU_BMS_Melanoma_13059/EP890158A02'
+            '_S58_L001_R1_001.interleave.fastq.gz',
+            'NuQCJob/only-adapter-filtered/NYU_BMS_Melanoma_13059/EP023801B04'
+            '_S27_L001_R1_001.interleave.fastq.gz',
+            'NuQCJob/only-adapter-filtered/NYU_BMS_Melanoma_13059/EP890158A02'
+            '_S58_L001_R2_001.interleave.fastq.gz',
+            'NuQCJob/only-adapter-filtered/NYU_BMS_Melanoma_13059/EP023801B04'
+            '_S27_L001_R2_001.interleave.fastq.gz'
+            }
 
-        for trimmed_file in list(glob.glob(pattern)):
-            trimmed_file = trimmed_file.split("NuQCJob/")[-1]
-            if trimmed_file not in exp:
-                self.assertIn(trimmed_file, exp)
+        obs = []
+        for root, dirs, files in walk(new_path):
+            for some_file in files:
+                some_path = join(root, some_file)
+                some_path = some_path.replace(self.path(""), "")
+                obs.append(some_path)
+
+        # confirm that only the samples in NYU_BMS_Melanoma_13059 were
+        # moved.
+        self.assertEqual(set(obs), exp)
 
     def _helper(self, regex, good_names, bad_names):
         for good_name in good_names:
@@ -2220,28 +2261,6 @@ class TestNuQCJob(unittest.TestCase):
             substr = regex.search(bad_name)
             self.assertIsNone(substr, msg=f"Regex failed on {bad_name}")
 
-
-SAMPLE_DIR = [
-    "NuQCJob/only-adapter-filtered/359180345_S58_L001_R1_001.fastq.gz",
-    "NuQCJob/only-adapter-filtered/359180337_S27_L001_R1_001.fastq.gz",
-    "NuQCJob/only-adapter-filtered/359180338_S51_L001_R2_001.fastq.gz",
-    "NuQCJob/only-adapter-filtered/359180338_S51_L001_R1_001.fastq.gz",
-    "NuQCJob/only-adapter-filtered/359180337_S27_L001_R2_001.fastq.gz",
-    "NuQCJob/NPH_15288/fastp_reports_dir/html/359180354_S22_L001_R1_001.html",
-    "NuQCJob/NPH_15288/fastp_reports_dir/html/359180338_S51_L001_R1_001.html",
-    "NuQCJob/NPH_15288/fastp_reports_dir/html/359180345_S58_L001_R1_001.html",
-    "NuQCJob/NPH_15288/fastp_reports_dir/html/359180337_S27_L001_R1_001.html",
-    "NuQCJob/NPH_15288/fastp_reports_dir/html/359180353_S17_L001_R1_001.html",
-    "NuQCJob/NPH_15288/fastp_reports_dir/json/359180353_S17_L001_R1_001.json",
-    "NuQCJob/NPH_15288/fastp_reports_dir/json/359180337_S27_L001_R1_001.json",
-    "NuQCJob/NPH_15288/fastp_reports_dir/json/359180345_S58_L001_R1_001.json",
-    "NuQCJob/NPH_15288/fastp_reports_dir/json/359180338_S51_L001_R1_001.json",
-    "NuQCJob/NPH_15288/fastp_reports_dir/json/359180354_S22_L001_R1_001.json",
-    "NuQCJob/process_all_fastq_files.sh",
-    "NuQCJob/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d.1897981.completed",
-    "NuQCJob/logs/slurm-1897981_1.out",
-    "NuQCJob/tmp/hds-a439513a-5fcc-4f29-a1e5-902ee5c1309d-1",
-]
 
 if __name__ == "__main__":
     unittest.main()
