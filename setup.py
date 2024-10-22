@@ -43,8 +43,10 @@ setup(name='sequence-processing-pipeline',
       install_requires=[
         'click', 'requests', 'pandas', 'flake8', 'nose', 'coverage',
         'pgzip', 'jinja2',
-        'metapool @ https://github.com/biocore/'
-        'metagenomics_pooling_notebook/archive/master.zip'
+        # 'metapool @ https://github.com/biocore/'
+        # 'metagenomics_pooling_notebook/archive/master.zip'
+        'metapool @ https://codeload.github.com/charles-cowart/metagenomics'
+        '_pooling_notebook/zip/refs/heads/fake_tellread'
         ],
       entry_points={
           'console_scripts': ['demux=sequence_processing_pipeline.scripts.cli'

@@ -1,8 +1,7 @@
-from jinja2 import BaseLoader, TemplateNotFound
 from metapool import load_sample_sheet
 from os import stat, makedirs, rename
-from os.path import join, basename, dirname, exists, abspath, getmtime
-from sequence_processing_pipeline.Job import Job
+from os.path import join, basename, dirname, exists, abspath, split
+from sequence_processing_pipeline.Job import Job, KISSLoader
 from sequence_processing_pipeline.PipelineError import (PipelineError,
                                                         JobFailedError)
 from sequence_processing_pipeline.Pipeline import Pipeline
@@ -14,25 +13,6 @@ from jinja2 import Environment
 import glob
 import re
 from sys import executable
-import pathlib
-
-
-# taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
-class KISSLoader(BaseLoader):
-    def __init__(self, path):
-        # pin the path for loader to the location sequence_processing_pipeline
-        # (the location of this file), along w/the relative path to the
-        # templates directory.
-        self.path = join(pathlib.Path(__file__).parent.resolve(), path)
-
-    def get_source(self, environment, template):
-        path = join(self.path, template)
-        if not exists(path):
-            raise TemplateNotFound(template)
-        mtime = getmtime(path)
-        with open(path) as f:
-            source = f.read()
-        return source, path, lambda: mtime == getmtime(path)
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -128,6 +108,9 @@ class NuQCJob(Job):
         self.minimum_bytes = 3100
         self.fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}'
                                       r'\.fastq\.gz$')
+        self.interleave_fastq_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d'
+                                                 r'_\d{3}\.interleave\.fastq'
+                                                 r'\.gz$')
         self.html_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.html$')
         self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json$')
 
@@ -194,7 +177,7 @@ class NuQCJob(Job):
             substr = regex.search(file_name)
             if substr is None:
                 raise ValueError(f"{file_name} does not follow naming "
-                                 " pattern.")
+                                 "pattern.")
             else:
                 # check if found substring is a member of this
                 # project. Note sample-name != sample-id
@@ -214,8 +197,7 @@ class NuQCJob(Job):
         for fp in files_to_move:
             move(fp, dst)
 
-    @staticmethod
-    def _move_trimmed_files(project_name, output_path):
+    def _move_trimmed_files(self, project_name, output_path):
         '''
         Given output_path, move all fastqs to a new subdir named project_name.
         :param project_name: The name of the new folder to be created.
@@ -229,8 +211,16 @@ class NuQCJob(Job):
             # this directory shouldn't already exist.
             makedirs(join(output_path, project_name), exist_ok=False)
 
+            sample_ids = [x[0] for x in self.sample_ids
+                          if x[1] == project_name]
+
             for trimmed_file in list(glob.glob(pattern)):
-                move(trimmed_file, join(output_path, project_name))
+                file_name = split(trimmed_file)[1]
+                substr = self.interleave_fastq_regex.search(file_name)
+                if substr is not None:
+                    # only move the sample_ids in this project.
+                    if substr[1] in sample_ids:
+                        move(trimmed_file, join(output_path, project_name))
         else:
             raise ValueError(f"'{output_path}' does not exist")
 
@@ -282,7 +272,6 @@ class NuQCJob(Job):
         for project in self.project_data:
             project_name = project['Sample_Project']
             needs_human_filtering = project['HumanFiltering']
-
             source_dir = join(self.output_path, project_name)
             pattern = f"{source_dir}/*.fastq.gz"
             completed_files = list(glob.glob(pattern))
@@ -294,7 +283,7 @@ class NuQCJob(Job):
                                      'only-adapter-filtered')
 
             if exists(trimmed_only_path):
-                NuQCJob._move_trimmed_files(project_name, trimmed_only_path)
+                self._move_trimmed_files(project_name, trimmed_only_path)
 
             if needs_human_filtering is True:
                 filtered_directory = join(source_dir, 'filtered_sequences')

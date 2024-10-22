@@ -62,3 +62,9 @@ Please note that the setting 'minimap2_databases' is expected to be a list of pa
 For NuQCJob, minimap2_databases is expected to be the path to a directory containing two subdirectories: 'metagenomic'
 and 'metatranscriptomic'. Each directory should contain or symlink to the appropriate .mmi files needed for that Assay
 type.
+
+Additional TellSeq-related notes:
+'spades-cloudspades-0.1', 'tellread-release-novaseqX' or similar directories must be placed in a location available to SPP.
+Their paths should be made known to SPP in the configuration files. (See examples for details).
+Additional scripts found in sequence_processing_pipeline/contrib were contributed by Daniel and Omar and can be similarly located and configured.
+
