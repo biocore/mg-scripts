@@ -2108,11 +2108,53 @@ class TestNuQCJob(unittest.TestCase):
         obs = job._generate_mmi_filter_cmds("/my_work_dir")
 
         exp = [
-            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "minimap2 -2 -ax sr -t 2 db_path/mmi_1.db /my_work_dir/seqs."
             "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 > "
             "/my_work_dir/foo",
-            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            "minimap2 -2 -ax sr -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
             " | samtools fastq -@ 2 -f 12 -F 256 > /my_work_dir/bar",
+            "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
+            "alignment.fastq",
+            "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",
+            "[ -e /my_work_dir/bar ] && rm /my_work_dir/bar",
+        ]
+
+        exp = "\n".join(exp)
+
+        self.assertEqual(obs, exp)
+
+    def test_generate_mmi_filter_cmds_w_descriptions(self):
+        double_db_paths = ["db_path/mmi_1.db", "db_path/mmi_2.db"]
+        job = NuQCJob(
+            self.fastq_root_path,
+            self.output_path,
+            self.good_sample_sheet_path,
+            double_db_paths,
+            "queue_name",
+            1,
+            1440,
+            "8",
+            "fastp",
+            "minimap2",
+            "samtools",
+            [],
+            self.qiita_job_id,
+            1000,
+            "",
+            self.movi_path,
+            self.gres_value,
+            self.pmls_path,
+            ["BX"]
+        )
+
+        obs = job._generate_mmi_filter_cmds("/my_work_dir")
+
+        exp = [
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_1.db /my_work_dir/seqs."
+            "interleaved.fastq -a | samtools fastq -@ 2 -f 12 -F 256 -T BX > "
+            "/my_work_dir/foo",
+            "minimap2 -2 -ax sr -y -t 2 db_path/mmi_2.db /my_work_dir/foo -a"
+            " | samtools fastq -@ 2 -f 12 -F 256 -T BX > /my_work_dir/bar",
             "mv /my_work_dir/bar /my_work_dir/seqs.interleaved.filter_"
             "alignment.fastq",
             "[ -e /my_work_dir/foo ] && rm /my_work_dir/foo",

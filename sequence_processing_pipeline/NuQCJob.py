@@ -399,8 +399,10 @@ class NuQCJob(Job):
             # been annotated with. Samtools will safely ignore tags that
             # are not present.
             tags = " -T %s" % ','.join(self.additional_fastq_tags)
+            t_switch = " -y"
         else:
             tags = ""
+            t_switch = ""
 
         for count, mmi_db_path in enumerate(self.mmi_file_paths):
             if count == 0:
@@ -417,7 +419,7 @@ class NuQCJob(Job):
                 input = tmp_file1
                 output = tmp_file2
 
-            cmds.append(f"minimap2 -2 -ax sr -y -t {cores_to_allocate} "
+            cmds.append(f"minimap2 -2 -ax sr{t_switch} -t {cores_to_allocate} "
                         f"{mmi_db_path} {input} -a | samtools fastq -@ "
                         f"{cores_to_allocate} -f 12 -F 256{tags} > "
                         f"{output}")
