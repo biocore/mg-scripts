@@ -6,7 +6,8 @@ import logging
 import re
 from metapool import load_sample_sheet, sheet_needs_demuxing, \
     SAMPLES_DETAILS_KEY, SAMPLE_NAME_KEY, SS_SAMPLE_ID_KEY, ORIG_NAME_KEY, \
-    PRIMARY_STUDY_KEY, SECONDARY_STUDIES_KEY
+    PRIMARY_STUDY_KEY, SECONDARY_STUDIES_KEY, QIITA_ID_KEY, \
+    PROJECT_FULL_NAME_KEY
 from shutil import copyfile
 
 MATCHING_FILES_KEY = 'matching_files'
@@ -223,15 +224,27 @@ class ConvertJob(Job):
         return result
 
     def copy_controls_between_projects(self):
+        def _get_proj_name(proj_info, qiita_id):
+            for curr_proj_info in proj_info.values():
+                if curr_proj_info[QIITA_ID_KEY] == qiita_id:
+                    return curr_proj_info[PROJECT_FULL_NAME_KEY]
+
         self._get_sample_sheet_info()
 
         for curr_control in self.controls_info.values():
             curr_sample_name = curr_control[SAMPLE_NAME_KEY]
-            curr_primary_qiita_study = curr_control[PRIMARY_STUDY_KEY]
-            curr_secondary_qiita_studies = curr_control[SECONDARY_STUDIES_KEY]
-            for curr_secondary_qiita_study in curr_secondary_qiita_studies:
-                self.copy_sequences(curr_sample_name, curr_primary_qiita_study,
-                                    curr_secondary_qiita_study)
+            curr_primary_qiita_study_id = curr_control[PRIMARY_STUDY_KEY]
+            curr_primary_qiita_study_name = \
+                _get_proj_name(self.info, curr_primary_qiita_study_id)
+
+            curr_secondary_qiita_studies_ids = \
+                curr_control[SECONDARY_STUDIES_KEY]
+            for curr_second_qiita_study_id in curr_secondary_qiita_studies_ids:
+                curr_secondary_qiita_study_name = \
+                    _get_proj_name(self.info, curr_second_qiita_study_id)
+                self.copy_sequences(
+                    curr_sample_name, curr_primary_qiita_study_name,
+                    curr_secondary_qiita_study_name)
             # next secondary study
         # next control
 
