@@ -255,10 +255,6 @@ class Pipeline:
             # Optional lane_number parameter is ignored for Amplicon
             # runs, as the only valid value is 1.
         else:
-            # assume user_input_file_path references a sample-sheet.
-            self.sample_sheet = self._validate_sample_sheet(input_file_path)
-            self.mapping_file = None
-
             if lane_number is not None:
                 # confirm that the lane_number is a reasonable value.
                 lane_number = int(lane_number)
@@ -269,6 +265,10 @@ class Pipeline:
                 # overwrite sample-sheet w/DFSheets processed version
                 # with overwritten Lane number.
                 set_lane_number_in_sheet(input_file_path, lane_number)
+
+            # assume user_input_file_path references a sample-sheet.
+            self.sample_sheet = self._validate_sample_sheet(input_file_path)
+            self.mapping_file = None
 
         self._configure_profile()
 

@@ -16,8 +16,7 @@ class TellReadJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
                  qiita_job_id, label, reference_base,
-                 reference_map, tmp1_path, sing_script_path, lane,
-                 cores_per_task):
+                 reference_map, tmp1_path, sing_script_path, cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -60,6 +59,9 @@ class TellReadJob(Job):
         self.jinja_env = Environment(loader=KISSLoader('templates'))
         self.sing_script_path = sing_script_path
         self.tmp1_path = tmp1_path
+
+        sheet = load_sample_sheet(self.sample_sheet_path)
+        lane = sheet.samples[0].Lane
 
         # force self.lane_number to be int. raise an Error if it's not.
         tmp = int(lane)

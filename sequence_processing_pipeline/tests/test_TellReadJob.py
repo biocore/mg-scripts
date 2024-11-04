@@ -43,41 +43,13 @@ class TestTellReadJob(unittest.TestCase):
         self.cores_per_task = "4"
 
     def test_creation(self):
-        # confirm only sensible lane numbers are allowed.
-        with self.assertRaisesRegex(ValueError,
-                                    "'-1' is not a valid lane number"):
-            TellReadJob(self.run_dir, self.output_path, self.sample_sheet_path,
-                        self.queue_name, self.node_count, self.wall_time_limit,
-                        self.jmem, self.modules_to_load, self.qiita_job_id,
-                        self.label, self.reference_base, self.reference_map,
-                        self.tmp1_path, self.sing_script_path, -1,
-                        self.cores_per_task)
-
-        with self.assertRaisesRegex(ValueError,
-                                    "'0' is not a valid lane number"):
-            TellReadJob(self.run_dir, self.output_path, self.sample_sheet_path,
-                        self.queue_name, self.node_count, self.wall_time_limit,
-                        self.jmem, self.modules_to_load, self.qiita_job_id,
-                        self.label, self.reference_base, self.reference_map,
-                        self.tmp1_path, self.sing_script_path, 0,
-                        self.cores_per_task)
-
-        with self.assertRaisesRegex(ValueError,
-                                    "'9' is not a valid lane number"):
-            TellReadJob(self.run_dir, self.output_path, self.sample_sheet_path,
-                        self.queue_name, self.node_count, self.wall_time_limit,
-                        self.jmem, self.modules_to_load, self.qiita_job_id,
-                        self.label, self.reference_base, self.reference_map,
-                        self.tmp1_path, self.sing_script_path, 9,
-                        self.cores_per_task)
-
         # test basic good-path
         job = TellReadJob(self.run_dir, self.output_path,
                           self.sample_sheet_path, self.queue_name,
                           self.node_count, self.wall_time_limit,
                           self.jmem, self.modules_to_load, self.qiita_job_id,
                           self.label, self.reference_base, self.reference_map,
-                          self.tmp1_path, self.sing_script_path, self.lane,
+                          self.tmp1_path, self.sing_script_path,
                           self.cores_per_task)
 
         job._generate_job_script()
