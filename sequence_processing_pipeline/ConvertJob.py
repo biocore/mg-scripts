@@ -225,7 +225,7 @@ class ConvertJob(Job):
     def copy_controls_between_projects(self):
         self._get_sample_sheet_info()
 
-        for curr_control in self.controls_info:
+        for curr_control in self.controls_info.values():
             curr_sample_name = curr_control[SAMPLE_NAME_KEY]
             curr_primary_qiita_study = curr_control[PRIMARY_STUDY_KEY]
             curr_secondary_qiita_studies = curr_control[SECONDARY_STUDIES_KEY]
