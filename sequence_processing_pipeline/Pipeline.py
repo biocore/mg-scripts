@@ -609,21 +609,6 @@ class Pipeline:
             controls = self.sample_sheet.get_denormalized_controls_list()
             df = pd.DataFrame(controls)
 
-            # TODO: take this commented stuff out after testing
-            # # Aggregate all data into a DataFrame
-            # data = [[x['Sample_ID'], x['Sample_Project']] for
-            #         x in self.sample_sheet.samples]
-            # df = pd.DataFrame(data, columns=['sample_name', 'project_name'])
-
-        # After discussion with Charlie, I don't think this is necessary. When
-        # qp-klp calls this method, it sends in all the qiita sample names for
-        # the project, from which this method was adding any blanks into
-        # the sif file it creates--but qp-klp later filters back OUT any blanks
-        # in the sif that are also already in qiita.
-        # if addl_info is not None:
-        #     df = pd.concat([df, addl_info],
-        #                    ignore_index=True).drop_duplicates()
-
         projects = df[PROJECT_FULL_NAME_KEY].unique()
 
         paths = []
@@ -658,45 +643,6 @@ class Pipeline:
 
             # spp_metadata.write_extended_spp_metadata(
             #     controls_in_proj_df, self.output_path, curr_fname)
-
-        # samples = list(df.to_records(index=False))
-        # paths = []
-        # for project in projects:
-        #     samples_in_proj = [x for x, y in samples if y == project]
-        #     some_path = join(self.output_path,
-        #                      f'{self.run_id}_{project}_blanks.tsv')
-        #     paths.append(some_path)
-        #     with open(some_path, 'w') as f:
-        #         # write out header to disk
-        #         f.write('\t'.join(Pipeline.sif_header) + '\n')
-        #
-        #         # TODO: is anything actually being populated with 'EMPTY`?
-        #         #  I can't find that being set anywhere ...
-        #         # for now, populate values that can't be derived from the
-        #         # sample-sheet w/'EMPTY'.
-        #         for sample in samples_in_proj:
-        #             row = {}
-        #             for column, default_value in zip(Pipeline.sif_header,
-        #                                              Pipeline.sif_defaults):
-        #                 # ensure all defaults are converted to strings.
-        #                 row[column] = str(default_value)
-        #
-        #             # overwrite default title w/sample_project name, minus
-        #             # Qiita ID.
-        #             # TODO: replace with call to metapool's remove_qiita_id
-        #             row['title'] = sub(r'_\d+$', r'', project)
-        #
-        #             # generate values for the four columns that must be
-        #             # determined from sample-sheet information.
-        #
-        #             # convert 'BLANK14_10F' to 'BLANK14.10F', etc.
-        #             row['sample_name'] = sample.replace('_', '.')
-        #             row['host_subject_id'] = sample.replace('_', '.')
-        #             row['description'] = sample.replace('_', '.')
-        #             row['collection_timestamp'] = self.get_date_from_run_id()
-        #
-        #             row = [row[x] for x in Pipeline.sif_header]
-        #             f.write('\t'.join(row) + '\n')
 
         return paths
 
