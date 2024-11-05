@@ -114,6 +114,19 @@ class TestPipeline(unittest.TestCase):
         df = pd.DataFrame(rows, columns=cols)
         df.to_csv(output_file_path, sep='\t', index=False, header=True)
 
+    def test_make_sif_fname(self):
+        exp = '211021_A00000_0000_SAMPLE_NYU_BMS_Melanoma_13059_blanks.tsv'
+        obs = Pipeline.make_sif_fname('211021_A00000_0000_SAMPLE',
+                                      'NYU_BMS_Melanoma_13059')
+        self.assertEqual(exp, obs)
+
+    def test_is_sif_fp(self):
+        exp = ("/path/to/sifs/211021_A00000_0000_SAMPLE_"
+               "NYU_BMS_Melanoma_13059_blanks.tsv")
+        obs = Pipeline.is_sif_fp("/path/to/sifs/211021_A00000_0000_SAMPLE_"
+               "NYU_BMS_Melanoma_13059")
+        self.assertEqual(exp, obs)
+
     def test_validate_mapping_file_numeric_ids(self):
         with NamedTemporaryFile() as tmp:
             self._make_mapping_file(tmp.name)
