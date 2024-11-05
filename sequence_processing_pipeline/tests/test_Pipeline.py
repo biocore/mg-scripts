@@ -122,11 +122,11 @@ class TestPipeline(unittest.TestCase):
 
     def test_is_sif_fp(self):
         obs1 = Pipeline.is_sif_fp("/path/to/sifs/211021_A00000_0000_SAMPLE_"
-               "NYU_BMS_Melanoma_13059_blanks.tsv")
+                                  "NYU_BMS_Melanoma_13059_blanks.tsv")
         self.assertTrue(obs1)
 
         obs2 = Pipeline.is_sif_fp("/path/to/sifs/211021_A00000_0000_SAMPLE_"
-               "NYU_BMS_Melanoma_13059_lord_of_the.sif")
+                                  "NYU_BMS_Melanoma_13059_lord_of_the.sif")
         self.assertFalse(obs2)
 
     def test_get_qiita_id_from_sif_fp(self):
@@ -511,9 +511,7 @@ class TestPipeline(unittest.TestCase):
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
 
-
     def test_get_sample_ids(self):
-
         exp_sample_ids = ['CDPH-SAL__Salmonella__Typhi__MDL-143',
                           'CDPH-SAL_Salmonella_Typhi_MDL-144',
                           'CDPH-SAL_Salmonella_Typhi_MDL-145',

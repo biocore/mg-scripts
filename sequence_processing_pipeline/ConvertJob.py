@@ -345,7 +345,7 @@ class ConvertJob(Job):
                 results.append(samples[sample_name])
 
         if len(results) == 0:
-            def _make_msg_base (col_name):
+            def _make_msg_base(col_name):
                 return (f"'{sample_name}' did not match any '{col_name}' "
                         f"values in project '{source_project}'.")
 

@@ -11,7 +11,7 @@ from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
-from re import sub, findall, search, match
+from re import findall, search, match
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
@@ -23,6 +23,7 @@ from metapool.prep import PREP_MF_COLUMNS
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 _PROJECT_NAME_KEY = 'project_name'
+
 
 class InstrumentUtils():
     types = {'A': 'NovaSeq 6000', 'D': 'HiSeq 2500', 'FS': 'iSeq',
@@ -636,7 +637,8 @@ class Pipeline:
             controls_in_proj_df['title'] = project_info[PROJECT_SHORT_NAME_KEY]
             controls_in_proj_df[TEMP_KEY] = \
                 controls_in_proj_df[SAMPLE_NAME_KEY].str.replace("_", ".")
-            controls_in_proj_df['host_subject_id'] = controls_in_proj_df[TEMP_KEY]
+            controls_in_proj_df['host_subject_id'] = \
+                controls_in_proj_df[TEMP_KEY]
             controls_in_proj_df['description'] = controls_in_proj_df[TEMP_KEY]
             controls_in_proj_df.drop(columns=[TEMP_KEY], inplace=True)
             controls_in_proj_df['collection_timestamp'] = \
