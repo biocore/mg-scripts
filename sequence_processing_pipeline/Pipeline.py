@@ -584,7 +584,7 @@ class Pipeline:
 
         return df
 
-    def generate_sample_info_files(self, addl_info=None):
+    def generate_sample_info_files(self):
         """
         Generate sample-information files in self.output_path.
         :param addl_info: A df of (sample-name, project-name) pairs.
@@ -613,24 +613,27 @@ class Pipeline:
 
         paths = []
         for project in projects:
+            project_info = parse_project_name(project)
+
             curr_fname = self.make_sif_fname(self.run_id, project)
             curr_fp = join(self.output_path, curr_fname)
             paths.append(curr_fp)
 
-            controls_in_proj_df = df.loc[df[PROJECT_FULL_NAME_KEY] == project]
+            controls_in_proj_df = \
+                df.loc[df[PROJECT_FULL_NAME_KEY] == project].copy()
 
             # TODO: remove this loop and replace with spp_metadata call at end
             for column, default_value in zip(Pipeline.sif_header,
                                              Pipeline.sif_defaults):
                 # ensure all defaults are converted to strings.
-                controls_in_proj_df[column] = str(default_value)
+                if default_value is not None:
+                    controls_in_proj_df[column] = str(default_value)
             # next metadata col/value
 
             # generate values for the four columns that must be
             # determined from sample-sheet information.
             TEMP_KEY = 'temp_name'
-            controls_in_proj_df['title'] = \
-                parse_project_name(project)[QIITA_ID_KEY]
+            controls_in_proj_df['title'] = project_info[PROJECT_SHORT_NAME_KEY]
             controls_in_proj_df[TEMP_KEY] = \
                 controls_in_proj_df[SAMPLE_NAME_KEY].str.replace("_", ".")
             controls_in_proj_df['host_subject_id'] = controls_in_proj_df[TEMP_KEY]
@@ -639,6 +642,7 @@ class Pipeline:
             controls_in_proj_df['collection_timestamp'] = \
                 self.get_date_from_run_id()
 
+            controls_in_proj_df = controls_in_proj_df[Pipeline.sif_header]
             controls_in_proj_df.to_csv(curr_fp, sep='\t', index=False)
 
             # spp_metadata.write_extended_spp_metadata(
