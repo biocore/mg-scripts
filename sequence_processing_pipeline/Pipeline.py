@@ -584,7 +584,7 @@ class Pipeline:
 
         return df
 
-    def generate_sample_info_files(self):
+    def generate_sample_info_files(self, addl_info=None):
         """
         Generate sample-information files in self.output_path.
         :param addl_info: A df of (sample-name, project-name) pairs.
