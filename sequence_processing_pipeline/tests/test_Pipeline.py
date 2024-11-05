@@ -127,6 +127,13 @@ class TestPipeline(unittest.TestCase):
                "NYU_BMS_Melanoma_13059")
         self.assertEqual(exp, obs)
 
+    def test_get_qiita_id_from_sif_fp(self):
+        exp = "13059"
+        obs = Pipeline.get_qiita_id_from_sif_fp(
+            "/path/to/sifs/211021_A00000_0000_SAMPLE_"
+            "NYU_BMS_Melanoma_13059_blanks.tsv")
+        self.assertEqual(exp, obs)
+
     def test_validate_mapping_file_numeric_ids(self):
         with NamedTemporaryFile() as tmp:
             self._make_mapping_file(tmp.name)
