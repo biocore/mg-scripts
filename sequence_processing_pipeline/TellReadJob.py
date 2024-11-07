@@ -16,7 +16,7 @@ class TellReadJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
                  qiita_job_id, label, reference_base,
-                 reference_map, tmp1_path, sing_script_path, cores_per_task):
+                 reference_map, sing_script_path, cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -58,7 +58,6 @@ class TellReadJob(Job):
         self.qiita_job_id = qiita_job_id
         self.jinja_env = Environment(loader=KISSLoader('templates'))
         self.sing_script_path = sing_script_path
-        self.tmp1_path = tmp1_path
 
         sheet = load_sample_sheet(self.sample_sheet_path)
         lane = sheet.samples[0].Lane
@@ -122,7 +121,9 @@ class TellReadJob(Job):
 
         sample_ids = []
         for sample in sheet.samples:
-            sample_ids.append((sample['Sample_ID'], sample['Sample_Project']))
+            sample_ids.append((sample['Sample_ID'],
+                               sample['Sample_Project'],
+                               sample['barcode_id']))
 
         bioinformatics = sheet.Bioinformatics
 
@@ -143,12 +144,12 @@ class TellReadJob(Job):
         # generate a comma separated list of sample-ids from the tuples stored
         # in self.sample_ids.
 
-        # NB: the current sample-sheet format used for TellRead doesn't include
-        # sample-names and sample-ids, only sample_id. e.g. C501,C502,etc.
-        # Hence, when a final sample sheet format is ready, it may be prudent
-        # to switch this to pull values from the expected sample-names column
-        # instead.
-        samples = ','.join([id[0] for id in self.sample_ids])
+        # NB: Proposed sample-sheets will have traditional Sample_ID and
+        # Sample_Name columns as well as a new value named barcode_id. It's
+        # this column that will contain the 'C50n' values needed to be
+        # supplied to tellread. Later we will use this mapping to rename the
+        # files from C50n...fastq.gz to sample-name...fastq.gz.
+        samples = ','.join([id[2] for id in self.sample_ids])
 
         # since we haven't included support for reference_map yet, whenever a
         # reference is not included, the mapping against the list of sample_ids
@@ -170,7 +171,7 @@ class TellReadJob(Job):
                 "cores_per_task": self.cores_per_task,
                 "queue_name": self.queue_name,
                 "sing_script_path": self.sing_script_path,
-                "tmp_dir": self.tmp1_path,
+                "tmp_dir": join(self.output_path, "output", "tmp1"),
                 "modules_to_load": ' '.join(self.modules_to_load),
                 "lane": f"s_{self.lane_number}",
                 "output": join(self.output_path, "output"),
