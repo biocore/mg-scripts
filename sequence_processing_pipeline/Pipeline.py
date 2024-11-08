@@ -802,9 +802,12 @@ class Pipeline:
                 QIITA_ID_KEY: curr_project_info[QIITA_ID_KEY]
             }
 
-            curr_contains_reps = \
-                contains_replicates if contains_replicates is not None else \
-                curr_project_info.get(CONTAINS_REPLICATES_KEY, False)
+            if contains_replicates is not None:
+                curr_contains_reps = contains_replicates
+            else:
+                curr_contains_reps = \
+                    curr_project_info.get(CONTAINS_REPLICATES_KEY, False)
+            # endif
             curr_dict[CONTAINS_REPLICATES_KEY] = curr_contains_reps
             results.append(curr_dict)
         # next project

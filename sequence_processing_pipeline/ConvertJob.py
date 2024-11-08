@@ -264,8 +264,8 @@ class ConvertJob(Job):
                                                 curr_project_name))
             fastq_paths = [f for f in fastq_paths if f.endswith('.fastq.gz')]
 
-            for _, curr_sample_info in \
-                    curr_project_info[SAMPLES_DETAILS_KEY].items():
+            for curr_sample_info in \
+                    curr_project_info[SAMPLES_DETAILS_KEY].values():
                 curr_sample_info[MATCHING_FILES_KEY] = []
 
                 # regex based on studying all filenames of all fastq files in
@@ -288,7 +288,7 @@ class ConvertJob(Job):
     def copy_sequences(self, sample_name, source_project, dest_project):
         """
         Copies all fastq files related to a sample into another project.
-        :param sample_name: A sample_name value if copy_all_replicates is
+        :param sample_name: A sample_name value if self.contains_replicates is
             False; an orig_name value otherwise.
         :param source_project: The source project name including qiita_id.
         :param dest_project: The destination project name including qiita_id.
@@ -298,7 +298,7 @@ class ConvertJob(Job):
             raise ValueError("This method cannot be called until processing "
                              "has completed.")
 
-        project_names = list(self.info.keys())
+        project_names = list(self.info)
 
         # confirm source and destination projects are both valid.
         for proj in [source_project, dest_project]:
@@ -331,16 +331,15 @@ class ConvertJob(Job):
         # should only be one sample matched in results.
         results = []
 
-        if self.contains_replicates is True:
-            for _, sample in samples.items():
-                # assume orig_name is present if copy_all_replicates is True.
+        if self.contains_replicates:
+            for sample in samples.values():
+                # assume orig_name is present if contains_replicates is True.
                 if sample_name == sample[ORIG_NAME_KEY]:
                     results.append(sample)
         else:
             # sample_name is a value from the sample_name column. it may or
-            # may not have a well-id appended and this sample-sheet may or
-            # may not contain replicates, but in either case a single sample
-            # either exists or it doesn't.
+            # may not have a well-id appended, but in either case a single
+            # sample either exists or it doesn't.
             if sample_name in self.info[source_project][SAMPLES_DETAILS_KEY]:
                 results.append(samples[sample_name])
 
