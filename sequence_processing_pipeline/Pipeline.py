@@ -792,11 +792,14 @@ class Pipeline:
                 {p: parse_project_name(p) for p in sample_project_map}
         else:
             projects_info = self.sample_sheet.get_projects_details()
-        # if this is/isn't a mapping file
+        # endif mapping_file
 
-        proj_name_key = PROJECT_SHORT_NAME_KEY if short_names \
-            else PROJECT_FULL_NAME_KEY
-        for _, curr_project_info in projects_info.items():
+        if short_names:
+            proj_name_key = PROJECT_SHORT_NAME_KEY
+        else:
+            proj_name_key = PROJECT_FULL_NAME_KEY
+        # endif
+        for curr_project_info in projects_info.values():
             curr_dict = {
                 _PROJECT_NAME_KEY: curr_project_info[proj_name_key],
                 QIITA_ID_KEY: curr_project_info[QIITA_ID_KEY]

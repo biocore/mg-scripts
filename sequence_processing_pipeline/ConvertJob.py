@@ -348,7 +348,7 @@ class ConvertJob(Job):
                 return (f"'{sample_name}' did not match any '{col_name}' "
                         f"values in project '{source_project}'.")
 
-            if self.contains_replicates is True:
+            if self.contains_replicates:
                 # the value of sample_name did not match any value in the
                 # orig_name column. It may match a value in the sample_name
                 # column.
