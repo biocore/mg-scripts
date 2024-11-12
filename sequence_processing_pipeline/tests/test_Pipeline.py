@@ -114,6 +114,28 @@ class TestPipeline(unittest.TestCase):
         df = pd.DataFrame(rows, columns=cols)
         df.to_csv(output_file_path, sep='\t', index=False, header=True)
 
+    def test_make_sif_fname(self):
+        exp = '211021_A00000_0000_SAMPLE_NYU_BMS_Melanoma_13059_blanks.tsv'
+        obs = Pipeline.make_sif_fname('211021_A00000_0000_SAMPLE',
+                                      'NYU_BMS_Melanoma_13059')
+        self.assertEqual(exp, obs)
+
+    def test_is_sif_fp(self):
+        obs1 = Pipeline.is_sif_fp("/path/to/sifs/211021_A00000_0000_SAMPLE_"
+                                  "NYU_BMS_Melanoma_13059_blanks.tsv")
+        self.assertTrue(obs1)
+
+        obs2 = Pipeline.is_sif_fp("/path/to/sifs/211021_A00000_0000_SAMPLE_"
+                                  "NYU_BMS_Melanoma_13059_lord_of_the.sif")
+        self.assertFalse(obs2)
+
+    def test_get_qiita_id_from_sif_fp(self):
+        exp = "13059"
+        obs = Pipeline.get_qiita_id_from_sif_fp(
+            "/path/to/sifs/211021_A00000_0000_SAMPLE_"
+            "NYU_BMS_Melanoma_13059_blanks.tsv")
+        self.assertEqual(exp, obs)
+
     def test_validate_mapping_file_numeric_ids(self):
         with NamedTemporaryFile() as tmp:
             self._make_mapping_file(tmp.name)
@@ -413,7 +435,7 @@ class TestPipeline(unittest.TestCase):
             f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
             'BLANK1.1A\t2021-10-21\t193\t'
             'Control\tNegative\tSterile w'
-            'ater blank\turban biome\tres'
+            'ater blank\tSterile water blank\turban biome\tres'
             'earch facility\tsterile wate'
             'r\tmisc environment\tUSA:CA:'
             'San Diego\tBLANK1.1A\t32.5\t'
@@ -423,7 +445,7 @@ class TestPipeline(unittest.TestCase):
             'UCSD\tFALSE',
             f'{self.good_run_id}_Feist_11661_blanks.tsv':
             'BLANK.40.12G\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban '
+            '\tNegative\tSterile water blank\tSterile water blank\turban '
             'biome\tresearch facility\tsterile water'
             '\tmisc environment\tUSA:CA:San Diego\tB'
             'LANK.40.12G\t32.5\t-117.25\tcontrol bla'
@@ -431,7 +453,7 @@ class TestPipeline(unittest.TestCase):
             'Feist\tTRUE\tUCSD\tFALSE',
             f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
             'BLANK.41.12G\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban'
+            '\tNegative\tSterile water blank\tSterile water blank\turban'
             ' biome\tresearch facility\tsterile wat'
             'er\tmisc environment\tUSA:CA:San Diego'
             '\tBLANK.41.12G\t32.5\t-117.25\tcontrol'
@@ -443,7 +465,7 @@ class TestPipeline(unittest.TestCase):
             f'{self.good_run_id}_NYU_BMS_Melanoma_13059_blanks.tsv':
             'BLANK4.4H\t2021-10-21\t193\t'
             'Control\tNegative\tSterile w'
-            'ater blank\turban biome\tres'
+            'ater blank\tSterile water blank\turban biome\tres'
             'earch facility\tsterile wate'
             'r\tmisc environment\tUSA:CA:'
             'San Diego\tBLANK4.4H\t32.5\t'
@@ -453,7 +475,7 @@ class TestPipeline(unittest.TestCase):
             'UCSD\tFALSE',
             f'{self.good_run_id}_Feist_11661_blanks.tsv':
             'BLANK.43.12H\t2021-10-21\t193\tControl'
-            '\tNegative\tSterile water blank\turban'
+            '\tNegative\tSterile water blank\tSterile water blank\turban'
             ' biome\tresearch facility\tsterile wat'
             'er\tmisc environment\tUSA:CA:San Diego'
             '\tBLANK.43.12H\t32.5\t-117.25\tcontrol'
@@ -461,7 +483,7 @@ class TestPipeline(unittest.TestCase):
             '2H\tFeist\tTRUE\tUCSD\tFALSE',
             f'{self.good_run_id}_Gerwick_6123_blanks.tsv':
             'BLANK.41.12G\t2021-10-21\t193\tContro'
-            'l\tNegative\tSterile water blank\turb'
+            'l\tNegative\tSterile water blank\tSterile water blank\turb'
             'an biome\tresearch facility\tsterile '
             'water\tmisc environment\tUSA:CA:San D'
             'iego\tBLANK.41.12G\t32.5\t-117.25\tco'
@@ -489,74 +511,7 @@ class TestPipeline(unittest.TestCase):
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
 
-    def test_generate_sample_information_files_with_additional_meta(self):
-        # test sample-information-file generation.
-        pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path,
-                            None,
-                            self.output_file_path, self.qiita_id,
-                            Pipeline.METAGENOMIC_PTYPE)
-
-        # create a dataframe with duplicate information to pass to
-        # generate_sample_information_files(). Confirm that the duplicates
-        # are dropped. Confirm 'NOTBLANK_999A' is also filtered out.
-        df = pd.DataFrame(data=[('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
-                                ('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
-                                ('NOTBLANK_999A', 'NYU_BMS_Melanoma_13059')],
-                          columns=['sample_name', 'project_name'])
-
-        sif_path = pipeline.generate_sample_info_files(addl_info=df)
-
-        # get the path for the NYU_BMS_Melanoma dataset.
-        sif_path = [x for x in sif_path if 'NYU_BMS_Melanoma' in x][0]
-
-        # we expect one more BLANK than before.
-        exp_lines = 34
-
-        exp_first_line = ('BLANK1.1A\t2021-10-21\t193\t'
-                          'Control\tNegative\tSterile w'
-                          'ater blank\turban biome\tres'
-                          'earch facility\tsterile wate'
-                          'r\tmisc environment\tUSA:CA:'
-                          'San Diego\tBLANK1.1A\t32.5\t'
-                          '-117.25\tcontrol blank\tmeta'
-                          'genome\t256318\tBLANK1.1A\tN'
-                          'YU_BMS_Melanoma\tTRUE\t'
-                          'UCSD\tFALSE')
-
-        # the new last sample should be BLANK999.999A.
-        exp_last_line = ('BLANK999.999A\t2021-10-21\t193\t'
-                         'Control\tNegative\tSterile w'
-                         'ater blank\turban biome\tres'
-                         'earch facility\tsterile wate'
-                         'r\tmisc environment\tUSA:CA:'
-                         'San Diego\tBLANK999.999A\t32.5\t'
-                         '-117.25\tcontrol blank\tmeta'
-                         'genome\t256318\tBLANK999.999A\tN'
-                         'YU_BMS_Melanoma\tTRUE\t'
-                         'UCSD\tFALSE')
-
-        with open(sif_path, 'r') as f:
-            obs_lines = f.readlines()
-            self.assertEqual(len(obs_lines), exp_lines)
-
-            # confirm that each file contains the expected header.
-            header = obs_lines[0].strip()
-            self.assertEqual(header, '\t'.join(Pipeline.sif_header))
-
-            # confirm that the first line of each file is as expected.
-            obs = obs_lines[1].strip()
-            exp = exp_first_line
-
-            self.assertEqual(obs, exp)
-
-            # confirm that the last line of each file is as expected.
-            obs = obs_lines[-1].strip()
-            exp = exp_last_line
-            self.assertEqual(obs, exp)
-
     def test_get_sample_ids(self):
-
         exp_sample_ids = ['CDPH-SAL__Salmonella__Typhi__MDL-143',
                           'CDPH-SAL_Salmonella_Typhi_MDL-144',
                           'CDPH-SAL_Salmonella_Typhi_MDL-145',
