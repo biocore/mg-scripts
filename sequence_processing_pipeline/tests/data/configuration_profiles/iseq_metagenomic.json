@@ -3,6 +3,25 @@
     "instrument_type": "iseq",
     "assay_type": "Metagenomic",
     "configuration": {
+      "tell-seq": {
+        "label": "my_label",
+        "reference_base": "",
+        "reference_map": "",
+        "sing_script_path": "/my_path/tellread-release-novaseqX/run_tellread_sing.sh",
+        "nodes": 1,
+        "lane": 1,
+        "sample_index_list": "/my_path/sample_index_list_1.txt",
+        "queue": "qiita",
+        "wallclock_time_in_minutes": 1440,
+        "modules_to_load": ["singularity_3.6.4"],
+        "integrate_script_path": "/my_path/integrate-indices-np.py",
+        "tellread_mem_limit": "16",
+        "tellread_cores": "4",
+        "normcount_cores": "1",
+        "integrate_cores": "1",
+        "normcount_mem_limit": "8",
+        "integrate_mem_limit": "8"
+      },
       "bcl2fastq": {
         "nodes": 1,
         "nprocs": 16,
