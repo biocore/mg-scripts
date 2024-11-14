@@ -6,6 +6,8 @@ from jinja2 import Environment
 from .Pipeline import Pipeline
 from .PipelineError import PipelineError
 from metapool import load_sample_sheet
+from os import makedirs
+from shutil import copy
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,8 +16,9 @@ logging.basicConfig(level=logging.DEBUG)
 class TRIntegrateJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
-                 qiita_job_id, max_array_length, indicies_script_path, label,
-                 reference_base, reference_map, cores_per_task):
+                 qiita_job_id, max_array_length, integrate_script_path,
+                 sil_path, raw_fastq_dir, reference_base, reference_map,
+                 cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -29,8 +32,8 @@ class TRIntegrateJob(Job):
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param max_array_length: None
-        :param indicies_script_path: None
-        :param label: None
+        :param integrate_script_path: None
+        :param sil_path: A path to a confidential file mapping C5xx, adapters.
         :param reference_base: None
         :param reference_map: None
         :param cores_per_task: # of CPU cores per node to request.
@@ -50,7 +53,10 @@ class TRIntegrateJob(Job):
         self.node_count = node_count
         self.wall_time_limit = wall_time_limit
         self.cores_per_task = cores_per_task
-        self.indicies_script_path = indicies_script_path
+        self.integrate_script_path = integrate_script_path
+        self.sil_path = sil_path
+        self.raw_fastq_dir = raw_fastq_dir
+        self.tmp_dir = join(self.output_path, 'tmp')
 
         self.reference_base = reference_base
         self.reference_map = reference_map
@@ -60,17 +66,31 @@ class TRIntegrateJob(Job):
         self.qiita_job_id = qiita_job_id
         self.sample_count = len(self.sample_ids)
         self.jinja_env = Environment(loader=KISSLoader('templates'))
-        self.label = label
+        self.job_name = (f"integrate_{self.qiita_job_id}")
 
-        if self.reference_base is not None or self.reference_map is not None:
-            tag = 'reference-based'
-        else:
-            tag = 'reference-free'
-
-        self.job_name = (f"{self.label}-{tag}-THIS_IS_A_DATE-integrate")
+        with open(self.sil_path, 'r') as f:
+            # obtain the number of unique barcode_ids as determined by
+            # TellReadJob() in order to set up an array job of the
+            # proper length.
+            lines = f.readlines()
+            lines = [x.strip() for x in lines]
+            lines = [x for x in lines if x != '']
+            self.barcode_id_count = len(lines)
 
     def run(self, callback=None):
         job_script_path = self._generate_job_script()
+
+        # copy sil_path to TRIntegrate working directory and rename to a
+        # predictable name.
+        copy(self.sil_path, join(self.output_path, 'sample_index_list.txt'))
+
+        # generate the tailored subset of adapter to barcode_id based on
+        # the proprietary lists owned by the manufacturer and supplied by
+        # the caller, and the barcode ids found in the sample-sheet.
+        self._generate_sample_index_list()
+
+        makedirs(self.tmp_dir)
+
         params = ['--parsable',
                   f'-J {self.job_name}',
                   f'--array 1-{self.sample_count}']
@@ -132,8 +152,14 @@ class TRIntegrateJob(Job):
                 "mem_in_gb": self.jmem,
                 "node_count": self.node_count,
                 "cores_per_task": self.cores_per_task,
-                "iinp_script_path": self.indicies_script_path,
+                "integrate_script_path": self.integrate_script_path,
                 "queue_name": self.queue_name,
+                "barcode_id_count": self.barcode_id_count,
+                "raw_fastq_dir": self.raw_fastq_dir,
+                "tmp_dir": self.tmp_dir,
                 "output_dir": self.output_path}))
 
         return job_script_path
+
+    def parse_logs(self):
+        raise PipelineError("parse_logs() not implemented for TRIntegrateJob")

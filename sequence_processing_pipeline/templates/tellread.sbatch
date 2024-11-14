@@ -6,16 +6,10 @@
 #SBATCH --mem {{mem_in_gb}}G
 #SBATCH --time {{wall_time_limit}}
 
-#SBATCH --output tellread_%x-%A.out
-#SBATCH --error tellread_%x-%A.err
+#SBATCH --output {{output}}/logs/tellread_%x-%A.out
+#SBATCH --error {{output}}/logs/tellread_%x-%A.err
 
 set -x
-
-export TMPDIR={{tmp_dir}}
-mkdir -p ${TMPDIR}
-export TMPDIR=$(mktemp -d)
-
-mkdir -p {{output}}
 
 module load {{modules_to_load}}
 {{sing_script_path}} \
@@ -27,11 +21,8 @@ module load {{modules_to_load}}
     -l {{lane}}
 
 if [[ -d {{output}}/Full ]]; then
-    echo "Run appears successful"
-elif [[ -d {{output}}/1_demult/Full ]]; then
-    echo "Run appears unsuccessful but has output"
-    exit 1
+    echo "tellread.sbatch successful"
 else
-    echo "Run appears unsuccessful"
+    echo "tellread.sbatch unsuccessful"
     exit 1
 fi

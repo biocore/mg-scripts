@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 class TellReadJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
-                 qiita_job_id, label, reference_base,
+                 qiita_job_id, reference_base,
                  reference_map, sing_script_path, cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
@@ -29,7 +29,6 @@ class TellReadJob(Job):
         :param jmem: String representing total memory limit for entire job.
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
-        :param label: None
         :param reference_base: None
         :param reference_map: None
         :param cores_per_task: (Optional) # of CPU cores per node to request.
@@ -75,15 +74,13 @@ class TellReadJob(Job):
             tag = 'reference-free'
 
         date = datetime.today().strftime('%Y.%m.%d')
-        self.job_name = (f"{label}-{tag}-{date}-tellread")
+        self.job_name = (f"{self.qiita_job_id}-{tag}-{date}-tellread")
 
     def run(self, callback=None):
         job_script_path = self._generate_job_script()
-        params = ['--parsable',
-                  f'-J {self.job_name}',
-                  '-c ${sbatch_cores}',
-                  '--mem ${sbatch_mem}',
-                  '--time ${wall}']
+
+        # everything is in the job script so there are no additional params.
+        params = []
 
         try:
             self.job_info = self.submit_job(job_script_path,
@@ -171,10 +168,15 @@ class TellReadJob(Job):
                 "cores_per_task": self.cores_per_task,
                 "queue_name": self.queue_name,
                 "sing_script_path": self.sing_script_path,
-                "tmp_dir": join(self.output_path, "output", "tmp1"),
                 "modules_to_load": ' '.join(self.modules_to_load),
                 "lane": f"s_{self.lane_number}",
-                "output": join(self.output_path, "output"),
+                # NB: Note that we no longer create a sub-directory under the
+                # working directory for TellRead to create all its output
+                # folders and files. This means it is creating folders and
+                # files in the same directory that has our sbatch script and
+                # logs directory. Currently there are no name collisions,
+                # however.
+                "output": self.output_path,
                 "rundir_path": self.root_dir,
                 "samples": samples,
                 "refs": refs,

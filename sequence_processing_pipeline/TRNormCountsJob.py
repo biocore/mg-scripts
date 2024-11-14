@@ -62,12 +62,7 @@ class TRNormCountsJob(Job):
         self.jinja_env = Environment(loader=KISSLoader('templates'))
         self.label = label
 
-        if self.reference_base is not None or self.reference_map is not None:
-            tag = 'reference-based'
-        else:
-            tag = 'reference-free'
-
-        self.job_name = (f"{self.label}-{tag}-THIS_IS_A_DATE-integrate")
+        self.job_name = (f"norm_counts_{self.qiita_job_id}")
 
     def run(self, callback=None):
         job_script_path = self._generate_job_script()

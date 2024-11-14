@@ -1,96 +1,66 @@
 #!/bin/bash -l
-#SBATCH -J {{job_name}}             # integrate
-#SBATCH --time {{wall_time_limit}}  # 24:00:00
-#SBATCH --mem {{mem_in_gb}}G        # 8G
-#SBATCH -N {{node_count}}           # 1
-#SBATCH -c {{cores_per_task}}       # 1
-#SBATCH -p {{queue_name}}           # qiita
+#SBATCH -J {{job_name}}
+#SBATCH --time {{wall_time_limit}}
+#SBATCH --mem {{mem_in_gb}}G
+#SBATCH -N {{node_count}}
+#SBATCH -c {{cores_per_task}}
+#SBATCH -p {{queue_name}}
+#SBATCH --array=1-{{barcode_id_count}}
+#SBATCH --output {{output_dir}}/logs/integrate_%x_%A_%a.out
+#SBATCH --error {{output_dir}}/logs/integrate_%x_%A_%a.err
 
-#SBATCH --output integrate_%x-%A_%a.out
-#SBATCH --error integrate_%x-%A_%a.err
-
-# NB SLURM_ARRAY_TASK_ID is exported by Slurm
-if [[ -z ${SLURM_ARRAY_TASK_ID} ]]; then
-    echo "Not operating in an array"
-    exit 1
-fi
-
-# NB SLURM_ARRAY_TASK_MIN is exported by Slurm
-if [[ ${SLURM_ARRAY_TASK_MIN} -eq 0 ]]; then
-    echo "Line extraction assumes 1-based index"
-    exit 1
-fi
-
-set -x 
+set -x
 set -e
-set -o pipefail
 
-samples=($(cat {{output_dir}}/sample_index_list_output.txt | cut -f 2))
+samples=($(cat {{output_dir}}/sample_index_list.txt | cut -f 2))
 sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]} 
 
-# NB TMPDIR IS CREATED IN CURRENT DIRECTORY. CURRENT DIRECTORY MUST BE CORRECT.
-export TMPDIR=$(mktemp -d)
-function cleanup {                                                              
-  echo "Removing $TMPDIR"                                                          
-  rm  -r $TMPDIR                                                                   
-  unset TMPDIR                                                                  
-}                                                                               
-trap cleanup EXIT
+export TMPDIR={{tmp_dir}}
 
-files=${TMPDIR}/integration.files
-/bin/ls -1 {{output_dir}}/Full/*corrected.err_barcode_removed.fastq > ${files}
+# get list of samples and determine which sample this array instance will work
+# on.
+samples=($(cat {{output_dir}}/sample_index_list.txt | cut -f 2))
+sample=${samples[$((${SLURM_ARRAY_TASK_ID} - 1))]}
+
+echo "Processing sample ${sample}..."
+
+# make temp directory
+export TMPDIR={{tmp_dir}}
+mkdir -p $TMPDIR
+
+
+# TODO: All three input files must be non-zero in length.
+# If possible, do this check as part of normal FSR operation.
+# Previously this was done right here BEFORE integrating, rather
+# than after.
+
+# NB: non-zero file-length check removed for now. This should be performed
+# by FSR after processing is done.
+# TODO: Make sure raw_fastq_dir is TellReadJob/Full
+r1_in={{raw_fastq_dir}}/TellReadJob_R1_${sample}.fastq.gz.corrected.err_barcode_removed.fastq
+r2_in={{raw_fastq_dir}}/TellReadJob_R2_${sample}.fastq.gz.corrected.err_barcode_removed.fastq
+i1_in={{raw_fastq_dir}}/TellReadJob_I1_${sample}.fastq.gz.corrected.err_barcode_removed.fastq
+
+# create output directory
 mkdir -p {{output_dir}}/integrated
 
-if [[ $(grep -c "_R1_${sample}" ${files}) -ne 1 ]]; then
-    echo "Multiple matches for ${sample} R1"
-    exit 1
-fi
+# generate output file names
+r1_out={{output_dir}}/integrated/${sample}.R1.fastq.gz
+r2_out={{output_dir}}/integrated/${sample}.R2.fastq.gz
+i1_out={{output_dir}}/integrated/${sample}.I1.fastq.gz
 
-if [[ $(grep -c "_R2_${sample}" ${files}) -ne 1 ]]; then
-    echo "Multiple matches for ${sample} R2"
-    exit 1
-fi
+# generate 'integrated' I1 fastq.gz file. We do this as part of each array so
+# they're done in parallel.
+gzip -c ${i1_in} > ${i1_out}
 
-if [[ $(grep -c "_I1_${sample}" ${files}) -ne 1 ]]; then
-    echo "Multiple matches for ${sample} I1"
-    exit 1
-fi
-
-r1=$(grep -m 1 "_R1_${sample}" ${files})
-r2=$(grep -m 1 "_R2_${sample}" ${files})
-i1=$(grep -m 1 "_I1_${sample}" ${files})
-r1out={{output_dir}}/integrated/${sample}.R1.fastq.gz
-r2out={{output_dir}}/integrated/${sample}.R2.fastq.gz
-i1out={{output_dir}}/integrated/${sample}.I1.fastq.gz
-
-if [[ ! -s ${r1} ]]; then
-    echo "${r1} is empty, cannot integrate"
-    if [[ -s ${r2} ]]; then
-        echo "R1 and R2 are inconsistent"
-        exit 1
-    fi
-    if [[ -s ${i1} ]]; then
-        echo "R1 and I1 are inconsistent"
-        exit 1
-    fi
-
-    # reflect the empties so Qiita can know of them
-    touch ${r1out}
-    touch ${r2out}
-    touch ${i1out}
-    exit 0
-fi
-
-# this can probably be backgrounded but then you have to get creative to
-# not mask a nonzero exit status (e.g., the python process raising)
-cat ${i1} | gzip > ${i1out} 
-
+# generate integrated R1 and R2 fastq.gz files.
 conda activate qp-knight-lab-processing-2022.03
-python {{iinp_script_path}} integrate \
-    --no-sort \
-    --r1-in ${r1} \
-    --r2-in ${r2} \
-    --i1-in ${i1} \
-    --r1-out ${r1out} \
-    --r2-out ${r2out} \
-    --threads ${SLURM_CPUS_PER_TASK}
+
+python {{integrate_script_path}} integrate \
+--no-sort \
+--r1-in ${r1_in} \
+--r2-in ${r2_in} \
+--i1-in ${i1_in} \
+--r1-out ${r1_out} \
+--r2-out ${r2_out} \
+--threads {{cores_per_task}}
