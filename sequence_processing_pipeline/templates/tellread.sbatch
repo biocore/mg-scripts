@@ -20,9 +20,33 @@ module load {{modules_to_load}}
     -j ${SLURM_JOB_CPUS_PER_NODE} {{extra}} \
     -l {{lane}}
 
-if [[ -d {{output}}/Full ]]; then
-    echo "tellread.sbatch successful"
-else
-    echo "tellread.sbatch unsuccessful"
-    exit 1
-fi
+# instead of testing for the presence of '{{output}}/Full', we will review
+# the changed timestamps for all the files in '{{output}}/Full' and when
+# we can demonstrate that they haven't changed in an arbitrary period of time
+# we will consider the work completed. 
+
+# get the timestamp for the most recently changed file in directory '.'
+
+# hard-limit for wait time set to ~ 8 hours.
+# (4 checks per hour, for 8 hours equals 32 iterations)
+for i in $(seq 1 32);
+do
+    before="$(find {{output}}/Full -type f -printf '%T@\n' | sort -n | tail -1)"
+    # assume TellReadJob is finished if ctime hasn't changed in 15 minutes
+    # for any fastq file in the directory.
+    sleep 900
+    after="$(find {{output}}/Full -type f -printf '%T@\n' | sort -n | tail -1)"
+
+    echo "$before   $after"
+
+    if [[ "$before" == "$after" ]]; then
+        echo "DONE"
+        exit 0
+    else
+        echo "NOT DONE"
+    fi
+done
+
+# if we've reached this point then we've exceeded our hard-limit for waiting.
+# return w/an error.
+exit 1
