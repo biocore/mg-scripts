@@ -7,7 +7,7 @@ from .Pipeline import Pipeline
 from .PipelineError import PipelineError
 from metapool import load_sample_sheet
 from os import makedirs
-from shutil import copy
+from shutil import copyfile
 
 
 logging.basicConfig(level=logging.DEBUG)

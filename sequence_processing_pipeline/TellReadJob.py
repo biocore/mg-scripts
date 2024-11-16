@@ -73,8 +73,7 @@ class TellReadJob(Job):
         else:
             tag = 'reference-free'
 
-        date = datetime.today().strftime('%Y.%m.%d')
-        self.job_name = (f"{self.qiita_job_id}-{tag}-{date}-tellread")
+        self.job_name = (f"{self.qiita_job_id}-tellread")
 
     def run(self, callback=None):
         job_script_path = self._generate_job_script()
@@ -187,3 +186,4 @@ class TellReadJob(Job):
 
     def parse_logs(self):
         raise PipelineError("parse_logs() not implemented for TellReadJob")
+
