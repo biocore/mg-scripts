@@ -12,7 +12,6 @@ from time import sleep
 import logging
 from inspect import stack
 import re
-from time import time
 
 
 # taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader

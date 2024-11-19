@@ -15,7 +15,6 @@ from collections import defaultdict
 from datetime import datetime
 from xml.etree import ElementTree as ET
 from metapool.prep import PREP_MF_COLUMNS
-from metapool import set_lane_number_in_sheet
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -264,7 +263,9 @@ class Pipeline:
 
                 # overwrite sample-sheet w/DFSheets processed version
                 # with overwritten Lane number.
-                set_lane_number_in_sheet(input_file_path, lane_number)
+                sheet = load_sample_sheet(input_file_path)
+                with open(input_file_path, 'w') as f:
+                    sheet.write(f, lane=lane_number)
 
             # assume user_input_file_path references a sample-sheet.
             self.sample_sheet = self._validate_sample_sheet(input_file_path)

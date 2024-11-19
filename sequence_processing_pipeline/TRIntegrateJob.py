@@ -82,7 +82,8 @@ class TRIntegrateJob(Job):
 
         # copy sil_path to TRIntegrate working directory and rename to a
         # predictable name.
-        copy(self.sil_path, join(self.output_path, 'sample_index_list.txt'))
+        copyfile(self.sil_path,
+                 join(self.output_path, 'sample_index_list.txt'))
 
         # generate the tailored subset of adapter to barcode_id based on
         # the proprietary lists owned by the manufacturer and supplied by

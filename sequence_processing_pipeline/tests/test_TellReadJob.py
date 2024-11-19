@@ -23,7 +23,9 @@ class TestTellReadJob(unittest.TestCase):
         self.output_path = self.path('2caa8226-cf69-45a3-bd40-1e90ec3d18d0')
 
         # TODO: Revisit w/a proper sample-sheet once spec is near finalized.
-        self.sample_sheet_path = self.path('data', 'good-sample-sheet.csv')
+        self.sample_sheet_path = self.path('data',
+                                           'tellseq_metag_dummy_sample_'
+                                           'sheet.csv')
 
         self.queue_name = "qiita"
         self.node_count = "1"
@@ -48,9 +50,8 @@ class TestTellReadJob(unittest.TestCase):
                           self.sample_sheet_path, self.queue_name,
                           self.node_count, self.wall_time_limit,
                           self.jmem, self.modules_to_load, self.qiita_job_id,
-                          self.label, self.reference_base, self.reference_map,
-                          self.tmp1_path, self.sing_script_path,
-                          self.cores_per_task)
+                          self.reference_base, self.reference_map,
+                          self.sing_script_path, self.cores_per_task)
 
         job._generate_job_script()
 
@@ -61,9 +62,6 @@ class TestTellReadJob(unittest.TestCase):
             exp_lines = f.readlines()
 
         for obs_line, exp_line in zip(obs_lines, exp_lines):
-            print("OBS: %s" % obs_line)
-            print("EXP: %s" % exp_line)
-            print("")
             self.assertEqual(obs_line, exp_line)
 
 

@@ -87,7 +87,7 @@ def demux(id_map, fp, out_d, task, maxtask):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
     mode = 'wt'
-    ext = '.fastq.gz'
+    ext = '_001.fastq.gz'
     sep = '/'
     rec = '@'
 

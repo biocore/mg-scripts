@@ -6,7 +6,6 @@ from jinja2 import Environment
 from .Pipeline import Pipeline
 from .PipelineError import PipelineError
 from metapool import load_sample_sheet
-from datetime import datetime
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -66,12 +65,6 @@ class TellReadJob(Job):
         if tmp < 1 or tmp > 8:
             raise ValueError(f"'{tmp}' is not a valid lane number")
         self.lane_number = tmp
-
-        # TODO: Need examples of these being not None
-        if self.reference_base is not None or self.reference_map is not None:
-            tag = 'reference-based'
-        else:
-            tag = 'reference-free'
 
         self.job_name = (f"{self.qiita_job_id}-tellread")
 
@@ -186,4 +179,3 @@ class TellReadJob(Job):
 
     def parse_logs(self):
         raise PipelineError("parse_logs() not implemented for TellReadJob")
-

@@ -23,7 +23,7 @@ module load {{modules_to_load}}
 # instead of testing for the presence of '{{output}}/Full', we will review
 # the changed timestamps for all the files in '{{output}}/Full' and when
 # we can demonstrate that they haven't changed in an arbitrary period of time
-# we will consider the work completed. 
+# we will consider the work completed.
 
 # get the timestamp for the most recently changed file in directory '.'
 
@@ -50,3 +50,4 @@ done
 # if we've reached this point then we've exceeded our hard-limit for waiting.
 # return w/an error.
 exit 1
+
