@@ -3,12 +3,15 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from os import makedirs, listdir, walk
 from os.path import join, exists, isdir, basename
-from metapool import load_sample_sheet, AmpliconSampleSheet
+from metapool import (load_sample_sheet, AmpliconSampleSheet, is_blank,
+                      parse_project_name, SAMPLE_NAME_KEY, QIITA_ID_KEY,
+                      PROJECT_SHORT_NAME_KEY, PROJECT_FULL_NAME_KEY,
+                      CONTAINS_REPLICATES_KEY)
 from metapool.plate import ErrorMessage, WarningMessage
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 import logging
-from re import sub, findall, search, match
+from re import findall, search, match
 import sample_sheet
 import pandas as pd
 from collections import defaultdict
@@ -18,6 +21,8 @@ from metapool.prep import PREP_MF_COLUMNS
 
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
+_PROJECT_NAME_KEY = 'project_name'
 
 
 class InstrumentUtils():
@@ -91,21 +96,28 @@ class InstrumentUtils():
 
 
 class Pipeline:
-    sif_header = ['sample_name', 'collection_timestamp', 'elevation', 'empo_1',
-                  'empo_2', 'empo_3', 'env_biome', 'env_feature',
-                  'env_material', 'env_package', 'geo_loc_name',
-                  'host_subject_id', 'latitude', 'longitude', 'sample_type',
-                  'scientific_name', 'taxon_id', 'description', 'title',
-                  'dna_extracted', 'physical_specimen_location',
-                  'physical_specimen_remaining']
+    _CONTROLS_SIF_SUFFIX = '_blanks.tsv'
 
-    sif_defaults = [None, None, 193, 'Control', 'Negative',
+    # TODO: replace these with spp_metadata package call based on qiimp2
+    sif_header = [SAMPLE_NAME_KEY, 'collection_timestamp', 'elevation',
+                  'empo_1', 'empo_2', 'empo_3',
+                  'empo_4', 'env_biome', 'env_feature',
+                  'env_material', 'env_package', 'geo_loc_name',
+                  'host_subject_id', 'latitude', 'longitude',
+                  'sample_type', 'scientific_name', 'taxon_id',
+                  'description', 'title', 'dna_extracted',
+                  'physical_specimen_location', 'physical_specimen_remaining']
+
+    sif_defaults = [None, None, 193,
+                    'Control', 'Negative', 'Sterile water blank',
                     'Sterile water blank', 'urban biome', 'research facility',
                     'sterile water', 'misc environment', 'USA:CA:San Diego',
-                    None, 32.5, -117.25, 'control blank', 'metagenome', 256318,
-                    None, 'adaptation', 'TRUE', 'UCSD', 'FALSE']
+                    None, 32.5, -117.25,
+                    'control blank', 'metagenome', 256318,
+                    None, None, 'TRUE',
+                    'UCSD', 'FALSE']
 
-    mapping_file_columns = {'sample_name', 'barcode', 'center_name',
+    mapping_file_columns = {SAMPLE_NAME_KEY, 'barcode', 'center_name',
                             'center_project_name',
                             'experiment_design_description',
                             'instrument_model',
@@ -116,7 +128,7 @@ class Pipeline:
                             'plating', 'extractionkit_lot', 'extraction_robot',
                             'tm1000_8_tool', 'primer_date', 'mastermix_lot',
                             'water_lot', 'processing_robot', 'tm300_8_tool',
-                            'tm50_8_tool', 'project_name', 'orig_name',
+                            'tm50_8_tool', _PROJECT_NAME_KEY, 'orig_name',
                             'well_description', 'pcr_primers', 'target_gene',
                             'tm10_8_tool', 'target_subfragment', 'well_id_96'}
 
@@ -132,6 +144,34 @@ class Pipeline:
     AMPLICON_ATYPE = 'TruSeq HT'
 
     assay_types = [AMPLICON_ATYPE, METAGENOMIC_ATYPE, METATRANSCRIPTOMIC_ATYPE]
+    
+    @staticmethod
+    def make_sif_fname(run_id, full_project_name):
+        # TODO: the problem with this structure is that there's no clear way
+        #  to figure out, for an arbitrary sif fname, where the run id ends and
+        #  where the project name begins because single underscores are used as
+        #  internal elements in both run ids and project names :(
+        return f'{run_id}_{full_project_name}{Pipeline._CONTROLS_SIF_SUFFIX}'
+
+    @staticmethod
+    def is_sif_fp(fp):
+        return fp.endswith(Pipeline._CONTROLS_SIF_SUFFIX)
+
+    # get study_id from sif_file_name ...something_14385_blanks.tsv
+    @staticmethod
+    def get_qiita_id_from_sif_fp(fp):
+        fname = basename(fp)
+        temp_name = fname.replace(Pipeline._CONTROLS_SIF_SUFFIX, '')
+
+        # This is a kind of hacky use of parse_project_name since
+        # it is passing in something that *ends in* a project name but is not
+        # all a project name (see above re no clear way to get just the
+        # project name out of the sif name without knowing the internal
+        # details of a project name format). So this is a bit of a hack, but at
+        # least it is limiting the number of places in the code that know the
+        # details of project name format.
+        hacky_name_pieces_dict = parse_project_name(temp_name)
+        return hacky_name_pieces_dict[QIITA_ID_KEY]
 
     def __init__(self, configuration_file_path, run_id, input_file_path,
                  output_path, qiita_job_id, pipeline_type, lane_number=None):
@@ -582,55 +622,62 @@ class Pipeline:
         """
         if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
             # Generate a list of BLANKs for each project.
-            df = self.mapping_file[['sample_name', 'project_name']]
+            temp_df = self.mapping_file[[SAMPLE_NAME_KEY, _PROJECT_NAME_KEY]]
+            temp_df_as_dicts_list = temp_df.to_dict(orient='records')
+            blanks_dicts_list = []
+            for record in temp_df_as_dicts_list:
+                if is_blank(record[SAMPLE_NAME_KEY]):
+                    new_record = record.copy()
+                    proj_info = parse_project_name(record[_PROJECT_NAME_KEY])
+                    new_record.pop(_PROJECT_NAME_KEY)
+                    new_record.update(proj_info)
+                    blanks_dicts_list.append(new_record)
+                # endif this is a blank
+            # next record from mapping file df
+            df = pd.DataFrame(blanks_dicts_list)
         else:
-            # Aggregate all data into a DataFrame
-            data = [[x['Sample_ID'], x['Sample_Project']] for
-                    x in self.sample_sheet.samples]
-            df = pd.DataFrame(data, columns=['sample_name', 'project_name'])
+            controls = self.sample_sheet.get_denormalized_controls_list()
+            df = pd.DataFrame(controls)
 
-        if addl_info is not None:
-            df = pd.concat([df, addl_info],
-                           ignore_index=True).drop_duplicates()
-
-        df = df[df["sample_name"].str.startswith("BLANK") == True]  # noqa
-        samples = list(df.to_records(index=False))
-        projects = df.project_name.unique()
+        projects = df[PROJECT_FULL_NAME_KEY].unique()
 
         paths = []
         for project in projects:
-            samples_in_proj = [x for x, y in samples if y == project]
-            some_path = join(self.output_path,
-                             f'{self.run_id}_{project}_blanks.tsv')
-            paths.append(some_path)
-            with open(some_path, 'w') as f:
-                # write out header to disk
-                f.write('\t'.join(Pipeline.sif_header) + '\n')
+            project_info = parse_project_name(project)
 
-                # for now, populate values that can't be derived from the
-                # sample-sheet w/'EMPTY'.
-                for sample in samples_in_proj:
-                    row = {}
-                    for column, default_value in zip(Pipeline.sif_header,
-                                                     Pipeline.sif_defaults):
-                        # ensure all defaults are converted to strings.
-                        row[column] = str(default_value)
+            curr_fname = self.make_sif_fname(self.run_id, project)
+            curr_fp = join(self.output_path, curr_fname)
+            paths.append(curr_fp)
 
-                    # overwrite default title w/sample_project name, minus
-                    # Qiita ID.
-                    row['title'] = sub(r'_\d+$', r'', project)
+            controls_in_proj_df = \
+                df.loc[df[PROJECT_FULL_NAME_KEY] == project].copy()
 
-                    # generate values for the four columns that must be
-                    # determined from sample-sheet information.
+            # TODO: remove this loop and replace with spp_metadata call at end
+            for column, default_value in zip(Pipeline.sif_header,
+                                             Pipeline.sif_defaults):
+                # ensure all defaults are converted to strings.
+                if default_value is not None:
+                    controls_in_proj_df[column] = str(default_value)
+            # next metadata col/value
 
-                    # convert 'BLANK14_10F' to 'BLANK14.10F', etc.
-                    row['sample_name'] = sample.replace('_', '.')
-                    row['host_subject_id'] = sample.replace('_', '.')
-                    row['description'] = sample.replace('_', '.')
-                    row['collection_timestamp'] = self.get_date_from_run_id()
+            # generate values for the four columns that must be
+            # determined from sample-sheet information.
+            TEMP_KEY = 'temp_name'
+            controls_in_proj_df['title'] = project_info[PROJECT_SHORT_NAME_KEY]
+            controls_in_proj_df[TEMP_KEY] = \
+                controls_in_proj_df[SAMPLE_NAME_KEY].str.replace("_", ".")
+            controls_in_proj_df['host_subject_id'] = \
+                controls_in_proj_df[TEMP_KEY]
+            controls_in_proj_df['description'] = controls_in_proj_df[TEMP_KEY]
+            controls_in_proj_df.drop(columns=[TEMP_KEY], inplace=True)
+            controls_in_proj_df['collection_timestamp'] = \
+                self.get_date_from_run_id()
 
-                    row = [row[x] for x in Pipeline.sif_header]
-                    f.write('\t'.join(row) + '\n')
+            controls_in_proj_df = controls_in_proj_df[Pipeline.sif_header]
+            controls_in_proj_df.to_csv(curr_fp, sep='\t', index=False)
+
+            # spp_metadata.write_extended_spp_metadata(
+            #     controls_in_proj_df, self.output_path, curr_fname)
 
         return paths
 
@@ -732,34 +779,29 @@ class Pipeline:
         if project_name is None:
             return list(self.mapping_file.sample_name)
         else:
-            df = self.mapping_file[self.mapping_file['project_name'] ==
+            df = self.mapping_file[self.mapping_file[_PROJECT_NAME_KEY] ==
                                    project_name]
-            return list(df['sample_name'])
+            return list(df[SAMPLE_NAME_KEY])
 
     def _parse_project_name(self, project_name, short_names):
-        '''
+        """
         Split fully-qualified project_name into a project_name and a qiita-id
         if possible. Else return project_name and None.
         :param project_name: A fully-qualified project name e.g: Feist_1161.
         :param short_names: True returns orig. value. False returns name only.
         :return: Tuple (project-name, qiita-id)
-        '''
-        # This functionality could be folded into metapool package's
-        # remove_qiita_id() in the future.
-        if project_name is None or project_name == '':
-            raise ValueError("project_name cannot be None or empty string")
-
-        matches = search(r'^(.+)_(\d+)$', str(project_name))
-
-        if matches is None:
-            raise ValueError(f"'{project_name}' does not contain a Qiita-ID.")
+        """
+        # The main functionality of this method has been replaced by this call
+        # to metapool's parse_project_name, but I can't guarantee this function
+        # isn't used somewhere else in the codebase, so I'm not deleting it.
+        proj_info = parse_project_name(project_name)
 
         if short_names is False:
             # return the fully-qualified project name w/Qiita ID.
-            return project_name, matches[2]
+            return project_name, proj_info[QIITA_ID_KEY]
         else:
             # return the project's name and qiita_id
-            return matches[1], matches[2]
+            return proj_info[PROJECT_SHORT_NAME_KEY], proj_info[QIITA_ID_KEY]
 
     def get_project_info(self, short_names=False):
         # test for self.mapping_file, since self.sample_sheet will be
@@ -767,45 +809,47 @@ class Pipeline:
         results = []
 
         if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
-            if 'contains_replicates' in self.mapping_file:
+            if CONTAINS_REPLICATES_KEY in self.mapping_file:
                 contains_replicates = True
             else:
                 contains_replicates = False
 
             sample_project_map = {pn: _df.sample_name.values for pn, _df in
-                                  self.mapping_file.groupby('project_name')}
-
-            for project in sample_project_map:
-                p_name, q_id = self._parse_project_name(project, short_names)
-                results.append(
-                    {'project_name': p_name, 'qiita_id': q_id,
-                     'contains_replicates': contains_replicates})
+                                  self.mapping_file.groupby(_PROJECT_NAME_KEY)}
+            projects_info = \
+                {p: parse_project_name(p) for p in sample_project_map}
         else:
-            bioinformatics = self.sample_sheet.Bioinformatics
-            for res in bioinformatics.to_dict('records'):
-                p_name, q_id = self._parse_project_name(res['Sample_Project'],
-                                                        short_names)
+            projects_info = self.sample_sheet.get_projects_details()
+        # endif mapping_file
 
-                # parsed SampleSheet() objects should now contain only
-                # boolean values in contains_replicates column.
+        if short_names:
+            proj_name_key = PROJECT_SHORT_NAME_KEY
+        else:
+            proj_name_key = PROJECT_FULL_NAME_KEY
+        # endif
+        for curr_project_info in projects_info.values():
+            curr_dict = {
+                _PROJECT_NAME_KEY: curr_project_info[proj_name_key],
+                QIITA_ID_KEY: curr_project_info[QIITA_ID_KEY]
+            }
 
-                contains_replicates = False
-
-                if 'contains_replicates' in res:
-                    if res['contains_replicates'] is True:
-                        contains_replicates = True
-
-                results.append({'project_name': p_name,
-                                'qiita_id': q_id,
-                                'contains_replicates': contains_replicates})
+            if contains_replicates is not None:
+                curr_contains_reps = contains_replicates
+            else:
+                curr_contains_reps = \
+                    curr_project_info.get(CONTAINS_REPLICATES_KEY, False)
+            # endif
+            curr_dict[CONTAINS_REPLICATES_KEY] = curr_contains_reps
+            results.append(curr_dict)
+        # next project
 
         return results
 
     @staticmethod
     def is_mapping_file(mapping_file_path):
-        '''
+        """
         Returns True if file follows basic mapping-file format.
-        '''
+        """
         try:
             df = pd.read_csv(mapping_file_path, delimiter='\t', dtype=str)
         except pd.errors.ParserError:
