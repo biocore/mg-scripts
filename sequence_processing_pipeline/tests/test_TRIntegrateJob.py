@@ -1,17 +1,17 @@
 from os.path import join
-from sequence_processing_pipeline.TellReadJob import TellReadJob
+from sequence_processing_pipeline.TRIntegrateJob import TRIntegrateJob
 from functools import partial
 import unittest
 
 
-class TestTellReadJob(unittest.TestCase):
+class TestTRIntegrateJob(unittest.TestCase):
     def setUp(self):
         package_root = "sequence_processing_pipeline"
         self.path = partial(join, package_root, "tests")
         # where 2caa8226-cf69-45a3-bd40-1e90ec3d18d0 is a random qiita job id.
         self.obs = self.path('2caa8226-cf69-45a3-bd40-1e90ec3d18d0',
-                             'TellReadJob', 'tellread_test.sbatch')
-        self.exp = self.path('data', 'tellseq_output', 'tellread_test.sbatch')
+                             'TRIntegrateJob', 'integrate_test.sbatch')
+        self.exp = self.path('data', 'tellseq_output', 'integrate_test.sbatch')
 
         # where 150629_SN1001_0511_AH5L7GBCXX is a run-directory that already
         # exists.
@@ -33,22 +33,28 @@ class TestTellReadJob(unittest.TestCase):
         self.label = "150629_SN1001_0511_AH5L7GBCXX-test"
         self.reference_base = ""
         self.reference_map = ""
-        self.tmp1_path = join(self.output_path, "TellReadJob", "output",
+        self.tmp1_path = join(self.output_path, "TRIntegrateJob", "output",
                               "tmp1")
         # reflects location of script on host.
         self.sing_script_path = ("$HOME/qiita-spots/tellread-release-novaseqX/"
                                  "run_tellread_sing.sh")
         self.lane = "1"
         self.cores_per_task = "4"
+        self.integrate_script_path = join(package_root, "contrib",
+                                          "integrate-indices-np.py")
+        self.sil_path = self.path('data', 'fake_sample_index_list.txt')
+        self.raw_fastq_dir = join(self.output_path, "TellReadJob", "Full")
 
     def test_creation(self):
         # test basic good-path
-        job = TellReadJob(self.run_dir, self.output_path,
+        job = TRIntegrateJob(self.run_dir, self.output_path,
                           self.sample_sheet_path, self.queue_name,
                           self.node_count, self.wall_time_limit,
                           self.jmem, self.modules_to_load, self.qiita_job_id,
+                          self.integrate_script_path,
+                          self.sil_path, self.raw_fastq_dir,
                           self.reference_base, self.reference_map,
-                          self.sing_script_path, self.cores_per_task)
+                          self.cores_per_task)
 
         job._generate_job_script()
 

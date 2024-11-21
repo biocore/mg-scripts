@@ -17,9 +17,8 @@ logging.basicConfig(level=logging.DEBUG)
 class TRIntegrateJob(Job):
     def __init__(self, run_dir, output_path, sample_sheet_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
-                 qiita_job_id, max_array_length, integrate_script_path,
-                 sil_path, raw_fastq_dir, reference_base, reference_map,
-                 cores_per_task):
+                 qiita_job_id, integrate_script_path, sil_path, raw_fastq_dir,
+                 reference_base, reference_map, cores_per_task):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -32,7 +31,6 @@ class TRIntegrateJob(Job):
         :param jmem: String representing total memory limit for entire job.
         :param modules_to_load: A list of Linux module names to load
         :param qiita_job_id: identify Torque jobs using qiita_job_id
-        :param max_array_length: None
         :param integrate_script_path: None
         :param sil_path: A path to a confidential file mapping C5xx, adapters.
         :param reference_base: None
@@ -43,7 +41,9 @@ class TRIntegrateJob(Job):
                          output_path,
                          'TRIntegrateJob',
                          [],
-                         max_array_length,
+                         # max_array_length and self.max_array_length are
+                         # not used by TRIntegrateJob.
+                         -1,
                          modules_to_load=modules_to_load)
 
         self.sample_sheet_path = sample_sheet_path
