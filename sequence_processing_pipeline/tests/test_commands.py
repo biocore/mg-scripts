@@ -59,10 +59,6 @@ class CommandTests(unittest.TestCase):
                                      '@2::MUX::bing/2', 'ATGC', '+', '!!!!',
                                      ''])
             infile = io.StringIO(infile_data)
-            exp_data_r1 = '\n'.join(['@baz/1', 'ATGC', '+', '!!!!',
-                                     '@bing/1', 'ATGC', '+', '!!!!', ''])
-            exp_data_r2 = '\n'.join(['@baz/2', 'ATGC', '+', '!!!!',
-                                     '@bing/2', 'ATGC', '+', '!!!!', ''])
 
             exp_data_r1 = ['@baz/1', 'ATGC', '+', '!!!!',
                            '@bing/1', 'ATGC', '+', '!!!!']
@@ -73,13 +69,6 @@ class CommandTests(unittest.TestCase):
             maxtask = 2
 
             demux(id_map, infile, tmp, task, maxtask)
-
-            foo = join(tmp, 'Project_12345')
-            from os import walk
-            for root, dirs, files in walk(foo):
-                for _file in files:
-                    _path = join(root, _file)
-                    print(_path)
 
             obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1_001.fastq.gz'),
                                'rt').read()

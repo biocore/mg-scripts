@@ -6,8 +6,8 @@
 #SBATCH -c {{cores_per_task}}
 #SBATCH -p {{queue_name}}
 
-#SBATCH --output cloudspades-isolate_%x-%A_%a.out
-#SBATCH --error cloudspades-isolate_%x-%A_%a.err
+#SBATCH --output {{output}}/logs/cloudspades-isolate_%x-%A_%a.out
+#SBATCH --error {{output}}/logs/cloudspades-isolate_%x-%A_%a.err
 
 source activate qiime2-2023.5
 

@@ -159,7 +159,7 @@ class TestJob(unittest.TestCase):
                                       'my_state.json'))
 
         job_ids = ['1234567', '1234568', '1234569', '1234570']
-        jobs = job.query_slurm(job_ids)
+        jobs = job._query_slurm(job_ids)
 
         # jobs is a dictionary of unique array_ids and/or job-ids for non-
         # array jobs. The faked squeue reports anywhere between five and
@@ -219,7 +219,7 @@ class TestJob(unittest.TestCase):
                                       'my_state.json'))
 
         job_ids = ['1234567']
-        jobs = job.query_slurm(job_ids)
+        jobs = job._query_slurm(job_ids)
 
         # jobs is a dictionary of unique array_ids and/or job-ids for non-
         # array jobs. The faked squeue reports anywhere between five and
@@ -276,7 +276,7 @@ class TestJob(unittest.TestCase):
         # that wait_on_job_ids() doesn't return once the FIRST completed array
         # job is either COMPLETED or FAILED while others are still RUNNING.
         # This was previously an issue.
-        obs = job.query_slurm(job_ids)
+        obs = job._query_slurm(job_ids)
 
         for array_id in obs:
             state = obs[array_id]

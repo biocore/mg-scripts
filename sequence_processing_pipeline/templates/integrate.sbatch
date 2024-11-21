@@ -6,6 +6,7 @@
 #SBATCH -c {{cores_per_task}}
 #SBATCH -p {{queue_name}}
 #SBATCH --array=1-{{barcode_id_count}}
+
 #SBATCH --output {{output_dir}}/logs/integrate_%x_%A_%a.out
 #SBATCH --error {{output_dir}}/logs/integrate_%x_%A_%a.err
 

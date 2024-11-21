@@ -14,7 +14,7 @@ git clone https://github.com/biocore/mg-scripts.git
 Create a Python3 Conda environment in which to run the notebook:
 
 ```bash
-conda create -n sp_pipeline 'python==3.9' numpy pandas click scipy matplotlib fastq-pair
+conda create --yes -n spp python=${{ matrix.python-version }} scikit-learn pandas numpy nose pep8 flake8 matplotlib jupyter notebook 'seaborn>=0.7.1' pip openpyxl 'seqtk>=1.4' click scipy fastq-pair
 ```
 
 Activate the Conda environment:

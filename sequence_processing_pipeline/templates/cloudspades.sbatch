@@ -6,8 +6,8 @@
 #SBATCH -c {{cores_per_task}}       # 12
 #SBATCH -p {{queue_name}}           # qiita
 
-#SBATCH --output cloudspades_%x-%A_%a.out
-#SBATCH --error cloudspades_%x-%A_%a.err
+#SBATCH --output {{output}}/logs/cloudspades_%x-%A_%a.out
+#SBATCH --error {{output}}/logs/cloudspades_%x-%A_%a.err
 
 source activate qiime2-2023.5
 

@@ -115,8 +115,6 @@ def demux(id_map, fp, out_d, task, maxtask):
     qual = iter(fp)
 
     for i, s, d, q in zip(id_, seq, dumb, qual):
-        # NB: This appears to not be causing the removal of the metadata
-        # either.
         fname_encoded, id_ = i.split(delimiter, 1)
 
         if fname_encoded not in openfps:

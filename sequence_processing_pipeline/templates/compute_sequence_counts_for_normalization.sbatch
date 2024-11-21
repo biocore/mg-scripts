@@ -6,8 +6,8 @@
 #SBATCH -c {{cores_per_task}}       # 1
 #SBATCH -p {{queue_name}}           # qiita
 
-#SBATCH --output compute_sequence_counts_%x-%A_%a.out
-#SBATCH --error compute_sequence_counts_%x-%A_%a.err
+#SBATCH --output {{output}}/logs/compute_sequence_counts_%x-%A_%a.out
+#SBATCH --error {{output}}/logs/compute_sequence_counts_%x-%A_%a.err
 
 # NB: output appears normal w/out.
 # source activate qiime2-2023.5

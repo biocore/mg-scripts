@@ -255,7 +255,7 @@ class FastQCJob(Job):
 
             cmd = ' '.join(cmd_head + input_path_list + cmd_tail)
 
-            results = Job._system_call(cmd, callback=callback)
+            results = self._system_call(cmd, callback=callback)
 
             if results['return_code'] != 0:
                 raise PipelineError("multiqc encountered an error")

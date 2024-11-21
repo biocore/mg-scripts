@@ -6,8 +6,8 @@
 #SBATCH -c {{cores_per_task}}       # 1
 #SBATCH -p {{queue_name}}           # qiita
 
-#SBATCH --output tellread-cleanup_%x-%A.out
-#SBATCH --error tellread-cleanup_%x-%A.err
+#SBATCH --output {{output}}/logs/cleanup_%x-%A.out
+#SBATCH --error {{output}}/logs/cleanup_%x-%A.err
 
 # remove unused large outputs
 rm -rf {{OUTPUT}}/biosample_format {{OUTPUT}}/1_demult {{OUTPUT}}/Full

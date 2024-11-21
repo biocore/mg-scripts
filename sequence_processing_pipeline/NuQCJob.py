@@ -10,7 +10,7 @@ import logging
 from sequence_processing_pipeline.Commands import split_similar_size_bins
 from sequence_processing_pipeline.util import iter_paired_files
 from jinja2 import Environment
-import glob
+from glob import glob
 import re
 from sys import executable
 
@@ -150,7 +150,7 @@ class NuQCJob(Job):
         '''
         empty_list = []
 
-        files = glob.glob(join(filtered_directory, f'*.{self.suffix}'))
+        files = glob(join(filtered_directory, f'*.{self.suffix}'))
 
         for r1, r2 in iter_paired_files(files):
             full_path = join(filtered_directory, r1)
@@ -214,7 +214,7 @@ class NuQCJob(Job):
             sample_ids = [x[0] for x in self.sample_ids
                           if x[1] == project_name]
 
-            for trimmed_file in list(glob.glob(pattern)):
+            for trimmed_file in list(glob(pattern)):
                 file_name = split(trimmed_file)[1]
                 substr = self.interleave_fastq_regex.search(file_name)
                 if substr is not None:
@@ -274,7 +274,7 @@ class NuQCJob(Job):
             needs_human_filtering = project['HumanFiltering']
             source_dir = join(self.output_path, project_name)
             pattern = f"{source_dir}/*.fastq.gz"
-            completed_files = list(glob.glob(pattern))
+            completed_files = list(glob(pattern))
 
             # if the 'only-adapter-filtered' directory exists, move the files
             # into a unique location so that files from multiple projects
@@ -319,7 +319,7 @@ class NuQCJob(Job):
 
             # move all html files underneath the subdirectory for this project.
             pattern = f"{old_html_path}/*.html"
-            completed_htmls = list(glob.glob(pattern))
+            completed_htmls = list(glob(pattern))
             self._move_helper(completed_htmls,
                               # Tissue_1_Super_Trizol_S19_L001_R1_001.html
                               self.html_regex,
@@ -328,7 +328,7 @@ class NuQCJob(Job):
 
             # move all json files underneath the subdirectory for this project.
             pattern = f"{old_json_path}/*.json"
-            completed_jsons = list(glob.glob(pattern))
+            completed_jsons = list(glob(pattern))
             self._move_helper(completed_jsons,
                               # Tissue_1_Super_Trizol_S19_L001_R1_001.json
                               self.json_regex,
@@ -346,7 +346,7 @@ class NuQCJob(Job):
         # since NuQCJob processes across all projects in a run, there isn't
         # a need to iterate by project_name and job_id.
         pattern = f"{self.output_path}/hds-{self.qiita_job_id}.*.completed"
-        completed_files = list(glob.glob(pattern))
+        completed_files = list(glob(pattern))
         if completed_files:
             return True
 
@@ -503,7 +503,7 @@ class NuQCJob(Job):
     def parse_logs(self):
         log_path = join(self.output_path, 'logs')
         # sorted lists give predictable results
-        files = sorted(glob.glob(join(log_path, '*.out')))
+        files = sorted(glob(join(log_path, '*.out')))
         msgs = []
 
         for some_file in files:

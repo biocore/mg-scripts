@@ -6,8 +6,8 @@
 #SBATCH --time {{wall_time_limit}}  # 96:00:00
 #SBATCH -p {{queue_name}}           # qiita
 
-#SBATCH --output telllink_%x-%A_%a.out
-#SBATCH --error telllink_%x-%A_%a.err
+#SBATCH --output {{output}}/logs/telllink_%x-%A_%a.out
+#SBATCH --error {{output}}/logs/telllink_%x-%A_%a.err
 
 set -x 
 set -e

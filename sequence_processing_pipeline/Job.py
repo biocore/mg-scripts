@@ -54,6 +54,7 @@ class Job:
                                slurm_status_running)
 
     polling_interval_in_seconds = 60
+    squeue_retry_in_seconds = 10
 
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
@@ -234,7 +235,7 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
-    def query_slurm(self, job_ids):
+    def _query_slurm(self, job_ids):
         # query_slurm encapsulates the handling of squeue.
         count = 0
         while True:
@@ -255,7 +256,7 @@ class Job:
                 if count > 3:
                     raise ExecFailedError(result['stderr'])
 
-                sleep(60)
+                sleep(Job.squeue_retry_in_seconds)
 
         lines = result['stdout'].split('\n')
         lines.pop(0)  # remove header
@@ -290,7 +291,7 @@ class Job:
             # Because query_slurm only returns state on the job-ids we specify,
             # the wait process is a simple check to see whether any of the
             # states are 'running' states or not.
-            jobs = self.query_slurm(job_ids)
+            jobs = self._query_slurm(job_ids)
 
             # jobs will be a dict of job-ids or array-ids for jobs that
             # are array-jobs. the value of jobs[id] will be a state e.g.:
@@ -364,7 +365,7 @@ class Job:
         # attributes. This method will return a dict w/job_ids as keys and
         # their job status as values. This must be munged before returning
         # to the user.
-        results = Job.wait_on_job_ids([job_id], callback=callback)
+        results = self.wait_on_job_ids([job_id], callback=callback)
 
         if job_id in results:
             # job is a non-array job
