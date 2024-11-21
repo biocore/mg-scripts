@@ -159,7 +159,7 @@ class GenPrepFileJob(Job):
             # currently that is how it's done. Hence, self.output_directory
             # and the path to run_dir might be different locations than the
             # others.
-            res = self._system_call(' '.join(command), callback=callback)
+            res = Job._system_call(' '.join(command), callback=callback)
 
             if res['return_code'] != 0:
                 raise PipelineError("Seqpro encountered an error")
