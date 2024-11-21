@@ -48,13 +48,13 @@ class TestTRIntegrateJob(unittest.TestCase):
     def test_creation(self):
         # test basic good-path
         job = TRIntegrateJob(self.run_dir, self.output_path,
-                          self.sample_sheet_path, self.queue_name,
-                          self.node_count, self.wall_time_limit,
-                          self.jmem, self.modules_to_load, self.qiita_job_id,
-                          self.integrate_script_path,
-                          self.sil_path, self.raw_fastq_dir,
-                          self.reference_base, self.reference_map,
-                          self.cores_per_task)
+                             self.sample_sheet_path, self.queue_name,
+                             self.node_count, self.wall_time_limit,
+                             self.jmem, self.modules_to_load,
+                             self.qiita_job_id, self.integrate_script_path,
+                             self.sil_path, self.raw_fastq_dir,
+                             self.reference_base, self.reference_map,
+                             self.cores_per_task)
 
         job._generate_job_script()
 
