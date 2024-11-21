@@ -804,8 +804,6 @@ class Pipeline:
             return proj_info[PROJECT_SHORT_NAME_KEY], proj_info[QIITA_ID_KEY]
 
     def get_project_info(self, short_names=False):
-        # test for self.mapping_file, since self.sample_sheet will be
-        # defined in both cases.
         results = []
 
         if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
@@ -820,25 +818,35 @@ class Pipeline:
                 {p: parse_project_name(p) for p in sample_project_map}
         else:
             projects_info = self.sample_sheet.get_projects_details()
-        # endif mapping_file
 
         if short_names:
             proj_name_key = PROJECT_SHORT_NAME_KEY
         else:
             proj_name_key = PROJECT_FULL_NAME_KEY
-        # endif
+
         for curr_project_info in projects_info.values():
             curr_dict = {
                 _PROJECT_NAME_KEY: curr_project_info[proj_name_key],
                 QIITA_ID_KEY: curr_project_info[QIITA_ID_KEY]
             }
 
-            if contains_replicates is not None:
+            if self.pipeline_type == Pipeline.AMPLICON_PTYPE:
+                # this is a mapping file:
                 curr_contains_reps = contains_replicates
             else:
-                curr_contains_reps = \
-                    curr_project_info.get(CONTAINS_REPLICATES_KEY, False)
-            # endif
+                bi_df = self.sample_sheet.Bioinformatics
+                if CONTAINS_REPLICATES_KEY in bi_df.columns.tolist():
+                    # subselect rows in [Bioinformatics] based on whether they
+                    # match the project name.
+                    df = bi_df.loc[bi_df['Sample_Project'] ==
+                                   curr_project_info[proj_name_key]]
+                    # since only one project can match by definition, convert
+                    # to dict and extract the needed value.
+                    curr_contains_reps = df.iloc[0].to_dict()[
+                                         CONTAINS_REPLICATES_KEY]
+                else:
+                    curr_contains_reps = False
+
             curr_dict[CONTAINS_REPLICATES_KEY] = curr_contains_reps
             results.append(curr_dict)
         # next project

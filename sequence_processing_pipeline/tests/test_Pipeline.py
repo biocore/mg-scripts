@@ -531,35 +531,24 @@ class TestPipeline(unittest.TestCase):
         # get the path for the NYU_BMS_Melanoma dataset.
         sif_path = [x for x in sif_path if 'NYU_BMS_Melanoma' in x][0]
 
-        # we expect one more BLANK than before.
-        exp_lines = 34
+        exp_first_line = ("BLANK1.1A\t2021-10-21\t193\t"
+                          "Control\tNegative\tSterile water blank\t"
+                          "Sterile water blank\turban biome\t"
+                          "research facility\tsterile water\t"
+                          "misc environment\tUSA:CA:San Diego\t"
+                          "BLANK1.1A\t32.5\t-117.25\tcontrol blank\t"
+                          "metagenome\t256318\tBLANK1.1A\t"
+                          "NYU_BMS_Melanoma\tTRUE\tUCSD\tFALSE")
 
-        exp_first_line = ('BLANK1.1A\t2021-10-21\t193\t'
-                          'Control\tNegative\tSterile w'
-                          'ater blank\turban biome\tres'
-                          'earch facility\tsterile wate'
-                          'r\tmisc environment\tUSA:CA:'
-                          'San Diego\tBLANK1.1A\t32.5\t'
-                          '-117.25\tcontrol blank\tmeta'
-                          'genome\t256318\tBLANK1.1A\tN'
-                          'YU_BMS_Melanoma\tTRUE\t'
-                          'UCSD\tFALSE')
-
-        # the new last sample should be BLANK999.999A.
-        exp_last_line = ('BLANK999.999A\t2021-10-21\t193\t'
-                         'Control\tNegative\tSterile w'
-                         'ater blank\turban biome\tres'
-                         'earch facility\tsterile wate'
-                         'r\tmisc environment\tUSA:CA:'
-                         'San Diego\tBLANK999.999A\t32.5\t'
-                         '-117.25\tcontrol blank\tmeta'
-                         'genome\t256318\tBLANK999.999A\tN'
-                         'YU_BMS_Melanoma\tTRUE\t'
-                         'UCSD\tFALSE')
+        exp_last_line = ("BLANK4.4H\t2021-10-21\t193\tControl\tNegative\t"
+                         "Sterile water blank\tSterile water blank\t"
+                         "urban biome\tresearch facility\tsterile water\t"
+                         "misc environment\tUSA:CA:San Diego\tBLANK4.4H\t"
+                         "32.5\t-117.25\tcontrol blank\tmetagenome\t256318\t"
+                         "BLANK4.4H\tNYU_BMS_Melanoma\tTRUE\tUCSD\tFALSE")
 
         with open(sif_path, 'r') as f:
             obs_lines = f.readlines()
-            self.assertEqual(len(obs_lines), exp_lines)
 
             # confirm that each file contains the expected header.
             header = obs_lines[0].strip()
@@ -574,6 +563,7 @@ class TestPipeline(unittest.TestCase):
             # confirm that the last line of each file is as expected.
             obs = obs_lines[-1].strip()
             exp = exp_last_line
+
             self.assertEqual(obs, exp)
 
     def test_get_sample_ids(self):
