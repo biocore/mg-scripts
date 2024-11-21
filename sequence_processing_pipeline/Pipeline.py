@@ -144,7 +144,7 @@ class Pipeline:
     AMPLICON_ATYPE = 'TruSeq HT'
 
     assay_types = [AMPLICON_ATYPE, METAGENOMIC_ATYPE, METATRANSCRIPTOMIC_ATYPE]
-    
+
     @staticmethod
     def make_sif_fname(run_id, full_project_name):
         # TODO: the problem with this structure is that there's no clear way
