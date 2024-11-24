@@ -20,11 +20,6 @@ module load {{modules_to_load}}
     -j ${SLURM_JOB_CPUS_PER_NODE} {{extra}} \
     -l {{lane}}
 
-# instead of testing for the presence of '{{output}}/Full', we will review
-# the changed timestamps for all the files in '{{output}}/Full' and when
-# we can demonstrate that they haven't changed in an arbitrary period of time
-# we will consider the work completed.
-
 # get the timestamp for the most recently changed file in directory '.'
 
 # hard-limit for wait time set to ~ 8 hours.
