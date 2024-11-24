@@ -230,6 +230,7 @@ class Pipeline:
         self.run_id = run_id
         self.qiita_job_id = qiita_job_id
         self.pipeline = []
+        self.assay_type = None
 
         # this method will catch a run directory as well as its products
         # directory, which also has the same name. Hence, return the
@@ -239,6 +240,7 @@ class Pipeline:
 
         if pipeline_type == Pipeline.AMPLICON_PTYPE:
             self.search_paths = self.configuration['amplicon_search_paths']
+            self.assay_type = Pipeline.AMPLICON_ATYPE
         else:
             self.search_paths = self.configuration['search_paths']
 
@@ -289,7 +291,7 @@ class Pipeline:
             # create dummy sample-sheet
             output_fp = join(output_path, 'dummy_sample_sheet.csv')
             self.generate_dummy_sample_sheet(self.run_dir, output_fp)
-            self.sample_sheet = output_fp
+            self.dummy_sheet_path = output_fp
 
             # Optional lane_number parameter is ignored for Amplicon
             # runs, as the only valid value is 1.
@@ -311,7 +313,25 @@ class Pipeline:
             self.sample_sheet = self._validate_sample_sheet(input_file_path)
             self.mapping_file = None
 
+        if self.assay_type is None:
+            # set self.assay_type for non-amplicon types.
+            assay_type = self.sample_sheet.Header['Assay']
+            if assay_type not in Pipeline.assay_types:
+                raise ValueError(f"'{assay_type} is not a valid Assay type")
+            self.assay_type = assay_type
+
         self._configure_profile()
+
+    def get_sample_sheet_path(self):
+        """
+        Returns path to a sample-sheet or dummy sample-sheet for amplicon runs.
+        """
+        if self.assay_type == Pipeline.AMPLICON_ATYPE:
+            # assume self.dummy_sheet_path has been created for amplicon runs.
+            return self.dummy_sheet_path
+        else:
+            # assume input_file_path is a sample-sheet for non-amplicon runs.
+            return self.input_file_path
 
     def get_software_configuration(self, software):
         if software is None or software == "":
@@ -365,15 +385,6 @@ class Pipeline:
         # extract the instrument type from self.run_dir and the assay type
         # from self.sample_sheet (or self.mapping_file).
         instr_type = InstrumentUtils.get_instrument_type(self.run_dir)
-
-        if isinstance(self.sample_sheet, str):
-            # if self.sample_sheet is a file instead of a KLSampleSheet()
-            # type, then this is an Amplicon run.
-            assay_type = Pipeline.AMPLICON_ATYPE
-        else:
-            assay_type = self.sample_sheet.Header['Assay']
-            if assay_type not in Pipeline.assay_types:
-                raise ValueError(f"'{assay_type} is not a valid Assay type")
 
         # open the configuration profiles directory as specified by
         # profiles_path in the configuration.json file. parse each json into
@@ -434,13 +445,14 @@ class Pipeline:
             i_type = profile['profile']['instrument_type']
             a_type = profile['profile']['assay_type']
 
-            if i_type == instr_type and a_type == assay_type:
+            if i_type == instr_type and a_type == self.assay_type:
                 selected_profile = profile
                 break
 
         if selected_profile is None:
-            raise ValueError(f"a matching profile ({instr_type}, {assay_type}"
-                             ") was not found. Please notify an administrator")
+            raise ValueError(f"a matching profile ({instr_type}, "
+                             f"{self.assay_type}) was not found. Please notify"
+                             " an administrator")
 
         self.config_profile = selected_profile
 
