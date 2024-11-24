@@ -20,11 +20,6 @@ $HOME/qiita-spots/tellread-release-novaseqX/run_tellread_sing.sh \
     -j ${SLURM_JOB_CPUS_PER_NODE}  \
     -l s_1
 
-# instead of testing for the presence of 'sequence_processing_pipeline/tests/2caa8226-cf69-45a3-bd40-1e90ec3d18d0/TellReadJob/Full', we will review
-# the changed timestamps for all the files in 'sequence_processing_pipeline/tests/2caa8226-cf69-45a3-bd40-1e90ec3d18d0/TellReadJob/Full' and when
-# we can demonstrate that they haven't changed in an arbitrary period of time
-# we will consider the work completed.
-
 # get the timestamp for the most recently changed file in directory '.'
 
 # hard-limit for wait time set to ~ 8 hours.
