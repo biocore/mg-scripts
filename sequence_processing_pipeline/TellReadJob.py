@@ -148,10 +148,6 @@ class TellReadJob(Job):
 
         extra = ""
 
-        # if reference_base is added in the future and is defined, extra needs
-        # to be f"-f {reference_base}".
-        # extra = "-f ${REFBASE}"
-
         with open(job_script_path, mode="w", encoding="utf-8") as f:
             f.write(template.render({
                 "job_name": "tellread",
