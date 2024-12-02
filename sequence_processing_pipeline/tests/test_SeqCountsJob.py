@@ -2,6 +2,7 @@ from os.path import join
 from sequence_processing_pipeline.SeqCountsJob import SeqCountsJob
 from functools import partial
 import unittest
+from json import load as json_load
 
 
 class TestSeqCountsJob(unittest.TestCase):
@@ -63,9 +64,10 @@ class TestSeqCountsJob(unittest.TestCase):
         # the output directory for a run we didn't run().
         job.log_path = self.path("data", "seq_counts_logs")
 
-        obs = job._aggregate_counts()
+        obs = json_load(open(job._aggregate_counts(), 'r'))
+        exp = json_load(open(self.exp_results, 'r'))
 
-        compare_files(obs, self.exp_results)
+        self.assertDictEqual(obs, exp)
 
 
 if __name__ == '__main__':
