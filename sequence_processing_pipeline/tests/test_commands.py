@@ -70,9 +70,9 @@ class CommandTests(unittest.TestCase):
 
             demux(id_map, infile, tmp, task, maxtask)
 
-            obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1_001.fastq.gz'),
+            obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1.fastq.gz'),
                                'rt').read()
-            obs_r2 = gzip.open(join(tmp, 'Project_12345', 'b_R2_001.fastq.gz'),
+            obs_r2 = gzip.open(join(tmp, 'Project_12345', 'b_R2.fastq.gz'),
                                'rt').read()
             exp = '\n'.join(exp_data_r1) + '\n'
             self.assertEqual(obs_r1, exp)
@@ -80,8 +80,8 @@ class CommandTests(unittest.TestCase):
             exp = '\n'.join(exp_data_r2) + '\n'
             self.assertEqual(obs_r2, exp)
 
-            self.assertFalse(os.path.exists(join(tmp, 'a_R1_001.fastq.gz')))
-            self.assertFalse(os.path.exists(join(tmp, 'a_R2_001.fastq.gz')))
+            self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
+            self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
 
 
 if __name__ == '__main__':

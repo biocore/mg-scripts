@@ -23,7 +23,12 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # add one more level to account for project_names nested under ConvertJob
     # dir.
     # this will ignore the _I1_ reads that appear in the integrated result.
-    fastq_paths = glob.glob(data_location_path + '/*/*_R?_001.fastq.gz')
+    fastq_paths = glob.glob(data_location_path + '*/*/*.fastq.gz')
+
+    # case-specific filter for TellSeq output directories that also contain
+    # _I1_ files. Ensure paths are still sorted afterwards.
+    fastq_paths = [x for x in fastq_paths if '_I1_001.fastq.gz' not in x]
+    fastq_paths = sorted(fastq_paths)
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
@@ -87,7 +92,7 @@ def demux(id_map, fp, out_d, task, maxtask):
     """Split infile data based in provided map"""
     delimiter = '::MUX::'
     mode = 'wt'
-    ext = '_001.fastq.gz'
+    ext = '.fastq.gz'
     sep = '/'
     rec = '@'
 
