@@ -8,7 +8,6 @@ from .PipelineError import PipelineError
 from metapool import load_sample_sheet
 from os import makedirs
 from shutil import copyfile
-from glob import glob
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -162,16 +161,3 @@ class TRIntegrateJob(Job):
                 "output_dir": self.output_path}))
 
         return job_script_path
-
-    def parse_logs(self):
-        log_path = join(self.output_path, 'logs')
-        # sorted lists give predictable results
-        files = sorted(glob(join(log_path, '*.out')))
-        msgs = []
-
-        for some_file in files:
-            with open(some_file, 'r') as f:
-                msgs += [line for line in f.readlines()
-                         if 'error:' in line.lower()]
-
-        return [msg.strip() for msg in msgs]

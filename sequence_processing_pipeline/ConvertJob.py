@@ -175,6 +175,7 @@ class ConvertJob(Job):
         logging.info(f'Successful job: {job_info}')
 
     def parse_logs(self):
+        # overrides Job.parse_logs() w/tailored parse for specific logs.
         log_path = join(self.output_path, 'Logs')
         errors = join(log_path, 'Errors.log')
 

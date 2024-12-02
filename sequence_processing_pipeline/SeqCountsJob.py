@@ -5,6 +5,7 @@ import logging
 from jinja2 import Environment
 from os import walk
 from json import dumps
+from glob import glob
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -101,8 +102,16 @@ class SeqCountsJob(Job):
         return job_script_path
 
     def parse_logs(self):
-        # TODO
-        pass
+        # overrides Job.parse_logs() w/tailored parse for specific logs.
+        files = sorted(glob(join(self.log_path, '*.err')))
+        msgs = []
+
+        for some_file in files:
+            with open(some_file, 'r') as f:
+                msgs += [line for line in f.readlines()
+                         if line.startswith("[E::stk_size]")]
+
+        return [msg.strip() for msg in msgs]
 
     def _aggregate_counts(self):
         def extract_metadata(fp):

@@ -13,6 +13,7 @@ import logging
 from inspect import stack
 import re
 from collections import Counter
+from glob import glob
 
 
 # taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
@@ -126,7 +127,17 @@ class Job:
         raise PipelineError("Base class run() method not implemented.")
 
     def parse_logs(self):
-        raise PipelineError("Base class parse_logs() method not implemented.")
+        # by default, look for anything to parse in the logs directory.
+        log_path = join(self.output_path, 'logs')
+        files = sorted(glob(join(log_path, '*')))
+        msgs = []
+
+        for some_file in files:
+            with open(some_file, 'r') as f:
+                msgs += [line for line in f.readlines()
+                         if 'error:' in line.lower()]
+
+        return [msg.strip() for msg in msgs]
 
     def _which(self, file_path, modules_to_load=None):
         """

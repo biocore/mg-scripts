@@ -6,7 +6,6 @@ from sequence_processing_pipeline.PipelineError import (PipelineError,
 from functools import partial
 from json import dumps
 import logging
-import glob
 
 
 class FastQCJob(Job):
@@ -305,19 +304,3 @@ class FastQCJob(Job):
 
         with open(sh_details_fp, 'w') as f:
             f.write('\n'.join(self.commands))
-
-    def parse_logs(self):
-        log_path = join(self.output_path, 'logs')
-        files = sorted(glob.glob(join(log_path, '*.out')))
-        msgs = []
-
-        for some_file in files:
-            with open(some_file, 'r') as f:
-                msgs += [line for line in f.readlines()
-                         # note 'error' is not same
-                         # requirement as found in QCJob.
-                         # ('error:'). This is a very
-                         # generalized filter.
-                         if 'error' in line.lower()]
-
-        return [msg.strip() for msg in msgs]
