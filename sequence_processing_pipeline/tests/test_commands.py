@@ -16,12 +16,12 @@ class CommandTests(unittest.TestCase):
         class MockStat:
             st_size = 2 ** 28  # 256MB
 
-        mockglob = ['/foo/bar/a_R1_.fastq.gz',
-                    '/foo/bar/b_R2_.fastq.gz',
-                    '/foo/bar/a_R2_.fastq.gz',
-                    '/foo/baz/c_R2_.fastq.gz',
-                    '/foo/baz/c_R1_.fastq.gz',
-                    '/foo/bar/b_R1_.fastq.gz']
+        mockglob = ['/foo/bar/a_R1_001.fastq.gz',
+                    '/foo/bar/b_R2_001.fastq.gz',
+                    '/foo/bar/a_R2_001.fastq.gz',
+                    '/foo/baz/c_R2_001.fastq.gz',
+                    '/foo/baz/c_R1_001.fastq.gz',
+                    '/foo/bar/b_R1_001.fastq.gz']
 
         with TemporaryDirectory() as tmp:
             exp = (2, 1073741824)
@@ -30,9 +30,12 @@ class CommandTests(unittest.TestCase):
             obs = split_similar_size_bins('foo', 1, tmp + '/prefix')
             self.assertEqual(obs, exp)
 
-            exp_1 = ('/foo/bar/a_R1_.fastq.gz\t/foo/bar/a_R2_.fastq.gz\tbar\n'
-                     '/foo/bar/b_R1_.fastq.gz\t/foo/bar/b_R2_.fastq.gz\tbar\n')
-            exp_2 = '/foo/baz/c_R1_.fastq.gz\t/foo/baz/c_R2_.fastq.gz\tbaz\n'
+            exp_1 = ('/foo/bar/a_R1_001.fastq.gz\t/foo/bar/a_R2_001.fastq.gz'
+                     '\tbar\n'
+                     '/foo/bar/b_R1_001.fastq.gz\t/foo/bar/b_R2_001.fastq.gz'
+                     '\tbar\n')
+            exp_2 = ('/foo/baz/c_R1_001.fastq.gz\t/foo/baz/c_R2_001.fastq.gz'
+                     '\tbaz\n')
 
             obs_1 = open(tmp + '/prefix-1').read()
             self.assertEqual(obs_1, exp_1)
@@ -56,10 +59,6 @@ class CommandTests(unittest.TestCase):
                                      '@2::MUX::bing/2', 'ATGC', '+', '!!!!',
                                      ''])
             infile = io.StringIO(infile_data)
-            exp_data_r1 = '\n'.join(['@baz/1', 'ATGC', '+', '!!!!',
-                                     '@bing/1', 'ATGC', '+', '!!!!', ''])
-            exp_data_r2 = '\n'.join(['@baz/2', 'ATGC', '+', '!!!!',
-                                     '@bing/2', 'ATGC', '+', '!!!!', ''])
 
             exp_data_r1 = ['@baz/1', 'ATGC', '+', '!!!!',
                            '@bing/1', 'ATGC', '+', '!!!!']

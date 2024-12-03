@@ -955,7 +955,7 @@ class TestConvertJob(unittest.TestCase):
 
         # an internal method to force submit_job() to raise a JobFailedError
         # instead of submitting the job w/sbatch and waiting for a failed
-        # job w/sacct.
+        # job w/squeue.
         self.assertTrue(job._toggle_force_job_fail())
 
         error_msg = ("This job died.\n2024-01-01T12:12:12Z thread 99999 ERROR:"

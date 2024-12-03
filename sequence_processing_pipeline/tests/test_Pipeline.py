@@ -140,7 +140,7 @@ class TestPipeline(unittest.TestCase):
         with NamedTemporaryFile() as tmp:
             self._make_mapping_file(tmp.name)
             exp = ['1.0', '1e-3']
-            pipeline = Pipeline(self.good_config_file, self.good_run_id, None,
+            pipeline = Pipeline(self.good_config_file, self.good_run_id,
                                 tmp.name, self.output_file_path, self.qiita_id,
                                 Pipeline.AMPLICON_PTYPE)
 
@@ -153,7 +153,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_get_sample_names_from_sample_sheet(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.mp_sheet_path, None,
+                            self.mp_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -178,7 +178,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_get_orig_names_from_sheet_with_replicates(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sheet_w_replicates, None,
+                            self.good_sheet_w_replicates,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -198,7 +198,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RunInfo.xml"
                                                    "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -210,7 +210,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RTAComplete"
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -222,7 +222,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, bu"
                                                    "t not readable"):
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
         self.make_runinfo_file_readable()
@@ -232,7 +232,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.bad_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -249,7 +249,7 @@ class TestPipeline(unittest.TestCase):
                                                 " valid sample-sheet."):
             Pipeline(self.good_config_file,
                      self.good_run_id,
-                     self.bad_assay_type_path, None,
+                     self.bad_assay_type_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -257,7 +257,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -268,7 +268,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(None,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -279,7 +279,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -290,7 +290,7 @@ class TestPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      None,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -300,7 +300,7 @@ class TestPipeline(unittest.TestCase):
                                                    "not a valid json file"):
             Pipeline(self.good_sample_sheet_path,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -323,7 +323,7 @@ class TestPipeline(unittest.TestCase):
                                                 "bad.json'"):
             Pipeline(self.good_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -345,7 +345,7 @@ class TestPipeline(unittest.TestCase):
                                                 "bad.json'"):
             Pipeline(self.good_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -368,7 +368,7 @@ class TestPipeline(unittest.TestCase):
                                                 "bad.json'"):
             Pipeline(self.good_config_file,
                      self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
 
@@ -379,7 +379,7 @@ class TestPipeline(unittest.TestCase):
         # contained w/in its 'message' member.
         try:
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.good_sample_sheet_path, None,
+                     self.good_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
         except PipelineError as e:
@@ -389,7 +389,7 @@ class TestPipeline(unittest.TestCase):
         # test unsuccessful validation of a bad sample-sheet
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
-                     self.bad_sample_sheet_path, None,
+                     self.bad_sample_sheet_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.METAGENOMIC_PTYPE)
         self.assertEqual(str(e.exception), ('Sample-sheet contains errors:\n'
@@ -401,7 +401,6 @@ class TestPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
                             self.good_sample_sheet_path,
-                            None,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -510,6 +509,62 @@ class TestPipeline(unittest.TestCase):
                 obs = obs_lines[-1].strip()
                 exp = exp_last_lines[some_name]
                 self.assertEqual(obs, exp)
+
+    def test_generate_sample_information_files_with_additional_meta(self):
+        # TODO: With recent changes is this needed?
+        # test sample-information-file generation.
+        pipeline = Pipeline(self.good_config_file, self.good_run_id,
+                            self.good_sample_sheet_path,
+                            self.output_file_path, self.qiita_id,
+                            Pipeline.METAGENOMIC_PTYPE)
+
+        # create a dataframe with duplicate information to pass to
+        # generate_sample_information_files(). Confirm that the duplicates
+        # are dropped. Confirm 'NOTBLANK_999A' is also filtered out.
+        df = pd.DataFrame(data=[('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
+                                ('BLANK999_999A', 'NYU_BMS_Melanoma_13059'),
+                                ('NOTBLANK_999A', 'NYU_BMS_Melanoma_13059')],
+                          columns=['sample_name', 'project_name'])
+
+        sif_path = pipeline.generate_sample_info_files(addl_info=df)
+
+        # get the path for the NYU_BMS_Melanoma dataset.
+        sif_path = [x for x in sif_path if 'NYU_BMS_Melanoma' in x][0]
+
+        exp_first_line = ("BLANK1.1A\t2021-10-21\t193\t"
+                          "Control\tNegative\tSterile water blank\t"
+                          "Sterile water blank\turban biome\t"
+                          "research facility\tsterile water\t"
+                          "misc environment\tUSA:CA:San Diego\t"
+                          "BLANK1.1A\t32.5\t-117.25\tcontrol blank\t"
+                          "metagenome\t256318\tBLANK1.1A\t"
+                          "NYU_BMS_Melanoma\tTRUE\tUCSD\tFALSE")
+
+        exp_last_line = ("BLANK4.4H\t2021-10-21\t193\tControl\tNegative\t"
+                         "Sterile water blank\tSterile water blank\t"
+                         "urban biome\tresearch facility\tsterile water\t"
+                         "misc environment\tUSA:CA:San Diego\tBLANK4.4H\t"
+                         "32.5\t-117.25\tcontrol blank\tmetagenome\t256318\t"
+                         "BLANK4.4H\tNYU_BMS_Melanoma\tTRUE\tUCSD\tFALSE")
+
+        with open(sif_path, 'r') as f:
+            obs_lines = f.readlines()
+
+            # confirm that each file contains the expected header.
+            header = obs_lines[0].strip()
+            self.assertEqual(header, '\t'.join(Pipeline.sif_header))
+
+            # confirm that the first line of each file is as expected.
+            obs = obs_lines[1].strip()
+            exp = exp_first_line
+
+            self.assertEqual(obs, exp)
+
+            # confirm that the last line of each file is as expected.
+            obs = obs_lines[-1].strip()
+            exp = exp_last_line
+
+            self.assertEqual(obs, exp)
 
     def test_get_sample_ids(self):
         exp_sample_ids = ['CDPH-SAL__Salmonella__Typhi__MDL-143',
@@ -980,7 +1035,7 @@ class TestPipeline(unittest.TestCase):
                           'EP400448B04', 'EP479894B04']
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1456,7 +1511,7 @@ class TestPipeline(unittest.TestCase):
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1484,7 +1539,7 @@ class TestPipeline(unittest.TestCase):
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1515,7 +1570,7 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(sorted(obs_project_names), sorted(exp_project_names))
 
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sheet_w_replicates, None,
+                            self.good_sheet_w_replicates,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1527,7 +1582,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_configuration_profiles(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1556,7 +1611,7 @@ class TestPipeline(unittest.TestCase):
     def test_parse_project_name(self):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1588,7 +1643,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_identify_reserved_words(self):
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_sample_sheet_path, None,
+                            self.good_sample_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1605,7 +1660,7 @@ class TestPipeline(unittest.TestCase):
 
         # create new pipeline using a/legacy (v90) metagenomic sample-sheet.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            self.good_legacy_sheet_path, None,
+                            self.good_legacy_sheet_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.METAGENOMIC_PTYPE)
 
@@ -1698,7 +1753,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RunInfo.xml"
                                                    "' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1710,7 +1765,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaisesRegex(PipelineError, "required file 'RTAComplete"
                                                    ".txt' is not present."):
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1721,7 +1776,7 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         with self.assertRaisesRegex(PipelineError, "RunInfo.xml is present, "
                                                    "but not readable"):
-            Pipeline(self.good_config_file, self.good_run_id, None,
+            Pipeline(self.good_config_file, self.good_run_id,
                      self.good_mapping_file_path, self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
             self.make_runinfo_file_readable()
@@ -1731,7 +1786,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.bad_config_file,
                      self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1746,7 +1801,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.invalid_config_file,
                      self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1757,7 +1812,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(None,
                      self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1768,7 +1823,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      self.invalid_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1779,7 +1834,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file,
                      None,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
 
@@ -1787,7 +1842,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test successful validation of a good mapping-file.
         try:
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.good_mapping_file_path,
+                     self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
         except PipelineError as e:
@@ -1797,7 +1852,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test unsuccessful validation of a bad mapping-file.
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.mf_missing_column,
+                     self.mf_missing_column,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
         self.assertEqual(str(e.exception), ('Mapping-file is missing '
@@ -1807,7 +1862,7 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test unsuccessful validation of a bad mapping-file.
         with self.assertRaises(PipelineError) as e:
             Pipeline(self.good_config_file, self.good_run_id,
-                     None, self.mf_duplicate_sample,
+                     self.mf_duplicate_sample,
                      self.output_file_path,
                      self.qiita_id, Pipeline.AMPLICON_PTYPE)
         self.assertEqual(str(e.exception), ("Mapping-file contains duplicate "
@@ -1834,7 +1889,6 @@ class TestAmpliconPipeline(unittest.TestCase):
     def test_generate_sample_information_files(self):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            None,
                             self.good_mapping_file_path,
                             self.output_file_path,
                             self.qiita_id,
@@ -2056,7 +2110,6 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file,
                             self.good_run_id,
-                            None,
                             self.good_mapping_file_path,
                             self.output_file_path,
                             self.qiita_id,
@@ -2184,7 +2237,6 @@ class TestAmpliconPipeline(unittest.TestCase):
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file,
                             self.good_run_id,
-                            None,
                             self.good_mapping_file_path,
                             self.output_file_path,
                             self.qiita_id,
@@ -2208,7 +2260,7 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         # test sample-information-file generation.
         pipeline = Pipeline(self.good_config_file, self.good_run_id,
-                            None, self.good_mapping_file_path,
+                            self.good_mapping_file_path,
                             self.output_file_path, self.qiita_id,
                             Pipeline.AMPLICON_PTYPE)
 
@@ -2225,33 +2277,12 @@ class TestAmpliconPipeline(unittest.TestCase):
                     self.assertDictEqual(obs_d, exp_d)
                     break
 
-    def test_additional_constuctor_check(self):
-        with self.assertRaisesRegex(PipelineError, ("sample_sheet_path or "
-                                                    "mapping_file_path must "
-                                                    "be defined, but not "
-                                                    "both.")):
-            Pipeline(self.good_config_file, self.good_run_id,
-                     None, None,
-                     self.output_file_path,
-                     self.qiita_id, Pipeline.AMPLICON_PTYPE)
-
-        with self.assertRaisesRegex(PipelineError, ("sample_sheet_path or "
-                                                    "mapping_file_path must "
-                                                    "be defined, but not "
-                                                    "both.")):
-            Pipeline(self.good_config_file, self.good_run_id,
-                     self.sample_sheet_path,
-                     self.good_mapping_file_path,
-                     self.output_file_path,
-                     self.qiita_id, Pipeline.AMPLICON_PTYPE)
-
     def test_dummy_sheet_generation(self):
         # generate a RunInfo.xml file w/only one indexed read.
         self.create_runinfo_file(four_reads=False)
 
         _ = Pipeline(self.good_config_file,
                      self.good_run_id,
-                     None,
                      self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id,
@@ -2270,7 +2301,6 @@ class TestAmpliconPipeline(unittest.TestCase):
 
         _ = Pipeline(self.good_config_file,
                      self.good_run_id,
-                     None,
                      self.good_mapping_file_path,
                      self.output_file_path,
                      self.qiita_id,
@@ -2290,7 +2320,6 @@ class TestAmpliconPipeline(unittest.TestCase):
     def test_process_run_info_file(self):
         pipeline = Pipeline(self.good_config_file,
                             self.good_run_id,
-                            None,
                             self.good_mapping_file_path,
                             self.output_file_path,
                             self.qiita_id,
@@ -2330,7 +2359,6 @@ class TestAmpliconPipeline(unittest.TestCase):
     def test_identify_reserved_words(self):
         pipeline = Pipeline(self.good_config_file,
                             self.good_run_id,
-                            None,
                             self.good_mapping_file_path,
                             self.output_file_path,
                             self.qiita_id,

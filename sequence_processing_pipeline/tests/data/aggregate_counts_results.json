@@ -1,0 +1,36 @@
+{
+  "REMOVED/8edbdee2-da52-4278-af40-267185bbcd7e/TellReadJob/Full": {
+    "TellReadJob_I1_C520.fastq.gz.erroneous.fastq": {
+      "seq_counts": 2139633,
+      "base_pairs": 38513394
+    },
+    "TellReadJob_R1_C519.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 64464162,
+      "base_pairs": 8345327641
+    },
+    "TellReadJob_R1_C520.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 70399028,
+      "base_pairs": 9293296513
+    },
+    "TellReadJob_I1_C519.fastq.gz.erroneous.fastq": {
+      "seq_counts": 1932116,
+      "base_pairs": 34778088
+    },
+    "TellReadJob_I1_C519.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 64464162,
+      "base_pairs": 1160354916
+    },
+    "TellReadJob_R2_C519.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 64464162,
+      "base_pairs": 8370238082
+    },
+    "TellReadJob_R2_C520.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 70399028,
+      "base_pairs": 9317943166
+    },
+    "TellReadJob_I1_C520.fastq.gz.corrected.err_barcode_removed.fastq": {
+      "seq_counts": 70399028,
+      "base_pairs": 1267182504
+    }
+  }
+}

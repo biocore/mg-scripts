@@ -1,3 +1,6 @@
+from jinja2 import BaseLoader, TemplateNotFound
+from os.path import getmtime
+import pathlib
 from itertools import zip_longest
 from os import makedirs, walk
 from os.path import basename, exists, split, join
@@ -9,6 +12,26 @@ from time import sleep
 import logging
 from inspect import stack
 import re
+from collections import Counter
+from glob import glob
+
+
+# taken from https://jinja.palletsprojects.com/en/3.0.x/api/#jinja2.BaseLoader
+class KISSLoader(BaseLoader):
+    def __init__(self, path):
+        # pin the path for loader to the location sequence_processing_pipeline
+        # (the location of this file), along w/the relative path to the
+        # templates directory.
+        self.path = join(pathlib.Path(__file__).parent.resolve(), path)
+
+    def get_source(self, environment, template):
+        path = join(self.path, template)
+        if not exists(path):
+            raise TemplateNotFound(template)
+        mtime = getmtime(path)
+        with open(path) as f:
+            source = f.read()
+        return source, path, lambda: mtime == getmtime(path)
 
 
 class Job:
@@ -32,6 +55,7 @@ class Job:
                                slurm_status_running)
 
     polling_interval_in_seconds = 60
+    squeue_retry_in_seconds = 10
 
     def __init__(self, root_dir, output_path, job_name, executable_paths,
                  max_array_length, modules_to_load=None):
@@ -103,7 +127,17 @@ class Job:
         raise PipelineError("Base class run() method not implemented.")
 
     def parse_logs(self):
-        raise PipelineError("Base class parse_logs() method not implemented.")
+        # by default, look for anything to parse in the logs directory.
+        log_path = join(self.output_path, 'logs')
+        files = sorted(glob(join(log_path, '*')))
+        msgs = []
+
+        for some_file in files:
+            with open(some_file, 'r') as f:
+                msgs += [line for line in f.readlines()
+                         if 'error:' in line.lower()]
+
+        return [msg.strip() for msg in msgs]
 
     def _which(self, file_path, modules_to_load=None):
         """
@@ -212,6 +246,41 @@ class Job:
 
         return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
 
+    def _query_slurm(self, job_ids):
+        # query_slurm encapsulates the handling of squeue.
+        count = 0
+        while True:
+            result = self._system_call("squeue -t all -j "
+                                       f"{','.join(job_ids)} "
+                                       "-o '%i,%T'")
+
+            if result['return_code'] == 0:
+                # there was no issue w/squeue, break this loop and
+                # continue.
+                break
+            else:
+                # there was likely an intermittent issue w/squeue. Pause
+                # and wait before trying a few more times. If the problem
+                # persists then report the error and exit.
+                count += 1
+
+                if count > 3:
+                    raise ExecFailedError(result['stderr'])
+
+                sleep(Job.squeue_retry_in_seconds)
+
+        lines = result['stdout'].split('\n')
+        lines.pop(0)  # remove header
+        lines = [x.split(',') for x in lines if x != '']
+
+        jobs = {}
+        for job_id, state in lines:
+            # ensure unique_id is of type string for downstream use.
+            job_id = str(job_id)
+            jobs[job_id] = state
+
+        return jobs
+
     def wait_on_job_ids(self, job_ids, callback=None):
         '''
         Wait for the given job-ids to finish running before returning.
@@ -229,63 +298,27 @@ class Job:
         # ensure all ids are strings to ensure proper working w/join().
         job_ids = [str(x) for x in job_ids]
 
-        def query_slurm(job_ids):
-            # internal function query_slurm encapsulates the handling of
-            # squeue.
-            count = 0
-            while True:
-                result = self._system_call("squeue -t all -j "
-                                           f"{','.join(job_ids)} "
-                                           "-o '%F,%A,%T'")
-
-                if result['return_code'] == 0:
-                    # there was no issue w/squeue, break this loop and
-                    # continue.
-                    break
-                else:
-                    # there was a likely intermittent issue w/squeue. Pause
-                    # and wait before trying a few more times. If the problem
-                    # persists then report the error and exit.
-                    count += 1
-
-                    if count > 3:
-                        raise ExecFailedError(result['stderr'])
-
-                    sleep(60)
-
-            lines = result['stdout'].split('\n')
-            lines.pop(0)    # remove header
-            lines = [x.split(',') for x in lines if x != '']
-
-            jobs = {}
-            child_jobs = {}
-            for job_id, unique_id, state in lines:
-                jobs[unique_id] = state
-
-                if unique_id != job_id:
-                    child_jobs[unique_id] = job_id  # job is a child job
-
-            return jobs, child_jobs
-
         while True:
-            jobs, child_jobs = query_slurm(job_ids)
+            # Because query_slurm only returns state on the job-ids we specify,
+            # the wait process is a simple check to see whether any of the
+            # states are 'running' states or not.
+            jobs = self._query_slurm(job_ids)
 
-            for jid in job_ids:
-                logging.debug("JOB %s: %s" % (jid, jobs[jid]))
-                if callback is not None:
-                    callback(jid=jid, status=jobs[jid])
+            # jobs will be a dict of job-ids or array-ids for jobs that
+            # are array-jobs. the value of jobs[id] will be a state e.g.:
+            # 'RUNNING', 'FAILED', 'COMPLETED'.
+            states = [jobs[x] in Job.slurm_status_not_running for x in jobs]
 
-                children = [x for x in child_jobs if child_jobs[x] == jid]
-                if len(children) == 0:
-                    logging.debug("\tNO CHILDREN")
-                for cid in children:
-                    logging.debug("\tCHILD JOB %s: %s" % (cid, jobs[cid]))
-            status = [jobs[x] in Job.slurm_status_not_running for x in job_ids]
-
-            if set(status) == {True}:
-                # all jobs either completed successfully or terminated.
+            if set(states) == {True}:
+                # if all the states are either FAILED or COMPLETED
+                # then the set of those states no matter how many
+                # array-jobs there were will ultimately be the set of
+                # {True}. If not then that means there are still jobs
+                # that are running.
                 break
 
+            logging.debug(f"sleeping {Job.polling_interval_in_seconds} "
+                          "seconds...")
             sleep(Job.polling_interval_in_seconds)
 
         return jobs
@@ -345,16 +378,48 @@ class Job:
         # to the user.
         results = self.wait_on_job_ids([job_id], callback=callback)
 
-        job_result = {'job_id': job_id, 'job_state': results[job_id]}
+        if job_id in results:
+            # job is a non-array job
+            job_result = {'job_id': job_id, 'job_state': results[job_id]}
+        else:
+            # job is an array job
+            # assume all array jobs in this case will be associated w/job_id.
+            counts = Counter()
+            for array_id in results:
+                counts[results[array_id]] += 1
+
+            # for array jobs we won't be returning a string representing the
+            # state of a single job. Instead we're returning a dictionary of
+            # the number of unique states the set of array-jobs ended up in and
+            # the number for each one.
+            job_result = {'job_id': job_id, 'job_state': dict(counts)}
 
         if callback is not None:
-            callback(jid=job_id, status=job_result['job_state'])
+            if isinstance(job_result['job_state'], dict):
+                # this is an array job
+                states = []
+                for key in counts:
+                    states.append(f"{key}: {counts[key]}")
 
-        if job_result['job_state'] == 'COMPLETED':
-            return job_result
+                callback(jid=job_id, status=", ".join(states))
+
+            else:
+                # this is a standard job
+                callback(jid=job_id, status=job_result['job_state'])
+
+        if isinstance(job_result['job_state'], dict):
+            states = list(job_result['job_state'].keys())
+            if states == ['COMPLETED']:
+                return job_result
+            else:
+                raise JobFailedError(f"job {job_id} exited with jobs in the "
+                                     f"following states: {', '.join(states)}")
         else:
-            raise JobFailedError(f"job {job_id} exited with status "
-                                 f"{job_result['job_state']}")
+            if job_result['job_state'] == 'COMPLETED':
+                return job_result
+            else:
+                raise JobFailedError(f"job {job_id} exited with status "
+                                     f"{job_result['job_state']}")
 
     def _group_commands(self, cmds):
         # break list of commands into chunks of max_array_length (Typically
