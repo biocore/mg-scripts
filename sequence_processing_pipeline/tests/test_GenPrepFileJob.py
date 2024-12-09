@@ -43,7 +43,8 @@ class TestGenPrepFileJob(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             join(self.convert_job_path, 'Reports'))
         results = job._system_call(f'find {self.run_dir}')
         lines = results['stdout'].split('\n')
         lines = [re.sub(r'^.*?sequence_processing_pipeline\/', '', x)
@@ -82,7 +83,8 @@ class TestGenPrepFileJob(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             join(self.convert_job_path, 'Reports'))
 
         # We cannot run the object and test the output that is returned from
         # seqpro, but we can test the helper method against canned stdout and
@@ -147,7 +149,8 @@ class TestReplication(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             join(self.convert_job_path, 'Reports'))
 
         exp = [['seqpro', '--verbose',
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
@@ -196,6 +199,7 @@ class TestReplication(unittest.TestCase):
                              'seqpro',
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             join(self.convert_job_path, 'Reports'),
                              is_amplicon=True)
 
         exp = [['seqpro', '--verbose',

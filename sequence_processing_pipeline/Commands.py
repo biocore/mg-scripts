@@ -23,12 +23,7 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     # add one more level to account for project_names nested under ConvertJob
     # dir.
     # this will ignore the _I1_ reads that appear in the integrated result.
-    fastq_paths = glob.glob(data_location_path + '*/*/*.fastq.gz')
-
-    # case-specific filter for TellSeq output directories that also contain
-    # _I1_ files. Ensure paths are still sorted afterwards.
-    fastq_paths = [x for x in fastq_paths if '_I1_001.fastq.gz' not in x]
-    fastq_paths = sorted(fastq_paths)
+    fastq_paths = glob.glob(data_location_path + '/*/*_R?_*.fastq.gz')
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)
@@ -114,21 +109,43 @@ def demux(id_map, fp, out_d, task, maxtask):
             openfps[idx] = current_fp
 
     # setup a parser
-    id_ = iter(fp)
+    seq_id = iter(fp)
     seq = iter(fp)
     dumb = iter(fp)
     qual = iter(fp)
 
-    for i, s, d, q in zip(id_, seq, dumb, qual):
-        fname_encoded, id_ = i.split(delimiter, 1)
+    for i, s, d, q in zip(seq_id, seq, dumb, qual):
+        # '@1', 'LH00444:84:227CNHLT4:7:1101:41955:2443/1'
+        # '@1', 'LH00444:84:227CNHLT4:7:1101:41955:2443/1 BX:Z:TATGACACATGCGGCCCT' # noqa
+        # '@baz/1
+
+        fname_encoded, sid = i.split(delimiter, 1)
 
         if fname_encoded not in openfps:
             continue
 
-        orientation = id_[-2]  # -1 is \n
         current_fp = openfps[fname_encoded]
-        id_ = rec + id_
-        current_fp[orientation].write(id_)
+
+        # remove '\n' from sid and split on all whitespace.
+        tmp = sid.strip().split()
+
+        if len(tmp) == 1:
+            # sequence id line contains no optional metadata.
+            # don't change sid.
+            # -1 is \n
+            orientation = sid[-2]
+            sid = rec + sid
+        elif len(tmp) == 2:
+            sid = tmp[0]
+            metadata = tmp[1]
+            # no '\n'
+            orientation = sid[-1]
+            # hexdump confirms separator is ' ', not '\t'
+            sid = rec + sid + ' ' + metadata + '\n'
+        else:
+            raise ValueError(f"'{sid}' is not a recognized form")
+
+        current_fp[orientation].write(sid)
         current_fp[orientation].write(s)
         current_fp[orientation].write(d)
         current_fp[orientation].write(q)

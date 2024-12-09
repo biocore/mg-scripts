@@ -83,6 +83,59 @@ class CommandTests(unittest.TestCase):
             self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
             self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
 
+    def test_demux_w_metadata(self):
+        with TemporaryDirectory() as tmp:
+            id_map = [
+                ["1", "a_R1", "a_R2", "Project_12345"],
+                ["2", "b_R1", "b_R2", "Project_12345"]
+            ]
+
+            infile_data = '\n'.join(['@1::MUX::foo/1 BX:Z:TATGACAGATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@1::MUX::foo/2 BX:Z:TATGACACATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@1::MUX::bar/1 BX:Z:TATGACAAATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@1::MUX::bar/2 BX:Z:TATGACACATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@2::MUX::baz/1 BX:Z:TATGACATATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@2::MUX::baz/2 BX:Z:TATGACCCATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@2::MUX::bing/1 BX:Z:TATGAGGCATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     '@2::MUX::bing/2 BX:Z:TATGACGCATGCGGCCCT',
+                                     'ATGC', '+', '!!!!',
+                                     ''])
+            infile = io.StringIO(infile_data)
+
+            exp_data_r1 = ['@baz/1 BX:Z:TATGACATATGCGGCCCT',
+                           'ATGC', '+', '!!!!',
+                           '@bing/1 BX:Z:TATGAGGCATGCGGCCCT',
+                           'ATGC', '+', '!!!!']
+            exp_data_r2 = ['@baz/2 BX:Z:TATGACCCATGCGGCCCT',
+                           'ATGC', '+', '!!!!',
+                           '@bing/2 BX:Z:TATGACGCATGCGGCCCT',
+                           'ATGC', '+', '!!!!']
+
+            task = 1
+            maxtask = 2
+
+            demux(id_map, infile, tmp, task, maxtask)
+
+            obs_r1 = gzip.open(join(tmp, 'Project_12345', 'b_R1.fastq.gz'),
+                               'rt').read()
+            obs_r2 = gzip.open(join(tmp, 'Project_12345', 'b_R2.fastq.gz'),
+                               'rt').read()
+            exp = '\n'.join(exp_data_r1) + '\n'
+            self.assertEqual(obs_r1, exp)
+
+            exp = '\n'.join(exp_data_r2) + '\n'
+            self.assertEqual(obs_r2, exp)
+
+            self.assertFalse(os.path.exists(join(tmp, 'a_R1.fastq.gz')))
+            self.assertFalse(os.path.exists(join(tmp, 'a_R2.fastq.gz')))
+
 
 if __name__ == '__main__':
     unittest.main()

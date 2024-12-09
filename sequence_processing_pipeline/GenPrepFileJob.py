@@ -13,7 +13,7 @@ from metapool import (demux_sample_sheet, parse_prep,
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
                  input_file_path, seqpro_path, modules_to_load,
-                 qiita_job_id, is_amplicon=False):
+                 qiita_job_id, reports_path, is_amplicon=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -31,13 +31,15 @@ class GenPrepFileJob(Job):
         self.commands = []
         self.has_replicates = False
         self.replicate_count = 0
+        self.reports_path = reports_path
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
         # copy bcl-convert's Stats-equivalent directory to the
         # run_directory
-        copytree(join(convert_job_path, 'Reports'),
-                 join(self.output_path, self.run_id, 'Reports'))
+
+        copytree(self.reports_path, join(self.output_path,
+                                         self.run_id, 'Reports'))
 
         # extracting from either convert_job_path or qc_job_path should
         # produce equal results.
