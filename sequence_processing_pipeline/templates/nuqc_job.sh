@@ -12,6 +12,7 @@
 ### Commented out for now, but there is a possibility it will be needed
 ### in the future.
 ###SBATCH --gres=node_jobs:{{gres_value}}
+#SBATCH --constraint="amd"
 
 
 echo "---------------"
