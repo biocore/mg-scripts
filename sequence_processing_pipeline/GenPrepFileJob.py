@@ -13,7 +13,7 @@ from metapool import (demux_sample_sheet, parse_prep,
 class GenPrepFileJob(Job):
     def __init__(self, run_dir, convert_job_path, qc_job_path, output_path,
                  input_file_path, seqpro_path, modules_to_load,
-                 qiita_job_id, is_amplicon=False):
+                 qiita_job_id, reports_path, is_amplicon=False):
 
         super().__init__(run_dir,
                          output_path,
@@ -31,13 +31,22 @@ class GenPrepFileJob(Job):
         self.commands = []
         self.has_replicates = False
         self.replicate_count = 0
+        self.reports_path = reports_path
 
         # make the 'root' of your run_directory
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
         # copy bcl-convert's Stats-equivalent directory to the
         # run_directory
-        copytree(join(convert_job_path, 'Reports'),
-                 join(self.output_path, self.run_id, 'Reports'))
+
+        # This directory will already exist on restarts, hence avoid
+        # copying.
+        reports_dir = join(self.output_path, self.run_id, 'Reports')
+
+        if exists(reports_dir):
+            self.is_restart = True
+        else:
+            self.is_restart = False
+            copytree(self.reports_path, reports_dir)
 
         # extracting from either convert_job_path or qc_job_path should
         # produce equal results.
@@ -52,22 +61,26 @@ class GenPrepFileJob(Job):
 
             dst = join(self.output_path, self.run_id, project)
 
-            if self.is_amplicon:
-                if exists(amplicon_seq_dir):
-                    makedirs(dst, exist_ok=True)
-                    symlink(amplicon_seq_dir, join(dst, 'amplicon'))
-            else:
-                if exists(filtered_seq_dir):
-                    makedirs(dst, exist_ok=True)
-                    symlink(filtered_seq_dir, join(dst, 'filtered_sequences'))
+            if not self.is_restart:
+                # these will already be created if restarted.
+                if self.is_amplicon:
+                    if exists(amplicon_seq_dir):
+                        makedirs(dst, exist_ok=True)
+                        symlink(amplicon_seq_dir, join(dst, 'amplicon'))
+                else:
+                    if exists(filtered_seq_dir):
+                        makedirs(dst, exist_ok=True)
+                        symlink(filtered_seq_dir, join(dst,
+                                                       'filtered_sequences'))
 
-                if exists(trimmed_seq_dir):
-                    makedirs(dst, exist_ok=True)
-                    symlink(trimmed_seq_dir, join(dst, 'trimmed_sequences'))
+                    if exists(trimmed_seq_dir):
+                        makedirs(dst, exist_ok=True)
+                        symlink(trimmed_seq_dir, join(dst,
+                                                      'trimmed_sequences'))
 
-                if exists(fastp_rept_dir):
-                    makedirs(dst, exist_ok=True)
-                    symlink(fastp_rept_dir, join(dst, 'json'))
+                    if exists(fastp_rept_dir):
+                        makedirs(dst, exist_ok=True)
+                        symlink(fastp_rept_dir, join(dst, 'json'))
 
         # seqpro usage:
         # seqpro path/to/run_dir path/to/sample/sheet /path/to/fresh/output_dir

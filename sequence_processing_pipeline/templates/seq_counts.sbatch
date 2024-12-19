@@ -15,7 +15,7 @@ set -e
 
 mkdir -p {{output_path}}/logs
 
-files=($(cat {{output_path}}/files_to_count.txt))
+files=($(cat {{files_to_count_path}}))
 my_file=${files[$((${SLURM_ARRAY_TASK_ID} - 1))]}
 
 echo "${my_file}"

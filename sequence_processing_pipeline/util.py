@@ -1,20 +1,43 @@
 import re
 
 
-# PAIR_UNDERSCORE = (re.compile(r'_R1_'), '_R1_', '_R2_')
-# The above will truncate on the first _R1_ found, which only works when _R1_
-# or _R2_ appears exactly once in a file path. When the wet-lab incorporates
-# these same strings in their sample-names as descriptive metadata, this
-# assumption is broken. For all raw fastq files being used as input into
-# NuQCJob, we can assume they end in the following convention. Per Illumina
-# spec, all fastq files end in _001 and we preserve this convention even at
-# the cost of renaming output files from TRIntegrateJob.
-# PAIR_DOT is kept as is, but may be removed later because for the purposes of
-# SPP, no input should ever be named with dots instead of underscores.
-PAIR_UNDERSCORE = (re.compile(r'_R1_001.fastq.gz'),
-                   '_R1_001.fastq.gz', '_R2_001.fastq.gz')
+PAIR_UNDERSCORE = (re.compile(r'_R1_'), '_R1_', '_R2_')
 PAIR_DOT = (re.compile(r'\.R1\.'), '.R1.', '.R2.')
 PAIR_TESTS = (PAIR_UNDERSCORE, PAIR_DOT)
+
+
+def determine_orientation(file_name):
+    # aka forward, reverse, and indexed reads
+    orientations = ['R1', 'R2', 'I1', 'I2']
+
+    results = []
+
+    # assume orientation is always present in the file's name.
+    # assume that it is of one of the four forms above.
+    # assume that it is always the right-most occurance of the four
+    # orientations above.
+    # assume that orientation is encapsulated with either '_' or '.'
+    # e.g.: '_R1_', '.I2.'.
+    # assume users can and will include any or all of the four
+    # orientation as part of their filenames as well. e.g.:
+    # ABC_7_04_1776_R1_SRE_S3_L007_R2_001.trimmed.fastq.gz
+    for o in orientations:
+        variations = [f"_{o}_", f".{o}."]
+        for v in variations:
+            # rfind searches from the end of the string, rather than
+            # its beginning. It returns the position in the string
+            # where the substring begins.
+            results.append((file_name.rfind(v), o))
+
+    # the orientation will be the substring found with the maximum
+    # found value for pos. That is, it will be the substring that
+    # begins at the rightest most position in the file name.
+    results.sort(reverse=True)
+
+    pos, orientation = results[0]
+
+    # if no orientations were found, then return None.
+    return None if pos == -1 else orientation
 
 
 def iter_paired_files(files):
@@ -35,8 +58,22 @@ def iter_paired_files(files):
                 if r2_exp not in r2_fp:
                     raise ValueError(f"Cannot find '{r2_exp}' in '{r2_fp}'")
 
-                r1_prefix = r1_fp[:r1_fp.find(r1_exp)]
-                r2_prefix = r2_fp[:r2_fp.find(r2_exp)]
+                # replace find w/find so that search for R1 and R2 begin
+                # from the end of the string, not the beginning. This prevents
+                # the code from breaking when filenames include R1 and R2 as
+                # part of their name in addition to representing forward and
+                # reversed reads e.g.:
+                # LS_8_22_2014_R1_SRE_S3_L007_R1_001.trimmed.fastq.gz
+                # LS_8_22_2014_R1_SRE_S3_L007_R2_001.trimmed.fastq.gz
+                # using find(), r1_prefix and r2_prefix will be the following:
+                # r1_prefix will be: LS_8_22_2014
+                # r2_prefix will be: LS_8_22_2014_R1_SRE_S3_L007
+
+                # r1_prefix = r1_fp[:r1_fp.find(r1_exp)]
+                # r2_prefix = r2_fp[:r2_fp.find(r2_exp)]
+
+                r1_prefix = r1_fp[:r1_fp.rfind(r1_exp)]
+                r2_prefix = r2_fp[:r2_fp.rfind(r2_exp)]
 
                 if r1_prefix != r2_prefix:
                     raise ValueError(f"Mismatch prefixes:\n{r1_prefix}\n"
