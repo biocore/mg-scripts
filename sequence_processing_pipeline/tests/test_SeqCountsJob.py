@@ -76,7 +76,7 @@ class TestSeqCountsJob(unittest.TestCase):
         # assert_frame_equal will raise an AssertionError if the dfs are not
         # equal. The AssertionError message itself will be the have the
         # best description of the error so return it to the user.
-        assert_frame_equal(obs, exp)
+        assert_frame_equal(obs, exp, check_like=True)
 
 
 if __name__ == '__main__':
