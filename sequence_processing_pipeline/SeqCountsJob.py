@@ -235,6 +235,9 @@ class SeqCountsJob(Job):
 
         df.set_index(['Sample_ID', 'Lane'], verify_integrity=True)
 
+        # sort results into a predictable order for testing purposes
+        df = df.sort_values(by='Sample_ID')
+
         result_path = join(self.output_path, 'SeqCounts.csv')
         df.to_csv(result_path, index=False, sep=",")
 
