@@ -42,6 +42,42 @@ class CommandTests(unittest.TestCase):
             obs_1 = open(tmp + '/prefix-2').read()
             self.assertEqual(obs_1, exp_2)
 
+    @patch('os.stat')
+    @patch('glob.glob')
+    def test_split_similar_size_bins_odd_sample_names(self, glob, stat):
+        """
+        # to prevent issues w/filenames like the ones below from being mistaken
+        # for R1 or R2 files, use determine_orientation().
+        """
+        class MockStat:
+            st_size = 2 ** 28  # 256MB
+
+        mockglob = ['/foo/bar/Sample1_R1_001.fastq.gz',
+                    '/foo/bar/Sample2_R2_001.fastq.gz',
+                    '/foo/bar/Sample1_R2_001.fastq.gz',
+                    '/foo/baz/Sample3_R2_SRE_S2_L007_R1_001.fastq.gz',
+                    '/foo/baz/Sample3_R1_SRE_S2_L007_R2_001.fastq.gz',
+                    '/foo/bar/Sample2_R1_001.fastq.gz']
+
+        with TemporaryDirectory() as tmp:
+            exp = (2, 1073741824)
+            stat.return_value = MockStat()  # 512MB
+            glob.return_value = mockglob
+            obs = split_similar_size_bins('foo', 1, tmp + '/prefix')
+            self.assertEqual(obs, exp)
+
+            exp_1 = ('/foo/bar/Sample1_R1_001.fastq.gz\t/foo/bar/Sample1_R2_001.fastq.gz'
+                     '\tbar\n'
+                     '/foo/bar/Sample2_R1_001.fastq.gz\t/foo/bar/Sample2_R2_001.fastq.gz'
+                     '\tbar\n')
+            exp_2 = ('/foo/baz/Sample3_R1_SRE_S2_L007_R2_001.fastq.gz\t/foo/baz/Sample3_R2_SRE_S2_L007_R1_001.fastq.gz'
+                     '\tbaz\n')
+
+            obs_1 = open(tmp + '/prefix-1').read()
+            self.assertEqual(obs_1, exp_1)
+            obs_1 = open(tmp + '/prefix-2').read()
+            self.assertEqual(obs_1, exp_2)
+
     def test_demux(self):
         with TemporaryDirectory() as tmp:
             id_map = [

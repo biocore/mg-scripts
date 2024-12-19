@@ -1,11 +1,14 @@
-from os.path import join, split
+from collections import defaultdict
 from .Job import Job, KISSLoader
 from .PipelineError import JobFailedError
-import logging
-from jinja2 import Environment
-from os import walk
-from json import dumps
 from glob import glob
+from jinja2 import Environment
+from metapool import load_sample_sheet
+from os import walk
+from os.path import join, split
+import logging
+import pandas as pd
+import re
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -15,7 +18,7 @@ class SeqCountsJob(Job):
     def __init__(self, run_dir, output_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
                  qiita_job_id, max_array_length, files_to_count_path,
-                 cores_per_task=4):
+                 sample_sheet_path, cores_per_task=4):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -29,6 +32,7 @@ class SeqCountsJob(Job):
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param max_array_length: A hard-limit for array-sizes
         :param files_to_count_path: A path to a list of file-paths to count.
+        :param sample_sheet_path: A path to the sample-sheet.
         :param cores_per_task: (Optional) # of CPU cores per node to request.
         """
         super().__init__(run_dir,
@@ -50,6 +54,7 @@ class SeqCountsJob(Job):
 
         self.job_name = (f"seq_counts_{self.qiita_job_id}")
         self.files_to_count_path = files_to_count_path
+        self.sample_sheet_path = sample_sheet_path
 
         with open(self.files_to_count_path, 'r') as f:
             lines = f.readlines()
@@ -61,7 +66,7 @@ class SeqCountsJob(Job):
         job_script_path = self._generate_job_script()
         params = ['--parsable',
                   f'-J {self.job_name}',
-                  f'--array 1-{self.sample_count}']
+                  f'--array 1-{self.file_count}']
         try:
             self.job_info = self.submit_job(job_script_path,
                                             job_parameters=' '.join(params),
@@ -77,7 +82,7 @@ class SeqCountsJob(Job):
             info.insert(0, str(e))
             raise JobFailedError('\n'.join(info))
 
-        self._aggregate_counts()
+        self._aggregate_counts(self.sample_sheet_path)
 
         logging.debug(f'SeqCountJob {self.job_info["job_id"]} completed')
 
@@ -96,6 +101,7 @@ class SeqCountsJob(Job):
                 "cores_per_task": self.cores_per_task,
                 "queue_name": self.queue_name,
                 "file_count": self.file_count,
+                "files_to_count_path": self.files_to_count_path,
                 "output_path": self.output_path
             }))
 
@@ -113,18 +119,24 @@ class SeqCountsJob(Job):
 
         return [msg.strip() for msg in msgs]
 
-    def _aggregate_counts(self):
-        def extract_metadata(fp):
-            with open(fp, 'r') as f:
+    def _aggregate_counts_by_file(self):
+        # aggregates sequence & bp counts from a directory of log files.
+
+        def extract_metadata(log_output_file_path):
+            """
+            extracts sequence & bp counts from individual log files.
+            """
+            with open(log_output_file_path, 'r') as f:
                 lines = f.readlines()
                 lines = [x.strip() for x in lines]
                 if len(lines) != 2:
-                    raise ValueError("error processing %s" % fp)
+                    raise ValueError(
+                        "error processing %s" % log_output_file_path)
                 _dir, _file = split(lines[0])
                 seq_counts, base_pairs = lines[1].split('\t')
                 return _dir, _file, int(seq_counts), int(base_pairs)
 
-        results = {}
+        results = defaultdict(dict)
 
         for root, dirs, files in walk(self.log_path):
             for _file in files:
@@ -133,15 +145,97 @@ class SeqCountsJob(Job):
                     _dir, _file, seq_counts, base_pairs = \
                         extract_metadata(log_output_file)
 
-                    if _dir not in results:
-                        results[_dir] = {}
+                    results[_file] = {
+                        'seq_counts': seq_counts,
+                        'base_pairs': base_pairs
+                    }
 
-                    results[_dir][_file] = {'seq_counts': seq_counts,
-                                            'base_pairs': base_pairs}
+        return results
 
-        results_path = join(self.output_path, 'aggregate_counts.json')
+    def _aggregate_counts(self, sample_sheet_path):
+        """
+        Aggregate results by sample_ids and write to file.
+        Args:
+            sample_sheet_path:
 
-        with open(results_path, 'w') as f:
-            print(dumps(results, indent=2), file=f)
+        Returns: None
+        """
+        def get_metadata(sample_sheet_path):
+            sheet = load_sample_sheet(sample_sheet_path)
 
-        return results_path
+            lanes = []
+
+            if sheet.validate_and_scrub_sample_sheet():
+                results = {}
+
+                for sample in sheet.samples:
+                    barcode_id = sample['barcode_id']
+                    sample_id = sample['Sample_ID']
+                    lanes.append(sample['Lane'])
+                    results[barcode_id] = sample_id
+
+                lanes = list(set(lanes))
+
+                if len(lanes) != 1:
+                    raise ValueError(
+                        "More than one lane is declared in sample-sheet")
+
+                return results, lanes[0]
+
+        mapping, lane = get_metadata(sample_sheet_path)
+
+        # aggregate results by filename
+        by_files = self._aggregate_counts_by_file()
+
+        # aggregate results by sample. This means aggregating metadata
+        # across two file names.
+        counts = defaultdict(dict)
+
+        for _file in by_files:
+            if 'erroneous' in _file:
+                # for now, don't include sequences in erroneous files as part
+                # of the base counts.
+                continue
+
+            if re.match(r'TellReadJob_I1_C\d\d\d\.fastq.gz.corrected.err_'
+                        r'barcode_removed.fastq', _file):
+                # skip indexed read files. We only want counts from R1 and R2
+                # files.
+                continue
+
+            m = re.match(r'TellReadJob_(R\d)_(C\d\d\d)\.fastq.gz.corrected.'
+                         r'err_barcode_removed.fastq', _file)
+
+            if not m:
+                # if the filename doesn't match this pattern then unpredicted
+                # behavior has occured.
+                raise ValueError(
+                    "'%s' doesnt appear to be a valid file name." % _file)
+
+            orientation = m.group(1)
+            barcode_id = m.group(2)
+
+            sample_id = mapping[barcode_id]
+
+            counts[sample_id][orientation] = by_files[_file]['seq_counts']
+
+        sample_ids = []
+        read_counts = []
+        lanes = []
+
+        for sample_id in counts:
+            sample_ids.append(sample_id)
+            read_counts.append(counts[sample_id]['R1'] +
+                               counts[sample_id]['R2'])
+            lanes.append(lane)
+
+        df = pd.DataFrame(data={'Sample_ID': sample_ids,
+                                'raw_reads_r1r2': read_counts,
+                                'Lane': lanes})
+
+        df.set_index(['Sample_ID', 'Lane'], verify_integrity=True)
+
+        result_path = join(self.output_path, 'SeqCounts.csv')
+        df.to_csv(result_path, index=False, sep=",")
+
+        return result_path

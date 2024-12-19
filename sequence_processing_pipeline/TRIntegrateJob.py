@@ -6,8 +6,10 @@ from jinja2 import Environment
 from .Pipeline import Pipeline
 from .PipelineError import PipelineError
 from metapool import load_sample_sheet
-from os import makedirs
+from os import makedirs, walk
 from shutil import copyfile
+from collections import defaultdict
+import re
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -85,11 +87,6 @@ class TRIntegrateJob(Job):
         copyfile(self.sil_path,
                  join(self.output_path, 'sample_index_list.txt'))
 
-        # generate the tailored subset of adapter to barcode_id based on
-        # the proprietary lists owned by the manufacturer and supplied by
-        # the caller, and the barcode ids found in the sample-sheet.
-        self._generate_sample_index_list()
-
         makedirs(self.tmp_dir)
 
         params = ['--parsable',
@@ -161,3 +158,27 @@ class TRIntegrateJob(Job):
                 "output_dir": self.output_path}))
 
         return job_script_path
+
+    def audit(self):
+        def map_barcode_id_to_sample_id(barcode_id):
+            for s_id, _, b_id in self.sample_ids:
+                if barcode_id == b_id:
+                    return s_id
+
+        integrated = defaultdict(list)
+        for root, dirs, files in walk(join(self.output_path, 'integrated')):
+            for _file in files:
+                m = re.match(r"(C5\d\d)\.([R,I]\d)\.fastq.gz", _file)
+                if m:
+                    barcode_id, read = m.groups(1)
+                    integrated[barcode_id].append(read)
+
+        # a sample was processed successfully if all three expected reads are
+        # present.
+        failed = []
+        for barcode_id in integrated:
+            # we expect only the following read/orientations.
+            if not set(integrated[barcode_id]) == {'I1', 'R1', 'R2'}:
+                failed.append(map_barcode_id_to_sample_id(barcode_id))
+
+        return sorted(failed)
