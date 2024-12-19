@@ -6,6 +6,9 @@ from jinja2 import Environment
 from .Pipeline import Pipeline
 from .PipelineError import PipelineError
 from metapool import load_sample_sheet
+from os import walk
+import re
+from collections import defaultdict
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -172,3 +175,31 @@ class TellReadJob(Job):
             }))
 
         return job_script_path
+
+    def audit(self):
+        # this overriden audit method does not need sample-ids passed as a
+        # parameter because this job is already aware of what samples should
+        # be present and more importantly, how they map to barcode_ids.
+        def map_barcode_id_to_sample_id(barcode_id):
+            for s_id, _, b_id in self.sample_ids:
+                if barcode_id == b_id:
+                    return s_id
+
+        corrected = defaultdict(list)
+        for root, dirs, files in walk(join(self.output_path, 'Full')):
+            for _file in files:
+                m = re.match(r"TellReadJob_(.\d)_(C\d\d\d).fastq.gz.corrected."
+                             r"err_barcode_removed.fastq", _file)
+                if m:
+                    read, barcode_id = m.groups(1)
+                    corrected[barcode_id].append(read)
+
+        # a sample was processed successfully if all three expected reads are
+        # present.
+        failed = []
+        for barcode_id in corrected:
+            # we expect only the following read/orientations.
+            if not set(corrected[barcode_id]) == {'I1', 'R1', 'R2'}:
+                failed.append(map_barcode_id_to_sample_id(barcode_id))
+
+        return sorted(failed)
