@@ -66,12 +66,15 @@ class CommandTests(unittest.TestCase):
             obs = split_similar_size_bins('foo', 1, tmp + '/prefix')
             self.assertEqual(obs, exp)
 
-            exp_1 = ('/foo/bar/Sample1_R1_001.fastq.gz\t/foo/bar/Sample1_R2_001.fastq.gz'
-                     '\tbar\n'
-                     '/foo/bar/Sample2_R1_001.fastq.gz\t/foo/bar/Sample2_R2_001.fastq.gz'
-                     '\tbar\n')
-            exp_2 = ('/foo/baz/Sample3_R1_SRE_S2_L007_R2_001.fastq.gz\t/foo/baz/Sample3_R2_SRE_S2_L007_R1_001.fastq.gz'
-                     '\tbaz\n')
+            exp_1 = ('/foo/bar/Sample1_R1_001.fastq.gz\t'
+                     '/foo/bar/Sample1_R2_001.fastq.gz\t'
+                     'bar\n'
+                     '/foo/bar/Sample2_R1_001.fastq.gz\t'
+                     '/foo/bar/Sample2_R2_001.fastq.gz\t'
+                     'bar\n')
+            exp_2 = ('/foo/baz/Sample3_R1_SRE_S2_L007_R2_001.fastq.gz\t'
+                     '/foo/baz/Sample3_R2_SRE_S2_L007_R1_001.fastq.gz\t'
+                     'baz\n')
 
             obs_1 = open(tmp + '/prefix-1').read()
             self.assertEqual(obs_1, exp_1)
