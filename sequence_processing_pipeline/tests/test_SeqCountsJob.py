@@ -50,8 +50,6 @@ class TestSeqCountsJob(unittest.TestCase):
                 exp_lines = [x for x in exp_lines if x != '']
 
             for obs_line, exp_line in zip(obs_lines, exp_lines):
-                print("OBS: %s" % obs_line)
-                print("EXP: %s" % exp_line)
                 self.assertEqual(obs_line, exp_line)
 
         # test basic good-path

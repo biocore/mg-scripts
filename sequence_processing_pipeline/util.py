@@ -69,9 +69,6 @@ def iter_paired_files(files):
                 # r1_prefix will be: LS_8_22_2014
                 # r2_prefix will be: LS_8_22_2014_R1_SRE_S3_L007
 
-                # r1_prefix = r1_fp[:r1_fp.find(r1_exp)]
-                # r2_prefix = r2_fp[:r2_fp.find(r2_exp)]
-
                 r1_prefix = r1_fp[:r1_fp.rfind(r1_exp)]
                 r2_prefix = r2_fp[:r2_fp.rfind(r2_exp)]
 
