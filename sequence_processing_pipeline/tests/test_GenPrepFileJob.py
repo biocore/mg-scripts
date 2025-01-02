@@ -21,7 +21,8 @@ class TestGenPrepFileJob(unittest.TestCase):
         self.run_id = '210518_A00953_0305_TEST'
         self.run_dir = join(self.working_directory_root, self.run_id)
         self.convert_job_path = join(self.run_dir, 'ConvertJob')
-        makedirs(join(self.convert_job_path, 'Reports'), exist_ok=True)
+        self.reports_path = join(self.convert_job_path, 'Reports')
+        makedirs(self.reports_path, exist_ok=True)
         self.qc_job_path = join(self.run_dir, 'QCJob')
         self.project_list = ['Project1']
         makedirs(join(self.qc_job_path, self.project_list[0],
@@ -43,7 +44,9 @@ class TestGenPrepFileJob(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             self.reports_path)
+
         results = job._system_call(f'find {self.run_dir}')
         lines = results['stdout'].split('\n')
         lines = [re.sub(r'^.*?sequence_processing_pipeline\/', '', x)
@@ -82,7 +85,8 @@ class TestGenPrepFileJob(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             self.reports_path)
 
         # We cannot run the object and test the output that is returned from
         # seqpro, but we can test the helper method against canned stdout and
@@ -121,7 +125,8 @@ class TestReplication(unittest.TestCase):
         self.run_id = '210518_A00953_0305_TEST'
         self.run_dir = join(self.working_directory_root, self.run_id)
         self.convert_job_path = join(self.run_dir, 'ConvertJob')
-        makedirs(join(self.convert_job_path, 'Reports'), exist_ok=True)
+        self.reports_path = join(self.convert_job_path, 'Reports')
+        makedirs(self.reports_path, exist_ok=True)
         self.qc_job_path = join(self.run_dir, 'QCJob')
         self.project_list = ['Project1']
         makedirs(join(self.qc_job_path, self.project_list[0],
@@ -147,7 +152,8 @@ class TestReplication(unittest.TestCase):
                              sample_sheet_path,
                              'seqpro',
                              [],
-                             'abcdabcdabcdabcdabcdabcdabcdabcd')
+                             'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             self.reports_path)
 
         exp = [['seqpro', '--verbose',
                 ('sequence_processing_pipeline/b197f317-1c06-4619-9af3-'
@@ -196,6 +202,7 @@ class TestReplication(unittest.TestCase):
                              'seqpro',
                              [],
                              'abcdabcdabcdabcdabcdabcdabcdabcd',
+                             self.reports_path,
                              is_amplicon=True)
 
         exp = [['seqpro', '--verbose',
