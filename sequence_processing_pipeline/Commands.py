@@ -1,7 +1,8 @@
 import glob
 import gzip
 import os
-from sequence_processing_pipeline.util import iter_paired_files
+from sequence_processing_pipeline.util import (iter_paired_files,
+                                               determine_orientation)
 
 
 def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
@@ -13,17 +14,16 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     :param batch_prefix: Path + file-name prefix for output-files.
     :return: The number of output-files created, size of largest bin.
     '''
+    # to prevent issues w/filenames like the ones below from being mistaken
+    # for R1 or R2 files, use determine_orientation().
+    # LS_8_22_2014_R2_SRE_S2_L007_I1_001.fastq.gz
+    # LS_8_22_2014_R1_SRE_S3_L007_I1_001.fastq.gz
 
-    # SPP root paths are of the form:
-    # ../72dc6080-c453-418e-8a47-1ccd6d646a30/ConvertJob, and contain only
-    # directories named after projects e.g:
-    # 72dc6080-c453-418e-8a47-1ccd6d646a30/ConvertJob/Tell_Seq_15196.
-    # Each of these directories contain R1 and R2 fastq files. Hence, path
-    # is now the following:
-    # add one more level to account for project_names nested under ConvertJob
-    # dir.
-    # this will ignore the _I1_ reads that appear in the integrated result.
-    fastq_paths = glob.glob(data_location_path + '/*/*_R?_*.fastq.gz')
+    # since the names of all fastq files are being scanned for orientation,
+    # collect all of them instead of mistakenly pre-filtering some files.
+    fastq_paths = glob.glob(data_location_path + '/*/*.fastq.gz')
+    fastq_paths = [x for x in fastq_paths
+                   if determine_orientation(x) in ['R1', 'R2']]
 
     # convert from GB and halve as we sum R1
     max_size = (int(max_file_list_size_in_gb) * (2 ** 30) / 2)

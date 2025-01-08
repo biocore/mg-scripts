@@ -2,7 +2,8 @@ from os.path import join
 from sequence_processing_pipeline.SeqCountsJob import SeqCountsJob
 from functools import partial
 import unittest
-from json import load as json_load
+import pandas as pd
+from pandas.testing import assert_frame_equal
 
 
 class TestSeqCountsJob(unittest.TestCase):
@@ -31,8 +32,10 @@ class TestSeqCountsJob(unittest.TestCase):
         self.raw_fastq_dir = join(self.output_path, "TellReadJob", "Full")
         self.max_array_length = 100
         self.exp_sbatch_output = self.path("data", "seq_counts.sbatch")
-        self.exp_results = self.path("data",
-                                     "aggregate_counts_results.json")
+        self.exp_results = self.path("data", "SeqCounts.csv")
+        self.dummy_sample_sheet = self.path("data",
+                                            "tellseq_metag_dummy_sample"
+                                            "_sheet.csv")
 
     def test_creation(self):
         def compare_files(obs, exp):
@@ -64,10 +67,14 @@ class TestSeqCountsJob(unittest.TestCase):
         # the output directory for a run we didn't run().
         job.log_path = self.path("data", "seq_counts_logs")
 
-        obs = json_load(open(job._aggregate_counts(), 'r'))
-        exp = json_load(open(self.exp_results, 'r'))
+        obs = pd.read_csv(job._aggregate_counts(self.dummy_sample_sheet),
+                          sep=',', dtype='str')
+        exp = pd.read_csv(self.exp_results, sep=',', dtype='str')
 
-        self.assertDictEqual(obs, exp)
+        # assert_frame_equal will raise an AssertionError if the dfs are not
+        # equal. The AssertionError message itself will be the have the
+        # best description of the error so return it to the user.
+        assert_frame_equal(obs, exp, check_like=True)
 
 
 if __name__ == '__main__':

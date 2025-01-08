@@ -1,11 +1,14 @@
-from os.path import join, split
+from collections import defaultdict
 from .Job import Job, KISSLoader
 from .PipelineError import JobFailedError
-import logging
-from jinja2 import Environment
-from os import walk
-from json import dumps
 from glob import glob
+from jinja2 import Environment
+from metapool import load_sample_sheet
+from os import walk
+from os.path import join, split
+import logging
+import pandas as pd
+from sequence_processing_pipeline.util import determine_orientation
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -15,7 +18,7 @@ class SeqCountsJob(Job):
     def __init__(self, run_dir, output_path, queue_name,
                  node_count, wall_time_limit, jmem, modules_to_load,
                  qiita_job_id, max_array_length, files_to_count_path,
-                 cores_per_task=4):
+                 sample_sheet_path, cores_per_task=4):
         """
         ConvertJob provides a convenient way to run bcl-convert or bcl2fastq
         on a directory BCL files to generate Fastq files.
@@ -29,6 +32,7 @@ class SeqCountsJob(Job):
         :param qiita_job_id: identify Torque jobs using qiita_job_id
         :param max_array_length: A hard-limit for array-sizes
         :param files_to_count_path: A path to a list of file-paths to count.
+        :param sample_sheet_path: A path to the sample-sheet.
         :param cores_per_task: (Optional) # of CPU cores per node to request.
         """
         super().__init__(run_dir,
@@ -50,6 +54,7 @@ class SeqCountsJob(Job):
 
         self.job_name = (f"seq_counts_{self.qiita_job_id}")
         self.files_to_count_path = files_to_count_path
+        self.sample_sheet_path = sample_sheet_path
 
         with open(self.files_to_count_path, 'r') as f:
             lines = f.readlines()
@@ -61,7 +66,7 @@ class SeqCountsJob(Job):
         job_script_path = self._generate_job_script()
         params = ['--parsable',
                   f'-J {self.job_name}',
-                  f'--array 1-{self.sample_count}']
+                  f'--array 1-{self.file_count}']
         try:
             self.job_info = self.submit_job(job_script_path,
                                             job_parameters=' '.join(params),
@@ -77,7 +82,7 @@ class SeqCountsJob(Job):
             info.insert(0, str(e))
             raise JobFailedError('\n'.join(info))
 
-        self._aggregate_counts()
+        self._aggregate_counts(self.sample_sheet_path)
 
         logging.debug(f'SeqCountJob {self.job_info["job_id"]} completed')
 
@@ -96,6 +101,7 @@ class SeqCountsJob(Job):
                 "cores_per_task": self.cores_per_task,
                 "queue_name": self.queue_name,
                 "file_count": self.file_count,
+                "files_to_count_path": self.files_to_count_path,
                 "output_path": self.output_path
             }))
 
@@ -113,18 +119,24 @@ class SeqCountsJob(Job):
 
         return [msg.strip() for msg in msgs]
 
-    def _aggregate_counts(self):
-        def extract_metadata(fp):
-            with open(fp, 'r') as f:
+    def _aggregate_counts_by_file(self):
+        # aggregates sequence & bp counts from a directory of log files.
+
+        def extract_metadata(log_output_file_path):
+            """
+            extracts sequence & bp counts from individual log files.
+            """
+            with open(log_output_file_path, 'r') as f:
                 lines = f.readlines()
                 lines = [x.strip() for x in lines]
                 if len(lines) != 2:
-                    raise ValueError("error processing %s" % fp)
+                    raise ValueError(
+                        "error processing %s" % log_output_file_path)
                 _dir, _file = split(lines[0])
                 seq_counts, base_pairs = lines[1].split('\t')
                 return _dir, _file, int(seq_counts), int(base_pairs)
 
-        results = {}
+        results = defaultdict(dict)
 
         for root, dirs, files in walk(self.log_path):
             for _file in files:
@@ -133,15 +145,123 @@ class SeqCountsJob(Job):
                     _dir, _file, seq_counts, base_pairs = \
                         extract_metadata(log_output_file)
 
-                    if _dir not in results:
-                        results[_dir] = {}
+                    results[_file] = {
+                        'seq_counts': seq_counts,
+                        'base_pairs': base_pairs
+                    }
 
-                    results[_dir][_file] = {'seq_counts': seq_counts,
-                                            'base_pairs': base_pairs}
+        return results
 
-        results_path = join(self.output_path, 'aggregate_counts.json')
+    def _aggregate_counts(self, sample_sheet_path):
+        """
+        Aggregate results by sample_ids and write to file.
+        Args:
+            sample_sheet_path:
 
-        with open(results_path, 'w') as f:
-            print(dumps(results, indent=2), file=f)
+        Returns: None
+        """
+        def get_metadata(sample_sheet_path):
+            sheet = load_sample_sheet(sample_sheet_path)
 
-        return results_path
+            lanes = []
+
+            if sheet.validate_and_scrub_sample_sheet():
+                results = {}
+
+            for sample in sheet.samples:
+                sample_name = sample['Sample_Name']
+                sample_id = sample['Sample_ID']
+                lanes.append(sample['Lane'])
+                results[sample_id] = sample_name
+
+            lanes = list(set(lanes))
+
+            if len(lanes) != 1:
+                raise ValueError(
+                    "More than one lane is declared in sample-sheet")
+
+            return results, lanes[0]
+
+        # get lane number and sample-sheet names and ids
+        samples, lane = get_metadata(sample_sheet_path)
+
+        # aggregate results by filename
+        by_files = self._aggregate_counts_by_file()
+
+        # the per-sample-fastqs will be named according to sample-id. Generate
+        # a list of the sample-ids defined in the sample-sheet and sort them
+        # from longest to shortest. This allows us to match sample-ids to
+        # files correctly even when some sample-ids are subsets of longer
+        # sample-ids e.g.: 'T_LS_7_15_15B_SRE' and 'T_LS_7_15_15B'. This is
+        # important as SeqCounts is intended to count directories of fastq
+        # files that don't necessarily obey the standard Illumina naming
+        # convention e.g: samplename_S1_L001_R1_001.fastq.gz.
+        sample_ids = list(samples.keys())
+        sample_ids.sort(reverse=True, key=len)
+
+        results = defaultdict(list)
+
+        # generate a list of file names to associate with sample-ids.
+        # only count forward and reverse reads. don't count I? or any other
+        # type of file present.
+        file_names = [x for x in list(by_files.keys()) if
+                      determine_orientation(x) in ['R1', 'R2']]
+
+        for sample_id in sample_ids:
+            found = [x for x in file_names if x.startswith(sample_id)]
+
+            if len(found) == 0:
+                # zero file matches for a sample_id means that a per-sample
+                # fastq file was not generated at the stage referenced by the
+                # paths in self.files_to_count_path. For example, a per-sample
+                # fastq file may not have been generated by bcl-convert for a
+                # particular sample, or the filtered sample may be of zero-
+                # length. These things are normal operation and any error is
+                # going to be logged by those Job() objects. It's okay that
+                # a match wasn't found for a given sample_id defined in the
+                # sample-sheet.
+                continue
+
+            if len(found) != 2:
+                # Raise an error if more or less than two matches are found
+                # for a given sample-id because this our output must be the
+                # total sequence count for forward and reverse reads.
+                raise ValueError("Multiple file matches for sample-id "
+                                 f"'{sample_id}' found: {found}")
+
+            # remove the found elements from the list of files so they're
+            # not associated with additional sample-ids in a subsequent
+            # loop iteration.
+            file_names = list(set(file_names) - set(found))
+
+            results[sample_id] = found
+
+        # output the results in CSV format.
+        sample_ids = []
+        raw_reads_r1r2 = []
+        lanes = []
+
+        for sample_id in results:
+            sample_ids.append(sample_id)
+            found = results[sample_id]
+            seq_counts = 0
+
+            for _file in found:
+                seq_counts += by_files[_file]['seq_counts']
+
+            raw_reads_r1r2.append(seq_counts)
+            lanes.append(lane)
+
+        df = pd.DataFrame(data={'Sample_ID': sample_ids,
+                                'raw_reads_r1r2': raw_reads_r1r2,
+                                'Lane': lanes})
+
+        df.set_index(['Sample_ID', 'Lane'], verify_integrity=True)
+
+        # sort results into a predictable order for testing purposes
+        df = df.sort_values(by='Sample_ID')
+
+        result_path = join(self.output_path, 'SeqCounts.csv')
+        df.to_csv(result_path, index=False, sep=",")
+
+        return result_path
