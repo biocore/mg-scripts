@@ -14,7 +14,6 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
     :param batch_prefix: Path + file-name prefix for output-files.
     :return: The number of output-files created, size of largest bin.
     '''
-
     # to prevent issues w/filenames like the ones below from being mistaken
     # for R1 or R2 files, use determine_orientation().
     # LS_8_22_2014_R2_SRE_S2_L007_I1_001.fastq.gz
@@ -22,7 +21,6 @@ def split_similar_size_bins(data_location_path, max_file_list_size_in_gb,
 
     # since the names of all fastq files are being scanned for orientation,
     # collect all of them instead of mistakenly pre-filtering some files.
-    # fastq_paths = glob.glob(data_location_path + '/*/*_R?_*.fastq.gz')
     fastq_paths = glob.glob(data_location_path + '/*/*.fastq.gz')
     fastq_paths = [x for x in fastq_paths
                    if determine_orientation(x) in ['R1', 'R2']]
