@@ -278,8 +278,6 @@ class FastQCJob(Job):
         lines.append(f"#SBATCH -n {self.nprocs}")
         lines.append("#SBATCH --time %d" % self.wall_time_limit)
         lines.append(f"#SBATCH --mem {self.jmem}")
-        lines.append('#SBATCH --constraint="intel"')
-
         lines.append("#SBATCH --array 1-%d%%%d" % (
             len(self.commands), self.pool_size))
 
