@@ -19,4 +19,4 @@ offset=${SLURM_ARRAY_TASK_ID}
 step=$(( $offset - 0 ))
 cmd0=$(head -n $step {{array_details}} | tail -n 1)
 eval $cmd0
-echo "Cmd Completed: $cmd0" > logs/FastQCJob_$step.completed
+echo "Cmd Completed: $cmd0" > logs/MultiQCJob_$step.completed

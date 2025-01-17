@@ -37,7 +37,6 @@ class FastQCJob(Job):
 
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
 
-        self.project_names = []
         self.commands, self.project_names = self._get_commands()
         # for lists greater than n commands, chain the extra commands,
         # distributing them evenly throughout the first n commands.
