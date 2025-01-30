@@ -850,8 +850,13 @@ class Pipeline:
                 if CONTAINS_REPLICATES_KEY in bi_df.columns.tolist():
                     # subselect rows in [Bioinformatics] based on whether they
                     # match the project name.
-                    df = bi_df.loc[bi_df['Sample_Project'] ==
-                                   curr_project_info[proj_name_key]]
+
+                    # whether short_names or full_names are requested in the
+                    # results, the match will always need to be against the
+                    # full project name, which is what's expected to be in
+                    # the Sample_Project column.
+                    sample_project = curr_project_info[PROJECT_FULL_NAME_KEY]
+                    df = bi_df.loc[bi_df['Sample_Project'] == sample_project]
                     # since only one project can match by definition, convert
                     # to dict and extract the needed value.
                     curr_contains_reps = df.iloc[0].to_dict()[

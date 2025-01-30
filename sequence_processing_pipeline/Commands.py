@@ -119,6 +119,9 @@ def demux(id_map, fp, out_d, task, maxtask):
         # '@1', 'LH00444:84:227CNHLT4:7:1101:41955:2443/1 BX:Z:TATGACACATGCGGCCCT' # noqa
         # '@baz/1
 
+        # NB: from 6d794a37-12cd-4f8e-95d6-72a4b8a1ec1c's only-adapter-filtered results: # noqa
+        # @A00953:244:HYHYWDSXY:3:1101:14082:3740 1:N:0:CCGTAAGA+TCTAACGC
+
         fname_encoded, sid = i.split(delimiter, 1)
 
         if fname_encoded not in openfps:

@@ -2,7 +2,7 @@ from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
 from os.path import join, exists, basename
-from shutil import copytree
+from shutil import copy
 from functools import partial
 from collections import defaultdict
 from metapool import (demux_sample_sheet, parse_prep,
@@ -31,6 +31,11 @@ class GenPrepFileJob(Job):
         self.commands = []
         self.has_replicates = False
         self.replicate_count = 0
+        # instead of a directory, reports_path should point to the single file
+        # currently needed by seqpro. This means reports_path should equal:
+        # /.../ConvertJob/Reports/Demultiplex_Stats.csv not
+        # /.../ConvertJob/Reports.
+
         self.reports_path = reports_path
 
         # make the 'root' of your run_directory
@@ -39,14 +44,18 @@ class GenPrepFileJob(Job):
         # run_directory
 
         # This directory will already exist on restarts, hence avoid
-        # copying.
+        # copying. To support legacy seqpro, We will copy the single file
+        # seqpro needs into a clean sub-directory named 'Reports'. This can
+        # be fixed when seqpro is refactored.
         reports_dir = join(self.output_path, self.run_id, 'Reports')
 
         if exists(reports_dir):
             self.is_restart = True
         else:
             self.is_restart = False
-            copytree(self.reports_path, reports_dir)
+
+            makedirs(reports_dir)
+            copy(self.reports_path, reports_dir)
 
         # extracting from either convert_job_path or qc_job_path should
         # produce equal results.

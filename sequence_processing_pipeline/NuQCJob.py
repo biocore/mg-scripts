@@ -8,11 +8,13 @@ from sequence_processing_pipeline.Pipeline import Pipeline
 from shutil import move
 import logging
 from sequence_processing_pipeline.Commands import split_similar_size_bins
-from sequence_processing_pipeline.util import iter_paired_files
+from sequence_processing_pipeline.util import (iter_paired_files,
+                                               determine_orientation)
 from jinja2 import Environment
 from glob import glob
 import re
 from sys import executable
+from gzip import open as gzip_open
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -115,6 +117,63 @@ class NuQCJob(Job):
         self.json_regex = re.compile(r'^(.*)_S\d{1,4}_L\d{3}_R\d_\d{3}\.json$')
 
         self._validate_project_data()
+
+    def hack_helper(self):
+        # get list of raw compressed fastq files. only consider R1 and R2
+        # reads.
+
+        # Note that NuQCJob works across all projects in a sample-sheet. if
+        # there are more than one project in the sample-sheet and if one
+        # is a TellSeq project and one isn't then that would break an
+        # an assumption of this helper (one file is representative of all
+        # files.) However since tellseq requires a special sample-sheet, it
+        # can be assumed that all projects in a tellseq sample-sheet will be
+        # tellseq and therefore carry the TellSeq BX metadata. The inverse
+        # should also be true.
+
+        fastq_paths = glob(self.root_dir + '/*/*.fastq.gz')
+        fastq_paths = [x for x in fastq_paths
+                       if determine_orientation(x) in ['R1', 'R2']]
+
+        apply_bx = None
+
+        for fp in fastq_paths:
+            # open a compressed fastq file and read its first line.
+            with gzip_open(fp, 'r') as f:
+                line = f.readline()
+
+            # convert the line to regular text and remove newline.
+            line = line.decode("utf-8").strip()
+
+            # if file is empty process another file until we find
+            # one that isn't empty.
+            if line == '':
+                continue
+
+            # break up sequence id line into sequence id plus possible
+            # metadata element(s).
+            line = line.split(' ')
+
+            if len(line) == 1:
+                # there is no metadata. do not apply 'BX'.
+                apply_bx = False
+                break
+            elif len(line) == 2:
+                # there is some kind of additional metadata,
+                # but it may not be BX.
+                if line[-1].startswith('BX'):
+                    apply_bx = True
+                    break
+                else:
+                    apply_bx = False
+                    break
+            else:
+                raise ValueError("I don't know how to process '%s'" % line)
+
+        if apply_bx is None:
+            raise ValueError("It seems like all raw files are empty")
+
+        return apply_bx
 
     def _validate_project_data(self):
         # Validate project settings in [Bioinformatics]
@@ -394,15 +453,26 @@ class NuQCJob(Job):
 
         cores_to_allocate = int(self.cores_per_task / 2)
 
-        if len(self.additional_fastq_tags) > 0:
+        # hack_helper is a hack that will scan all of the R1 and R2 files
+        # in self.root_dir until it finds a non-empty file to read. It will
+        # read the first line of the compressed fastq file and see if it
+        # contains optional BX metadata. If not it will return False, other
+        # wise True.
+        apply_bx = self.hack_helper()
+
+        # the default setting.
+        tags = ""
+        t_switch = ""
+
+        if apply_bx & len(self.additional_fastq_tags) > 0:
             # add tags for known metadata types that fastq files may have
             # been annotated with. Samtools will safely ignore tags that
             # are not present.
+            # NB: This doesn't appear to be true, actually. if there is
+            # a metadata element but it does not begin with 'BX', supplying
+            # '-T BX' will cause an error writing output to disk.
             tags = " -T %s" % ','.join(self.additional_fastq_tags)
             t_switch = " -y"
-        else:
-            tags = ""
-            t_switch = ""
 
         for count, mmi_db_path in enumerate(self.mmi_file_paths):
             if count == 0:
@@ -499,3 +569,26 @@ class NuQCJob(Job):
                                     pmls_path=self.pmls_path))
 
         return job_script_path
+
+    def parse_logs(self):
+        log_path = join(self.output_path, 'logs')
+        files = sorted(glob(join(log_path, '*')))
+        msgs = []
+
+        # assume that the only possible files in logs directory are '.out'
+        # files and zero, one, or many 'seqs.movi.n.txt.gz' files.
+        # the latter may be present because the last step of a successful
+        # job is to rename and move this file into its final location while
+        # the logs directory is the default 'working' directory for this job
+        # as this ensures slurm.err and slurm.out files will always be in
+        # a known location.
+
+        # for now, construct lists of both of these types of files.
+        output_logs = [x for x in files if x.endswith('.out')]
+
+        for some_file in output_logs:
+            with open(some_file, 'r') as f:
+                msgs += [line for line in f.readlines()
+                         if 'error:' in line.lower()]
+
+        return [msg.strip() for msg in msgs]
