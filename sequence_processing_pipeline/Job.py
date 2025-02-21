@@ -126,6 +126,15 @@ class Job:
         """
         raise PipelineError("Base class run() method not implemented.")
 
+    def mark_job_completed(self):
+        with open(join(self.output_path, 'job_completed'), 'w') as f:
+            f.write("job_completed")
+
+    def mark_post_processing_completed(self):
+        with open(join(self.output_path,
+                       'post_processing_completed'), 'w') as f:
+            f.write("post_processing_completed")
+
     def parse_logs(self):
         # by default, look for anything to parse in the logs directory.
         log_path = join(self.output_path, 'logs')

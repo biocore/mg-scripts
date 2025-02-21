@@ -217,3 +217,5 @@ class GenPrepFileJob(Job):
                 results[qiita_id] += cmd_results[qiita_id]
 
         self.prep_file_paths = results
+
+        self.mark_job_completed()

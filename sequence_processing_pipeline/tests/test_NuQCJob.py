@@ -870,6 +870,7 @@ class TestNuQCJob(unittest.TestCase):
         if exists(self.tmp_file_path):
             remove(self.tmp_file_path)
 
+        # for test_move_trimmed_files()
         if exists(self.path("NuQCJob")):
             shutil.rmtree(self.path("NuQCJob"))
 

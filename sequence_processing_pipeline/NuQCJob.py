@@ -326,6 +326,9 @@ class NuQCJob(Job):
             raise JobFailedError('\n'.join(info))
 
         job_id = job_info['job_id']
+
+        self.mark_job_completed()
+
         logging.debug(f'NuQCJob {job_id} completed')
 
         for project in self.project_data:
@@ -401,6 +404,8 @@ class NuQCJob(Job):
                                            empty_files_directory,
                                            self.minimum_bytes)
 
+        self.mark_post_processing_completed()
+
     def _confirm_job_completed(self):
         # since NuQCJob processes across all projects in a run, there isn't
         # a need to iterate by project_name and job_id.
@@ -453,7 +458,7 @@ class NuQCJob(Job):
 
         cores_to_allocate = int(self.cores_per_task / 2)
 
-        # hack_helper is a hack that will scan all of the R1 and R2 files
+        # contains_bx_metadata() will scan all of the R1 and R2 files
         # in self.root_dir until it finds a non-empty file to read. It will
         # read the first line of the compressed fastq file and see if it
         # contains optional BX metadata. If not it will return False, other
