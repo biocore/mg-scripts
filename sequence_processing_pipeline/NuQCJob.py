@@ -118,7 +118,7 @@ class NuQCJob(Job):
 
         self._validate_project_data()
 
-    def hack_helper(self):
+    def contains_bx_metadata(self):
         # get list of raw compressed fastq files. only consider R1 and R2
         # reads.
 
@@ -458,7 +458,7 @@ class NuQCJob(Job):
         # read the first line of the compressed fastq file and see if it
         # contains optional BX metadata. If not it will return False, other
         # wise True.
-        apply_bx = self.hack_helper()
+        apply_bx = self.contains_bx_metadata()
 
         # the default setting.
         tags = ""

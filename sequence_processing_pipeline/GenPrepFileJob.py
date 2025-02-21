@@ -1,8 +1,8 @@
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
-from os.path import join, exists, basename
-from shutil import copy
+from os.path import isdir, join, exists, basename
+from shutil import copy, copytree
 from functools import partial
 from collections import defaultdict
 from metapool import (demux_sample_sheet, parse_prep,
@@ -54,8 +54,32 @@ class GenPrepFileJob(Job):
         else:
             self.is_restart = False
 
-            makedirs(reports_dir)
-            copy(self.reports_path, reports_dir)
+            """
+            With copytree(src, dst), src must be an existing directory and dst
+            must be a path that doesn't already exist.
+            src cannot be a file. it must be a directory.
+
+            when using copytree to copy a directory, dst must be the path to
+            the directory where you want the copy PLUS the name of the copied
+            directory. To give dst the same directory name as src you would
+            then need to split() the folder name off the end of src and append
+            it to dst to get a proper value. copytree() DOES NOT put a copy
+            of src in dst. More like it copies the entire contents of src
+            recursively into dst, however dst cannot already exist so you
+            can't use it to copy the contents of a directory into an existing
+            directory.
+
+            This means that if src is a file and not a directory, you will
+            need to use copy() to copy the file instead. It also means that
+            you will need to make reports_dir manually.
+            """
+
+            if isdir(self.reports_path):
+                copytree(self.reports_path, reports_dir)
+            else:
+                # assume self.reports_path is a file.
+                makedirs(reports_dir)
+                copy(self.reports_path, reports_dir)
 
         # extracting from either convert_job_path or qc_job_path should
         # produce equal results.
