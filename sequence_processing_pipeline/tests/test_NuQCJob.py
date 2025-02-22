@@ -76,9 +76,9 @@ class TestNuQCJob(unittest.TestCase):
                 rr_fp = join(sample_path, f"{id}_R2_001.fastq.gz")
 
                 with gzip.open(fr_fp, "wb") as f:
-                    f.write(b"@my_seq_id BX:1:1101:10000:10000\n")
+                    f.write(b"@my_seq_id BX:Z:TATGACACATGCGGCCCT\n")
                 with gzip.open(rr_fp, "wb") as f:
-                    f.write(b"@my_seq_id BX:1:1101:10000:10000\n")
+                    f.write(b"@my_seq_id BX:Z:TATGACACATGCGGCCCT\n")
 
         self.feist_ids = [
             "JM-MEC__Staphylococcus_aureusstrain_BERTI-R08624",

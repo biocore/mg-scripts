@@ -15,7 +15,7 @@ class MultiQCJob(Job):
                  processed_fastq_files_path, nprocs, nthreads, multiqc_path,
                  modules_to_load, qiita_job_id, queue_name, node_count,
                  wall_time_limit, jmem, pool_size,
-                 max_array_length, is_amplicon):
+                 max_array_length, multiqc_config_file_path, is_amplicon):
         super().__init__(run_dir,
                          output_path,
                          'MultiQCJob',
@@ -34,6 +34,7 @@ class MultiQCJob(Job):
         self.pool_size = pool_size
         self.raw_fastq_files_path = raw_fastq_files_path
         self.processed_fastq_files_path = processed_fastq_files_path
+        self.multiqc_config_file_path = multiqc_config_file_path
         self.is_amplicon = is_amplicon
 
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")

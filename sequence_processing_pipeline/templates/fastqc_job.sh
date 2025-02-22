@@ -13,7 +13,7 @@ hostname
 echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}
 cd {{output_path}}
 {% if modules_to_load is defined %}
-    module load {{modules_to_load}}
+module load {{modules_to_load}}
 {% endif %}
 offset=${SLURM_ARRAY_TASK_ID}
 step=$(( $offset - 0 ))
