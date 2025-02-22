@@ -14,7 +14,7 @@ class MultiQCJob(Job):
     def __init__(self, run_dir, output_path, raw_fastq_files_path,
                  processed_fastq_files_path, nprocs, nthreads, multiqc_path,
                  modules_to_load, qiita_job_id, queue_name, node_count,
-                 wall_time_limit, jmem, pool_size,
+                 wall_time_limit, jmem, pool_size, fastqc_root_path,
                  max_array_length, multiqc_config_file_path, is_amplicon):
         super().__init__(run_dir,
                          output_path,
@@ -36,6 +36,7 @@ class MultiQCJob(Job):
         self.processed_fastq_files_path = processed_fastq_files_path
         self.multiqc_config_file_path = multiqc_config_file_path
         self.is_amplicon = is_amplicon
+        self.fastqc_root_path = fastqc_root_path
 
         self.job_script_path = join(self.output_path, f"{self.job_name}.sh")
 
@@ -145,7 +146,8 @@ class MultiQCJob(Job):
             # MultiQC doesn't like input paths that don't exist. Simply add
             # all paths that do exist as input.
             input_path_list = []
-            p_path = partial(join, self.output_path, 'fastqc')
+
+            p_path = partial(join, self.fastqc_root_path, 'fastqc')
 
             for filter_type in ['bclconvert', 'trimmed_sequences',
                                 'filtered_sequences', 'amplicon']:

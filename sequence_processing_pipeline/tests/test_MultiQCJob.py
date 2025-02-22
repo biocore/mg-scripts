@@ -14,7 +14,7 @@ class TestMultiQCJob(unittest.TestCase):
         self.path = partial(join, package_root, 'tests', 'data')
         self.qiita_job_id = 'abcdabcdabcdabcdabcdabcdabcdabcd'
         self.output_path = self.path('output_dir2')
-        self.fastqc_log_path = join(self.output_path, 'logs')
+        self.multiqc_log_path = join(self.output_path, 'logs')
         self.raw_fastq_files_path = ('sequence_processing_pipeline/tests/data'
                                      '/211021_A00000_0000_SAMPLE/Data/Fastq/p'
                                      'roject1')
@@ -23,6 +23,7 @@ class TestMultiQCJob(unittest.TestCase):
                                            'mple-sequence-directory')
         self.config_yml = join(package_root, 'multiqc-bclconvert-config.yaml')
         self.qc_root_path = join(self.output_path, 'QCJob')
+        self.fastqc_root_path = join(self.output_path, 'FastQCJob')
         makedirs(self.qc_root_path, exist_ok=True)
 
         base_path = join(self.output_path, 'MultiQCJob')
@@ -49,8 +50,8 @@ class TestMultiQCJob(unittest.TestCase):
                 f2.write("This is a file.")
 
         # set up dummy logs
-        self.fastqc_log_path = join(self.output_path, "MultiQCJob", "logs")
-        makedirs(self.fastqc_log_path, exist_ok=True)
+        self.multiqc_log_path = join(self.output_path, "MultiQCJob", "logs")
+        makedirs(self.multiqc_log_path, exist_ok=True)
 
         log_files = {
             'slurm-9999999_35.out': ["---------------",
@@ -76,7 +77,7 @@ class TestMultiQCJob(unittest.TestCase):
         }
 
         for log_file in log_files:
-            fp = join(self.fastqc_log_path, log_file)
+            fp = join(self.multiqc_log_path, log_file)
 
             with open(fp, 'w') as f:
                 lines = log_files[log_file]
@@ -102,7 +103,8 @@ class TestMultiQCJob(unittest.TestCase):
                          16, 16,
                          'sequence_processing_pipeline/tests/bin/multiqc',
                          ['multiqc.2.0'], self.qiita_job_id, 'queue_name', 4,
-                         23, '8g', 30, 1000, "sequence_processing_pipeline/"
+                         23, '8g', 30, self.fastqc_root_path, 1000,
+                         "sequence_processing_pipeline/"
                          "multiqc-bclconvert-config.yaml", False)
 
         job_script_path = join(job.output_path, 'MultiQCJob.sh')
@@ -149,7 +151,8 @@ class TestMultiQCJob(unittest.TestCase):
                          16, 16,
                          'sequence_processing_pipeline/tests/bin/multiqc',
                          ['multiqc.2.0'], self.qiita_job_id, 'queue_name', 4,
-                         23, '8g', 30, 1000, "sequence_processing_pipeline/"
+                         23, '8g', 30, self.fastqc_root_path, 1000,
+                         "sequence_processing_pipeline/"
                          "multiqc-bclconvert-config.yaml", False)
 
         self.assertFalse(job is None)
