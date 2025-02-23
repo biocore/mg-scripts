@@ -8,6 +8,7 @@
 #SBATCH --array {{array_params}}
 set -x
 set +e
+set -o pipefail
 date
 hostname
 echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}

@@ -12,6 +12,7 @@
 
 set -x
 set -e
+set -o pipefail
 
 mkdir -p {{output_path}}/logs
 

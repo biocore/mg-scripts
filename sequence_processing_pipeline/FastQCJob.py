@@ -4,6 +4,7 @@ from json import dumps
 import logging
 from os import listdir, makedirs
 from os.path import join, basename
+from re import sub
 from sequence_processing_pipeline.Job import Job, KISSLoader
 from sequence_processing_pipeline.PipelineError import (PipelineError,
                                                         JobFailedError)
@@ -172,18 +173,15 @@ class FastQCJob(Job):
 
     def _get_failed_indexes(self, job_id):
         completed_files = self._find_files(self.output_path)
-        completed_files = [x for x in completed_files if
-                           x.endswith('.completed')]
 
-        completed_indexes = []
+        # remove path and .completed extension from file-name. e.g.:
+        # 'project1_0', 'project1_1', ..., 'project1_n'
+        completed_files = [sub(r'\.completed$', '', basename(fp)) for fp in
+                           completed_files if fp.endswith('.completed')]
 
-        for completed_file in completed_files:
-            # remove path and .completed extension from file-name. e.g.:
-            # 'project1_0', 'project1_1', ..., 'project1_n'
-            completed_file = basename(completed_file).replace('.completed', '')
-            # extract the line number in the .detailed file corresponding to
-            # the command used for this job
-            completed_indexes.append(int(completed_file.split('_')[-1]))
+        # extract the line number in the .detailed file corresponding to
+        # the command used for this job
+        completed_indexes = [int(cf.split('_')[-1]) for cf in completed_files]
 
         # a successfully completed job array should have a list of array
         # numbers from 0 - len(self.commands).

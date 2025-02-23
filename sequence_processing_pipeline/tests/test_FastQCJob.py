@@ -594,8 +594,9 @@ class TestFastQCJob(unittest.TestCase):
                "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_FastQCJob",
                "#SBATCH -p queue_name", "#SBATCH -N 4", "#SBATCH -n 16",
                "#SBATCH --time 23", "#SBATCH --mem 8gG",
-               "#SBATCH --array 1-4%30", "set -x", "set +e", "date",
-               "hostname", "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
+               "#SBATCH --array 1-4%30", "set -x", "set +e",
+               "set -o pipefail", "date", "hostname",
+               "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
                "cd sequence_processing_pipeline/tests/data/output_dir2/"
                "FastQCJob", "", "module load my_module.1.1", "",
                "offset=${SLURM_ARRAY_TASK_ID}", "step=$(( $offset - 0 ))",

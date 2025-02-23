@@ -116,8 +116,9 @@ class TestMultiQCJob(unittest.TestCase):
                "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_MultiQCJob",
                "#SBATCH -p queue_name", "#SBATCH -N 4", "#SBATCH -n 16",
                "#SBATCH --time 23", "#SBATCH --mem 8gG",
-               "#SBATCH --array 1-1%30", "set -x", "set +e", "date",
-               "hostname", "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
+               "#SBATCH --array 1-1%30", "set -x", "set +e",
+               "set -o pipefail", "date", "hostname",
+               "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
                "cd sequence_processing_pipeline/tests/data/output_dir2/"
                "MultiQCJob", "", "module load multiqc.2.0", "",
                "offset=${SLURM_ARRAY_TASK_ID}", "step=$(( $offset - 0 ))",
