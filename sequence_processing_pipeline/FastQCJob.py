@@ -213,7 +213,7 @@ class FastQCJob(Job):
             info = self.parse_logs()
             # prepend just the message component of the Error.
             info.insert(0, str(e))
-            raise JobFailedError('\n'.join(info))
+            raise JobFailedError('\n'.join(info)) from None
 
         logging.debug(job_info)
 
