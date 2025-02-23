@@ -117,7 +117,7 @@ class MultiQCJob(Job):
 
         # a successfully completed job array should have a list of array
         # numbers from 0 - len(self.commands).
-        all_indexes = [x for x in range(1, len(self.commands) + 1)]
+        all_indexes = list(range(1, len(self.commands) + 1))
         failed_indexes = sorted(set(all_indexes) - set(completed_indexes))
 
         # generate log-file here instead of in run() where it can be
