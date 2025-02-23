@@ -95,7 +95,7 @@ class MultiQCJob(Job):
 
         if projects:
             # remove duplicates
-            return list(set(projects))
+            return sorted(set(projects))
 
         raise PipelineError("There are no fastq files for MultiQCJob to "
                             "process")
