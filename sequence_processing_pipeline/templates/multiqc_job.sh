@@ -16,8 +16,7 @@ cd {{output_path}}
 {% if modules_to_load is defined %}
     module load {{modules_to_load}}
 {% endif %}
-offset=${SLURM_ARRAY_TASK_ID}
-step=$(( $offset - 0 ))
+step=${SLURM_ARRAY_TASK_ID}
 cmd0=$(head -n $step {{array_details}} | tail -n 1)
 eval $cmd0
 echo "Cmd Completed: $cmd0" > logs/MultiQCJob_$step.completed

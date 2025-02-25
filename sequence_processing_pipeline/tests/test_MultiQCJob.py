@@ -121,7 +121,7 @@ class TestMultiQCJob(unittest.TestCase):
                "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
                "cd sequence_processing_pipeline/tests/data/output_dir2/"
                "MultiQCJob", "", "module load multiqc.2.0", "",
-               "offset=${SLURM_ARRAY_TASK_ID}", "step=$(( $offset - 0 ))",
+               "step=${SLURM_ARRAY_TASK_ID}",
                "cmd0=$(head -n $step sequence_processing_pipeline/tests/data/"
                "output_dir2/MultiQCJob/MultiQCJob.array-details | tail -n 1)",
                "eval $cmd0", "echo \"Cmd Completed: $cmd0\" > logs/MultiQCJob_"
