@@ -46,7 +46,10 @@ class MultiQCJob(Job):
         # rather than the project's root path.
         self.jinja_env = Environment(loader=KISSLoader('templates'))
 
-        self._generate_job_script()
+        # bypass generating job script for a force-fail job, since it is
+        # not needed.
+        if not self.force_job_fail:
+            self._generate_job_script()
 
     def _find_projects(self):
         find_paths = [self.processed_fastq_files_path]
@@ -75,11 +78,11 @@ class MultiQCJob(Job):
                     # want included in the report.
                     file_path, file_name = split(_file)
 
-                    folders_present = [x for x in file_path.split(sep)
-                                       if x in ['zero_files',
-                                                'only-adapter-filtered']]
+                    ignore_this_file = [x for x in file_path.split(sep)
+                                        if x in ['zero_files',
+                                                 'only-adapter-filtered']]
 
-                    if folders_present:
+                    if ignore_this_file:
                         # if one or more of the folders are present in _file's
                         # path, then do not consider this file.
                         continue
@@ -113,19 +116,14 @@ class MultiQCJob(Job):
         # the command used for this job
         completed_indexes = [int(cf.split('_')[-1]) for cf in completed_files]
 
-        # a successfully completed job array should have a list of array
-        # numbers from 0 - len(self.commands).
         all_indexes = list(range(1, len(self.commands) + 1))
         failed_indexes = sorted(set(all_indexes) - set(completed_indexes))
 
         # generate log-file here instead of in run() where it can be
         # unittested more easily.
-        log_fp = join(self.output_path,
-                      'logs',
-                      f'failed_indexes_{job_id}.json')
-
         if failed_indexes:
-            with open(log_fp, 'w') as f:
+            with open(join(self.output_path, 'logs',
+                           f'failed_indexes_{job_id}.json'), 'w') as f:
                 f.write(dumps({'job_id': job_id,
                                'failed_indexes': failed_indexes}, indent=2))
 
@@ -180,11 +178,6 @@ class MultiQCJob(Job):
         return array_cmds
 
     def _generate_job_script(self):
-        # bypass generating job script for a force-fail job, since it is
-        # not needed.
-        if self.force_job_fail:
-            return None
-
         template = self.jinja_env.get_template("multiqc_job.sh")
 
         array_cmds = self._get_commands()
@@ -209,7 +202,7 @@ class MultiQCJob(Job):
 
         # save the .details file as well
         with open(array_details, 'w') as f:
-            f.write('\n'.join(array_cmds))
+            f.write('\n'.join(array_cmds) + '\n')
 
         return self.job_script_path
 

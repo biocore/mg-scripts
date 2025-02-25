@@ -31,17 +31,12 @@ class GenPrepFileJob(Job):
         self.commands = []
         self.has_replicates = False
         self.replicate_count = 0
-        # instead of a directory, reports_path should point to the single file
-        # currently needed by seqpro. This means reports_path should equal:
-        # /.../ConvertJob/Reports/Demultiplex_Stats.csv not
-        # /.../ConvertJob/Reports.
 
         self.reports_path = reports_path
 
-        # make the 'root' of your run_directory
+        # make the 'root' of the 'run_directory'. on restarts it will exist
+        # already.
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
-        # copy bcl-convert's Stats-equivalent directory to the
-        # run_directory
 
         # This directory will already exist on restarts, hence avoid
         # copying. To support legacy seqpro, We will copy the single file
@@ -49,30 +44,11 @@ class GenPrepFileJob(Job):
         # be fixed when seqpro is refactored.
         reports_dir = join(self.output_path, self.run_id, 'Reports')
 
+        # handle reports_path being either a directory or a file.
         if exists(reports_dir):
             self.is_restart = True
         else:
             self.is_restart = False
-
-            """
-            With copytree(src, dst), src must be an existing directory and dst
-            must be a path that doesn't already exist.
-            src cannot be a file. it must be a directory.
-
-            when using copytree to copy a directory, dst must be the path to
-            the directory where you want the copy PLUS the name of the copied
-            directory. To give dst the same directory name as src you would
-            then need to split() the folder name off the end of src and append
-            it to dst to get a proper value. copytree() DOES NOT put a copy
-            of src in dst. More like it copies the entire contents of src
-            recursively into dst, however dst cannot already exist so you
-            can't use it to copy the contents of a directory into an existing
-            directory.
-
-            This means that if src is a file and not a directory, you will
-            need to use copy() to copy the file instead. It also means that
-            you will need to make reports_dir manually.
-            """
 
             if isdir(self.reports_path):
                 copytree(self.reports_path, reports_dir)
