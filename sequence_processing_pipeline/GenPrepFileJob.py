@@ -1,8 +1,8 @@
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
 from os import makedirs, symlink
-from os.path import join, exists, basename
-from shutil import copytree
+from os.path import isdir, join, exists, basename
+from shutil import copy, copytree
 from functools import partial
 from collections import defaultdict
 from metapool import (demux_sample_sheet, parse_prep,
@@ -31,22 +31,31 @@ class GenPrepFileJob(Job):
         self.commands = []
         self.has_replicates = False
         self.replicate_count = 0
+
         self.reports_path = reports_path
 
-        # make the 'root' of your run_directory
+        # make the 'root' of the 'run_directory'. on restarts it will exist
+        # already.
         makedirs(join(self.output_path, self.run_id), exist_ok=True)
-        # copy bcl-convert's Stats-equivalent directory to the
-        # run_directory
 
         # This directory will already exist on restarts, hence avoid
-        # copying.
+        # copying. To support legacy seqpro, We will copy the single file
+        # seqpro needs into a clean sub-directory named 'Reports'. This can
+        # be fixed when seqpro is refactored.
         reports_dir = join(self.output_path, self.run_id, 'Reports')
 
+        # handle reports_path being either a directory or a file.
         if exists(reports_dir):
             self.is_restart = True
         else:
             self.is_restart = False
-            copytree(self.reports_path, reports_dir)
+
+            if isdir(self.reports_path):
+                copytree(self.reports_path, reports_dir)
+            else:
+                # assume self.reports_path is a file.
+                makedirs(reports_dir)
+                copy(self.reports_path, reports_dir)
 
         # extracting from either convert_job_path or qc_job_path should
         # produce equal results.
@@ -184,3 +193,5 @@ class GenPrepFileJob(Job):
                 results[qiita_id] += cmd_results[qiita_id]
 
         self.prep_file_paths = results
+
+        self.mark_job_completed()

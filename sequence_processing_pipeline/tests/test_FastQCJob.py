@@ -576,32 +576,75 @@ class TestFastQCJob(unittest.TestCase):
 
             rmtree(zero_path)
 
-    def test_config_file_not_found(self):
-        with self.assertRaises(PipelineError) as e:
-            FastQCJob(self.qc_root_path, self.output_path,
-                      self.raw_fastq_files_path.replace('/project1', ''),
-                      self.processed_fastq_files_path, 16, 16,
-                      'sequence_processing_pipeline/tests/bin/fastqc', [],
-                      self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                      ('sequence_processing_pipeline/'
-                       'not-multiqc-bclconvert-config.yaml'), 1000, False)
-
-        self.assertEqual(str(e.exception), "file 'sequence_processing_pipeline"
-                                           "/not-multiqc-bclconvert-config."
-                                           "yaml' does not exist.")
-
     def test_generate_job_scripts(self):
         job = FastQCJob(self.qc_root_path, self.output_path,
                         self.raw_fastq_files_path.replace('/project1', ''),
                         self.processed_fastq_files_path,
                         16, 16,
-                        'sequence_processing_pipeline/tests/bin/fastqc', [],
-                        self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000, False)
+                        'sequence_processing_pipeline/tests/bin/fastqc',
+                        ['my_module.1.1'], self.qiita_job_id, 'queue_name',
+                        4, 23, '8g', 30, 1000, False)
 
-        self.assertEqual(exists(join(job.output_path, 'FastQCJob.sh')), True)
-        self.assertEqual(exists(join(job.output_path,
-                                     'FastQCJob.array-details')), True)
+        job_script_path = join(job.output_path, 'FastQCJob.sh')
+        array_details_path = join(job.output_path, 'FastQCJob.array-details')
+        self.assertEqual(exists(job_script_path), True)
+        self.assertEqual(exists(array_details_path), True)
+
+        exp = ["#!/bin/bash",
+               "#SBATCH -J abcdabcdabcdabcdabcdabcdabcdabcd_FastQCJob",
+               "#SBATCH -p queue_name", "#SBATCH -N 4", "#SBATCH -n 16",
+               "#SBATCH --time 23", "#SBATCH --mem 8gG",
+               "#SBATCH --array 1-4%30", "set -x", "set +e",
+               "set -o pipefail", "date", "hostname",
+               "echo ${SLURM_JOBID} ${SLURM_ARRAY_TASK_ID}",
+               "cd sequence_processing_pipeline/tests/data/output_dir2/"
+               "FastQCJob", "", "module load my_module.1.1", "",
+               "step=${SLURM_ARRAY_TASK_ID}",
+               "cmd0=$(head -n $step sequence_processing_pipeline/tests/data/"
+               "output_dir2/FastQCJob/FastQCJob.array-details | tail -n 1)",
+               "eval $cmd0", "echo \"Cmd Completed: $cmd0\" > logs/FastQCJob_"
+               "$step.completed"]
+
+        with open(job_script_path, 'r') as f:
+            obs = f.readlines()
+            obs = [x.strip() for x in obs]
+
+        for a, b in zip(obs, exp):
+            self.assertEqual(a, b)
+
+        exp = ["fastqc --noextract -t 16 sequence_processing_pipeline/tests/da"
+               "ta/211021_A00000_0000_SAMPLE/Data/Fastq/project1/sample1_R1_.f"
+               "astq.gz sequence_processing_pipeline/tests/data/211021_A00000_"
+               "0000_SAMPLE/Data/Fastq/project1/sample1_R2_.fastq.gz -o sequen"
+               "ce_processing_pipeline/tests/data/output_dir2/FastQCJob/fastqc"
+               "/project1/bclconvert",
+               "fastqc --noextract -t 16 sequence_processing_pipeline/tests/da"
+               "ta/211021_A00000_0000_SAMPLE/Data/Fastq/project1/sample2_R1_.f"
+               "astq.gz sequence_processing_pipeline/tests/data/211021_A00000_"
+               "0000_SAMPLE/Data/Fastq/project1/sample2_R2_.fastq.gz -o sequen"
+               "ce_processing_pipeline/tests/data/output_dir2/FastQCJob/fastqc"
+               "/project1/bclconvert",
+               "fastqc --noextract -t 16 sequence_processing_pipeline/tests/da"
+               "ta/211021_A00000_0000_SAMPLE/sample-sequence-directory/project"
+               "1/filtered_sequences/sample1_R1_.trimmed.fastq.gz sequence_pro"
+               "cessing_pipeline/tests/data/211021_A00000_0000_SAMPLE/sample-s"
+               "equence-directory/project1/filtered_sequences/sample1_R2_.trim"
+               "med.fastq.gz -o sequence_processing_pipeline/tests/data/output"
+               "_dir2/FastQCJob/fastqc/project1/filtered_sequences",
+               "fastqc --noextract -t 16 sequence_processing_pipeline/tests/da"
+               "ta/211021_A00000_0000_SAMPLE/sample-sequence-directory/project"
+               "1/filtered_sequences/sample2_R1_.trimmed.fastq.gz sequence_pro"
+               "cessing_pipeline/tests/data/211021_A00000_0000_SAMPLE/sample-s"
+               "equence-directory/project1/filtered_sequences/sample2_R2_.trim"
+               "med.fastq.gz -o sequence_processing_pipeline/tests/data/output"
+               "_dir2/FastQCJob/fastqc/project1/filtered_sequences"]
+
+        with open(array_details_path, 'r') as f:
+            obs = f.readlines()
+            obs = [x.strip() for x in obs]
+
+        for a, b in zip(obs, exp):
+            self.assertEqual(a, b)
 
     def test_audit(self):
         job = FastQCJob(self.qc_root_path, self.output_path,
@@ -610,7 +653,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000, False)
+                        1000, False)
 
         obs = job.audit(self.sample_ids)
 
@@ -1044,7 +1087,7 @@ class TestFastQCJob(unittest.TestCase):
                       16, 16,
                       'sequence_processing_pipeline/tests/bin/fastqc', [],
                       self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                      self.config_yml, 1000, False)
+                      1000, False)
 
         self.assertEqual(str(e.exception), "There are no fastq files for "
                                            "FastQCJob to process in sequence"
@@ -1059,7 +1102,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000, False)
+                        1000, False)
 
         my_path = join(self.output_path, 'FastQCJob', 'logs')
 
@@ -1079,7 +1122,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000, False)
+                        1000, False)
 
         my_path = join(self.output_path, 'FastQCJob', 'logs')
 
@@ -1115,7 +1158,7 @@ class TestFastQCJob(unittest.TestCase):
                         16, 16,
                         'sequence_processing_pipeline/tests/bin/fastqc', [],
                         self.qiita_job_id, 'queue_name', 4, 23, '8g', 30,
-                        self.config_yml, 1000, False)
+                        1000, False)
 
         self.assertFalse(job is None)
 

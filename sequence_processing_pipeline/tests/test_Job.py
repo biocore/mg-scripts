@@ -1,7 +1,7 @@
 import unittest
 from sequence_processing_pipeline.Job import Job
 from sequence_processing_pipeline.PipelineError import PipelineError
-from os.path import abspath, join, dirname, split, isdir
+from os.path import abspath, join, dirname, split, isdir, exists
 from os import makedirs, chmod, remove
 from functools import partial
 from shutil import rmtree, copyfile
@@ -287,6 +287,22 @@ class TestJob(unittest.TestCase):
         # since wait_on_job_ids() now returns the same data structure as
         # query_slurm(), they should be equal.
         self.assertDictEqual(obs, results)
+
+    def test_mark_completed_commands(self):
+        package_root = abspath('./sequence_processing_pipeline')
+        self.path = partial(join, package_root, 'tests', 'data')
+
+        job = Job(self.path('211021_A00000_0000_SAMPLE'),
+                  self.path('my_output_dir'), '200nnn_xnnnnn_nnnn_xxxxxxxxxx',
+                  ['ls'], 2, None)
+
+        fp = join(job.output_path, 'job_completed')
+
+        self.assertFalse(exists(fp))
+
+        job.mark_job_completed()
+
+        self.assertTrue(exists(fp))
 
 
 if __name__ == '__main__':

@@ -82,7 +82,11 @@ class SeqCountsJob(Job):
             info.insert(0, str(e))
             raise JobFailedError('\n'.join(info))
 
+        self.mark_job_completed()
+
         self._aggregate_counts(self.sample_sheet_path)
+
+        self.mark_post_processing_completed()
 
         logging.debug(f'SeqCountJob {self.job_info["job_id"]} completed')
 

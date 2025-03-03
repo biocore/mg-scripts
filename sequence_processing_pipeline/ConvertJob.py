@@ -172,6 +172,8 @@ class ConvertJob(Job):
             info.insert(0, str(e))
             raise JobFailedError('\n'.join(info))
 
+        self. mark_job_completed()
+
         logging.info(f'Successful job: {job_info}')
 
     def parse_logs(self):

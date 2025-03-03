@@ -10,6 +10,7 @@ from sequence_processing_pipeline.PipelineError import (
 from os import makedirs, remove
 from metapool import load_sample_sheet
 from os import walk
+import gzip
 
 
 class TestNuQCJob(unittest.TestCase):
@@ -73,10 +74,11 @@ class TestNuQCJob(unittest.TestCase):
             for id in ids:
                 fr_fp = join(sample_path, f"{id}_R1_001.fastq.gz")
                 rr_fp = join(sample_path, f"{id}_R2_001.fastq.gz")
-                with open(fr_fp, "w") as f:
-                    f.write("This is a forward-read file.")
-                with open(rr_fp, "w") as f:
-                    f.write("This is a reverse-read file.")
+
+                with gzip.open(fr_fp, "wb") as f:
+                    f.write(b"@my_seq_id BX:Z:TATGACACATGCGGCCCT\n")
+                with gzip.open(rr_fp, "wb") as f:
+                    f.write(b"@my_seq_id BX:Z:TATGACACATGCGGCCCT\n")
 
         self.feist_ids = [
             "JM-MEC__Staphylococcus_aureusstrain_BERTI-R08624",

@@ -95,6 +95,8 @@ class TellReadJob(Job):
             info = str(e)
             raise JobFailedError('\n'.join(info))
 
+        self.mark_job_completed()
+
         logging.debug(f'TellReadJob {self.job_info["job_id"]} completed')
 
     def _process_sample_sheet(self):

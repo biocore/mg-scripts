@@ -267,6 +267,9 @@ class NuQCJob(Job):
             raise JobFailedError('\n'.join(info))
 
         job_id = job_info['job_id']
+
+        self.mark_job_completed()
+
         logging.debug(f'NuQCJob {job_id} completed')
 
         for project in self.project_data:
@@ -342,6 +345,8 @@ class NuQCJob(Job):
                                            empty_files_directory,
                                            self.minimum_bytes)
 
+        self.mark_post_processing_completed()
+
     def _confirm_job_completed(self):
         # since NuQCJob processes across all projects in a run, there isn't
         # a need to iterate by project_name and job_id.
@@ -394,15 +399,19 @@ class NuQCJob(Job):
 
         cores_to_allocate = int(self.cores_per_task / 2)
 
-        if len(self.additional_fastq_tags) > 0:
+        # the default setting.
+        tags = ""
+        t_switch = ""
+
+        if self.additional_fastq_tags:
             # add tags for known metadata types that fastq files may have
             # been annotated with. Samtools will safely ignore tags that
             # are not present.
+            # NB: This doesn't appear to be true, actually. if there is
+            # a metadata element but it does not begin with 'BX', supplying
+            # '-T BX' will cause an error writing output to disk.
             tags = " -T %s" % ','.join(self.additional_fastq_tags)
             t_switch = " -y"
-        else:
-            tags = ""
-            t_switch = ""
 
         for count, mmi_db_path in enumerate(self.mmi_file_paths):
             if count == 0:
@@ -499,3 +508,26 @@ class NuQCJob(Job):
                                     pmls_path=self.pmls_path))
 
         return job_script_path
+
+    def parse_logs(self):
+        log_path = join(self.output_path, 'logs')
+        files = sorted(glob(join(log_path, '*')))
+        msgs = []
+
+        # assume that the only possible files in logs directory are '.out'
+        # files and zero, one, or many 'seqs.movi.n.txt.gz' files.
+        # the latter may be present because the last step of a successful
+        # job is to rename and move this file into its final location while
+        # the logs directory is the default 'working' directory for this job
+        # as this ensures slurm.err and slurm.out files will always be in
+        # a known location.
+
+        # for now, construct lists of both of these types of files.
+        output_logs = [x for x in files if x.endswith('.out')]
+
+        for some_file in output_logs:
+            with open(some_file, 'r') as f:
+                msgs += [line.strip() for line in f.readlines()
+                         if 'error:' in line.lower()]
+
+        return msgs
