@@ -58,30 +58,23 @@ class FastQCJob(Job):
         """
         results = []
 
-        if self.is_amplicon:
-            # skip this step for amplicon runs since raw and processed are the
-            # same file.
-            project_names = []
-        else:
-            # gather the parameters for processing all relevant raw fastq
-            # files.
-            params, project_names = self._scan_fastq_files(True)
-
-            for fwd_file_path, rev_file_path, output_path in params:
-                command = ['fastqc', '--noextract', '-t', str(self.nthreads),
-                           fwd_file_path, rev_file_path, '-o', output_path]
-                results.append(' '.join(command))
-
-        # next, do the same for the trimmed/filtered fastq files.
-        params, additional_project_names = self._scan_fastq_files(False)
-
+        # gather the parameters for processing all relevant raw fastq
+        # files.
+        params, project_names = self._scan_fastq_files(True)
         for fwd_file_path, rev_file_path, output_path in params:
             command = ['fastqc', '--noextract', '-t', str(self.nthreads),
                        fwd_file_path, rev_file_path, '-o', output_path]
             results.append(' '.join(command))
 
-        # remove duplicate project names from the list
-        project_names = list(set(project_names + additional_project_names))
+        if not self.is_amplicon:
+            # next, do the same for the trimmed/filtered fastq files.
+            params, additional_project_names = self._scan_fastq_files(False)
+            for fwd_file_path, rev_file_path, output_path in params:
+                command = ['fastqc', '--noextract', '-t', str(self.nthreads),
+                           fwd_file_path, rev_file_path, '-o', output_path]
+                results.append(' '.join(command))
+            # remove duplicate project names from the list
+            project_names = list(set(project_names + additional_project_names))
 
         return results, project_names
 
