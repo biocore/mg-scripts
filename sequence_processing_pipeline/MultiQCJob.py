@@ -116,7 +116,7 @@ class MultiQCJob(Job):
         # the command used for this job
         completed_indexes = [int(cf.split('_')[-1]) for cf in completed_files]
 
-        all_indexes = list(range(1, len(self.commands) + 1))
+        all_indexes = list(range(1, len(self.array_cmds) + 1))
         failed_indexes = sorted(set(all_indexes) - set(completed_indexes))
 
         # generate log-file here instead of in run() where it can be
@@ -180,12 +180,12 @@ class MultiQCJob(Job):
     def _generate_job_script(self):
         template = self.jinja_env.get_template("multiqc_job.sh")
 
-        array_cmds = self._get_commands()
+        self.array_cmds = self._get_commands()
 
         job_name = f'{self.qiita_job_id}_{self.job_name}'
         details_file_name = f'{self.job_name}.array-details'
         array_details = join(self.output_path, details_file_name)
-        array_params = "1-%d%%%d" % (len(array_cmds), self.pool_size)
+        array_params = "1-%d%%%d" % (len(self.array_cmds), self.pool_size)
         modules_to_load = ' '.join(self.modules_to_load)
 
         with open(self.job_script_path, mode="w", encoding="utf-8") as f:
@@ -202,7 +202,7 @@ class MultiQCJob(Job):
 
         # save the .details file as well
         with open(array_details, 'w') as f:
-            f.write('\n'.join(array_cmds) + '\n')
+            f.write('\n'.join(self.array_cmds) + '\n')
 
         return self.job_script_path
 
