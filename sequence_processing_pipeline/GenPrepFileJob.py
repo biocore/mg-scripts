@@ -52,7 +52,7 @@ class GenPrepFileJob(Job):
 
             if isdir(self.reports_path):
                 copytree(self.reports_path, reports_dir)
-            else:
+            elif not self.is_amplicon:
                 # assume self.reports_path is a file.
                 makedirs(reports_dir)
                 copy(self.reports_path, reports_dir)

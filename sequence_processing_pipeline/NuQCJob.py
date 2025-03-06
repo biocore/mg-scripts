@@ -80,6 +80,7 @@ class NuQCJob(Job):
         self.gres_value = gres_value
         self.pmls_path = pmls_path
         self.additional_fastq_tags = additional_fastq_tags
+        self.audit_folders = ['filtered_sequences']
 
         # for projects that use sequence_processing_pipeline as a dependency,
         # jinja_env must be set to sequence_processing_pipeline's root path,

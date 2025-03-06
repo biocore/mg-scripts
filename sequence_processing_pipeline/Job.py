@@ -92,6 +92,8 @@ class Job:
         self.is_test = True if [
             x for x in stack() if 'unittest' in x.filename] else False
 
+        self.audit_folders = None
+
         # For each executable in the list, get its filename and use _which()
         # to see if it can be found. Directly pass an optional list of modules
         # to load before-hand, so that the binary can be found.
@@ -475,6 +477,10 @@ class Job:
         for root, dirs, files in walk(self.output_path):
             if 'zero_files' in root:
                 continue
+            if self.audit_folders is not None:
+                # let's check that any of the audit_folders is in root
+                if not [f for f in self.audit_folders if f in root]:
+                    continue
             files_found += [join(root, x) for x in files if
                             x.endswith(self.suffix)]
 
